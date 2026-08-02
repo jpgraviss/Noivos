@@ -90,6 +90,8 @@ A first-pass brand moodboard was supplied by the founder on 2026-08-02 (stored a
 
 **Resolved 2026-08-02:** the founder confirmed this moodboard — loud palette and all — is the default brand system, not a calmer compromise. The "Calm before color" principle from §5.1 is reinterpreted accordingly (restraint in layout/density, not in saturation) rather than treated as a mandate to mute the palette.
 
+**Locked 2026-08-02, ahead of Phase 4 (Design System):** icon library is **Lucide** for secondary/utility icons (primary nav stays bespoke); Success/Warning colors **reuse Sour Lime and Citrus** rather than adding new hexes.
+
 **Confirmed 2026-08-02:** the moodboard is a reference image only, not a live Canva design — Phase 2 will build the real brand system from scratch using it as creative direction, not by pulling forward an existing Canva asset.
 
 ## 6. Technical Decisions
@@ -123,7 +125,13 @@ Phase 3 (UX/UI Blueprint, `docs/03 UX/UX-UI Blueprint.md`) drafted and approved-
 | Personal vs. Shared visual model | Consistent ownership indicator (avatar glyph) on every card/row; filter/segment control rather than separate screens; sharing-status changes require explicit confirmation + activity-feed entry | Approved 2026-08-02 (Blueprint §4) |
 | Onboarding sequence | Sign up → solo setup → partner invite → (if accepted) shared Home moment → Wedding Mode opt-in → contextual Premium trial offer | Approved 2026-08-02 (Blueprint §5) |
 
-**Not yet founder-confirmed** (design judgment calls made to keep the drafting moving — flagged in Blueprint §11, tracked in Open Questions §8 below): Wedding Mode's tab consolidation (relabeling the Goals tab while Wedding Mode is active) and Weekly Money Meeting's placement as a Home card rather than a tab.
+**Confirmed 2026-08-02** (previously design judgment calls, now locked before Phase 4 drafting): Wedding Mode relabels the Goals tab to "Wedding" while active, reverting to "Goals" on Graduate; Weekly Money Meeting surfaces as a Home card, not its own tab or a buried settings page.
+
+### 7.1 Design System (Phase 4, 2026-08-02)
+
+`docs/03 UX/Design System.md` drafted, turning Brand Guidelines + UX/UI Blueprint into concrete tokens: semantic color tokens with a hard-enforced text-on-color pairing table (Design System §2), a Bebas Neue Bold/Inter type scale (§3), a 4pt spacing grid (§4), a corner-radius scale defaulting to pill buttons (§5), and a motion timing scale with a required reduced-motion fallback per celebratory moment (§7). One recommendation is flagged as **not yet founder-confirmed**: a glow-based elevation model in place of traditional drop shadows, since flat drop shadows read poorly on the Licorice dark background (§6) — needs visual validation before being locked.
+
+No code has been written yet — `packages/ui` stays a placeholder per Rule 1 until this document is approved; the first real code task afterward is a token file generated directly from it (Design System §9).
 
 ## 8. Open Questions
 
@@ -132,10 +140,7 @@ The 8 questions carried in this section as of the PRD draft were put to the foun
 1. **Premium billing on disconnect.** The confirmed disconnect decision (§4) covers *data visibility* (frozen read-only access). It does not cover what happens to the *Premium subscription itself* when a Partnership disconnects. Working assumption, not yet confirmed: the payer keeps Premium going forward, no refund/proration.
 2. **Legal review scheduling.** AI Financial Coach / Purchase Advisor guardrails are confirmed in principle (§4), but no legal review of the AI-advice posture has been scheduled. Recommend booking it before Phase 8 (AI Architecture) is finalized.
 3. **Trademark/domain screening timeline.** Confirmed "Noivos" hasn't been screened yet (§9). Recommend running the screen now, in parallel with Phase 2, rather than waiting until the Marketing Website phase — a conflict found after brand work is done would waste design effort.
-4. **Icon library choice.** Brand Guidelines (Phase 2) approved either Lucide or Phosphor for iconography but didn't pick one. Needs a decision before Phase 4 (Design System) component work begins — see `docs/03 UX/Brand Guidelines.md` §20.
-5. **Success/Warning color mapping.** Recommended (Sour Lime for Success, Citrus for Warning) but not yet explicitly confirmed by the founder — see `docs/03 UX/Brand Guidelines.md` §5.
-6. **Wedding Mode's nav placement.** UX Blueprint (Phase 3) recommends the Goals tab relabels to "Wedding" while Wedding Mode is active, reverting on Graduate, rather than using a 6th tab. Design judgment call, not yet put to the founder — see `docs/03 UX/UX-UI Blueprint.md` §3.2.
-7. **Weekly Money Meeting's nav placement.** UX Blueprint recommends a Home card as the primary entry point rather than a dedicated tab. Same status as #6 — see Blueprint §3.3.
+Items 4–7 from the previous round (icon library, Success/Warning color mapping, Wedding Mode nav placement, Money Meeting nav placement) were all confirmed by the founder on 2026-08-02 before Phase 4 drafting — see §4/§6/§7 and the Decision Log.
 
 Review this list at the start of every new work session — it will keep accumulating new forks as later architecture phases (Database, Backend, AI, Security) surface decisions that need founder input.
 
@@ -172,6 +177,7 @@ No open assumptions at this time — the working assumptions carried in the PRD 
 | 2026-08-02 | Approved Phase 2 Brand Statement — new color system (Electric Purple/Hot Coral/Acid Lime/Mint/Mango on Warm Ivory/Midnight), Sora/Inter typography, hand-drawn illustration style, AI/voice personality, design principles, logo and website direction | Founder supplied a complete, formal brand statement superseding the Phase 1 moodboard's specific palette and typography while keeping its underlying energy and illustration subjects | Drafted `docs/03 UX/Brand Guidelines.md`; updated §5 to record the new system as current (§5.1) while preserving the moodboard for history (§5.2); confirmed via founder Q&A that dark-mode text reuses Warm Ivory and the logo evolves the existing "N" mark rather than starting over; added icon-library choice (Lucide vs. Phosphor) as an open item |
 | 2026-08-02 | Reversed the Phase 2 entry above same-day: founder confirmed the Phase 1 moodboard, not the text Brand Statement, is the default brand system | Founder clarified "the one page I sent you" meant the original moodboard image, not the Brand Statement text, when asked directly | Rewrote `docs/03 UX/Brand Guidelines.md` to v2.0: moodboard's palette (Sour Lime/Sour Punch/Electric Blue/Citrus/Grape/Sour Cloud/Licorice) and Bebas Neue Bold typography now govern; Brand Statement's non-visual content (personality, tone, AI voice, design principles, motion, photography, website direction, brand promise, north star) kept as still in force; reinterpreted "Calm before color" given the now-default palette is vivid throughout; recomputed WCAG contrast table against the moodboard's actual hex values; added Success/Warning color mapping (Sour Lime/Citrus reuse) and a "which mode is primary" open item as new recommendations pending confirmation; restructured PROJECT_MEMORY.md §5 into §5.0/5.1/5.2 to keep both rounds fully intact |
 | 2026-08-02 | Drafted Phase 3 (UX/UI Blueprint): dark-mode-primary, 5-tab nav (Home/Budget/Goals/AI Coach/More), early-non-blocking partner invite, contextual Premium paywall | Founder confirmed all four via direct Q&A before drafting, since they shape onboarding and IA broadly | Wrote `docs/03 UX/UX-UI Blueprint.md`; updated §7 (UX Decisions) with the confirmed structure; added two design-judgment-call open items (Wedding Mode tab consolidation, Money Meeting placement) to §8 pending founder confirmation |
+| 2026-08-02 | Confirmed the four items still open from Phases 2–3 (icon library: Lucide; Success/Warning colors: Sour Lime/Citrus reuse; Wedding Mode relabels the Goals tab; Money Meeting stays a Home card), then drafted Phase 4 (Design System) | Founder answered all four directly before Phase 4 drafting so they wouldn't get silently baked into components | Updated Brand Guidelines §20 and UX/UI Blueprint §11 to mark items resolved; wrote `docs/03 UX/Design System.md` — color/type/spacing/radius/motion tokens, text-on-color enforcement table, core component specs; flagged a glow-based elevation model (§6) as a recommendation still pending visual validation |
 
 ---
 

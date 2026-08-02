@@ -118,9 +118,9 @@ Carried forward from the PRD's edge-case notes, resolved here in UX terms:
 
 ## 11. Open Items Carried to Later Phases
 
-- **Wedding Mode's tab consolidation (§3.2)** and **Money Meeting placement (§3.3)** were design judgment calls made here to keep the confirmed 5-tab structure intact — not yet put to the founder as explicit questions. Flagging both for confirmation before Phase 4 locks navigation components.
-- **Icon library choice** (Lucide vs. Phosphor, carried from Brand Guidelines §20) still needs a decision before Phase 4 component work.
-- **Success/Warning color mapping** and **primary appearance mode** were resolved between this document and Brand Guidelines — appearance mode is now locked (§2); Success/Warning mapping is still a recommendation pending confirmation (Brand Guidelines §5).
+- ~~Wedding Mode's tab consolidation (§3.2)~~ and ~~Money Meeting placement (§3.3)~~ — **both confirmed 2026-08-02** ahead of Phase 4 drafting.
+- ~~Icon library choice~~ — **confirmed 2026-08-02**: Lucide.
+- ~~Success/Warning color mapping~~ — **confirmed 2026-08-02**: Sour Lime / Citrus reuse.
 - Exact component anatomy, spacing scale, and motion timing values are intentionally deferred to the Design System (Phase 4) — this document defines structure and flow, not final visual specification.
 
 ---

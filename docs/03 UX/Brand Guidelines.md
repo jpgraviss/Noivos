@@ -148,10 +148,10 @@ Build a brand people wear on a hoodie — not just an app they download.
 
 ## 20. Open Items Carried to Later Phases
 
-- **Success/Warning color mapping** (Sour Lime/Citrus reuse, §5) — recommended, not yet confirmed.
-- **Icon library choice** for secondary/utility icons (Lucide vs. Phosphor, §7) — pick one before Phase 4 component work begins.
-- **Primary appearance mode** — dark (Licorice-based) vs. light (Sour Cloud-based) as the app's default, not just an available toggle (§14) — recommend deciding deliberately in Phase 3.
-- **Logo production** (final vector, monochrome variant, app-icon crop) — design execution, not specification (§16).
+- ~~Success/Warning color mapping~~ — **confirmed 2026-08-02**: Sour Lime (Success) and Citrus (Warning), no new hexes added.
+- ~~Icon library choice~~ — **confirmed 2026-08-02**: Lucide for secondary/utility icons; primary nav stays bespoke per the moodboard.
+- ~~Primary appearance mode~~ — **confirmed 2026-08-02** in the UX/UI Blueprint (`docs/03 UX/UX-UI Blueprint.md` §2): dark mode primary, light mode a toggle.
+- **Logo production** (final vector, monochrome variant, app-icon crop) — design execution, not specification (§16). Still outstanding.
 - **Tagline continuity** — "Better Money. Together." (from the moodboard) has not been contradicted by anything since and remains the working tagline.
 
 ---
