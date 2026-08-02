@@ -46,27 +46,29 @@ Help couples make smarter financial decisions **together** by replacing financia
 
 ## 5. Brand Decisions
 
-### 5.1 Approved Phase 2 Brand System (2026-08-02) — current
+### 5.0 Reversal (2026-08-02)
 
-The founder delivered a full, formal Brand Statement on 2026-08-02, drafted into `docs/03 UX/Brand Guidelines.md`. This **supersedes the specific palette and typography** of the Phase 1 moodboard below (§5.2), while carrying forward its underlying instinct (bold, human, not-corporate) and its illustration *subjects*. Full detail lives in the Brand Guidelines doc; summarized here so it's never lost:
+The founder directly confirmed the same day both rounds happened: **the Phase 1 moodboard (§5.2) is the default brand system, not the text Brand Statement's palette/typography (§5.1).** §5.1's visual specifics (Electric Purple/Sora color and type system) are superseded by the moodboard wherever the two disagree. §5.1's *non-visual* content — personality, keywords, tone of voice, AI personality, design principles, motion, photography, website direction, brand promise, north star — does not conflict with the moodboard and remains in force. Both rounds are kept in full below per the "never delete history" rule; `docs/03 UX/Brand Guidelines.md` v2.0 reflects this reversal.
 
-- **Brand statement:** a lifestyle brand that happens to help couples make smarter financial decisions together — closer to Sour Strips/Notion/Apple/Poppi/Liquid Death than a banking app.
-- **Personality:** Confident, Optimistic, Human, Playful (without childish), Premium, Relatable.
-- **Color system:** Primary Electric Purple `#6B4EFF`; Secondary Hot Coral `#FF6B6B`; Accent Acid Lime `#C7FF3D` (small moments only); Success Mint `#45E6B1`; Warning Mango `#FFB547`; Background Warm Ivory `#FBF9F4`; Dark mode Midnight `#161616`; Text Charcoal `#1F1F1F` (light mode).
-- **Dark-mode text color** (gap in the founder's brief, since Charcoal is unreadable on Midnight): **confirmed 2026-08-02 to reuse Warm Ivory `#FBF9F4`** for dark-mode text, keeping the "warm, never-pure" principle consistent in both modes.
-- **Typography:** Headlines in Sora; body in Inter; tabular numbers required throughout for all currency/numeric display.
-- **Iconography:** Lucide or Phosphor (single library choice still open — see Brand Guidelines §20).
-- **Illustration:** hand-drawn doodles/stickers/confetti/organic shapes, not stock illustration.
-- **Photography:** only authentic lifestyle moments (grocery runs, IKEA trips, moving boxes); never corporate/handshake/suit imagery.
-- **Logo:** **confirmed 2026-08-02** — evolve the Phase 1 moodboard's gradient "N" mark into the new palette/rounder geometry rather than redesigning from scratch. Production (final vector, monochrome, app-icon crop) is still outstanding design work.
-- **Design principles:** Calm before color; celebrate progress; real life first; personality over polish; build trust through simplicity.
-- **Brand promise:** "We help couples make smarter financial decisions — together. Not by telling them what to do. By giving them the clarity and confidence to decide together."
-- **North star:** Build a brand people wear on a hoodie, not just an app they download.
-- **Tagline continuity:** "Better Money. Together." (from the Phase 1 moodboard) was not revisited or contradicted — carried forward as the working tagline.
+### 5.1 Text Brand Statement (2026-08-02) — superseded on palette/type only, non-visual content still in force
 
-### 5.2 Phase 1 Brand Moodboard (2026-08-02) — superseded on palette/type, kept for history
+The founder delivered a full, formal Brand Statement on 2026-08-02, drafted into `docs/03 UX/Brand Guidelines.md` v1.0. Its color system and typography are **superseded by the Phase 1 moodboard (§5.2)** per §5.0 above. Preserved here in full so no content is lost:
 
-A first-pass brand moodboard was supplied by the founder on 2026-08-02 (stored at `docs/assets/brand/brand-moodboard-v1.png`). It was logged as **input to Phase 2**, not a locked system — and Phase 2 (above) has now formally superseded its specific palette (Sour Lime/Sour Punch/neon-on-black) and typography (Bebas Neue Bold). Preserved here in full per the "never delete history" rule.
+- **Brand statement:** a lifestyle brand that happens to help couples make smarter financial decisions together — closer to Sour Strips/Notion/Apple/Poppi/Liquid Death than a banking app. (Still in force — and notably, Sour Strips/Liquid Death are themselves bold, high-saturation brands, which is more consistent with the moodboard's neon energy than it first appeared.)
+- **Personality:** Confident, Optimistic, Human, Playful (without childish), Premium, Relatable. (Still in force.)
+- **Color system — superseded:** Primary Electric Purple `#6B4EFF`; Secondary Hot Coral `#FF6B6B`; Accent Acid Lime `#C7FF3D`; Success Mint `#45E6B1`; Warning Mango `#FFB547`; Background Warm Ivory `#FBF9F4`; Dark mode Midnight `#161616`; Text Charcoal `#1F1F1F`. No longer the default — see §5.2 for the palette now in force.
+- **Typography — superseded:** Sora headlines / Inter body. No longer the default for headlines — see §5.2 (Bebas Neue Bold). Inter for body text and tabular numbers for all numeric display are still in force (both rounds agreed on this).
+- **Iconography:** Lucide or Phosphor for secondary/utility icons — still in force as a candidate list (choice still open). Primary nav icons now follow the moodboard's bespoke colorful set instead.
+- **Illustration:** hand-drawn doodles/stickers/confetti/organic shapes — reinterpreted as the *secondary/accent layer* on top of the moodboard's bolder primary illustration style, not a replacement for it (see §5.2 and Brand Guidelines §8).
+- **Photography:** only authentic lifestyle moments; never corporate/handshake/suit imagery. Still in force — the moodboard didn't address photography.
+- **Logo:** still the moodboard's gradient "N" mark — no redesign needed, since the moodboard is now the default rather than a superseded predecessor. Production (final vector, monochrome, app-icon crop) is still outstanding design work.
+- **Design principles:** celebrate progress; real life first; personality over polish; build trust through simplicity — still in force. "Calm before color" is **reinterpreted** (2026-08-02) as restraint in layout/information density rather than in palette saturation, since the now-default moodboard palette is vivid throughout, not reserved for rare accents.
+- **Brand promise:** "We help couples make smarter financial decisions — together. Not by telling them what to do. By giving them the clarity and confidence to decide together." Still in force.
+- **North star:** Build a brand people wear on a hoodie, not just an app they download. Still in force.
+
+### 5.2 Phase 1 Brand Moodboard (2026-08-02) — **current default brand system**
+
+A first-pass brand moodboard was supplied by the founder on 2026-08-02 (stored at `docs/assets/brand/brand-moodboard-v1.png`). Originally logged as input to Phase 2 rather than a locked system, the founder has since confirmed **this is the brand to default to** — its palette, typography, logo, and illustration energy are the approved visual identity, superseding §5.1's palette/type where they disagree.
 
 - **Tagline:** "Better Money. Together."
 - **Logo concept:** Bold gradient "N" mark — a nudge forward, partnership, momentum, always moving forward together.
@@ -85,6 +87,8 @@ A first-pass brand moodboard was supplied by the founder on 2026-08-02 (stored a
 - **Brand vibe (as given):** Bold & Energetic, Warm & Human, Fun & Approachable, Trustworthy & Secure, Forward Momentum.
 
 **Open tension to resolve in Phase 2:** this moodboard skews closer to a Gen-Z lifestyle/candy-brand aesthetic (very high-saturation neon-on-black) than the "Apple / Notion / Linear" reference points named in the founder brief, which read calmer and more restrained. Both can be reconciled (energetic accent colors on a calm neutral base), but Phase 2 needs to explicitly decide how "loud" the day-to-day app UI is versus how loud the marketing site / brand moments are. Flagged, not decided.
+
+**Resolved 2026-08-02:** the founder confirmed this moodboard — loud palette and all — is the default brand system, not a calmer compromise. The "Calm before color" principle from §5.1 is reinterpreted accordingly (restraint in layout/density, not in saturation) rather than treated as a mandate to mute the palette.
 
 **Confirmed 2026-08-02:** the moodboard is a reference image only, not a live Canva design — Phase 2 will build the real brand system from scratch using it as creative direction, not by pulling forward an existing Canva asset.
 
@@ -152,6 +156,7 @@ No open assumptions at this time — the working assumptions carried in the PRD 
 | 2026-08-02 | Logged founder-supplied brand moodboard as Phase-2 input, not a locked brand system | Moodboard was shared as context, not formally approved as final brand guidelines | Phase 2 (Brand Guidelines) will formally reconcile and ratify brand direction |
 | 2026-08-02 | Resolved all 8 open questions from the PRD draft via direct founder Q&A: read-only-only money model, per-Partnership billing, web-first billing rollout (IAP/Play Billing added at mobile launch), US/USD/English launch scope, educational-only AI Financial Coach pending legal review, "Partnership" as the internal entity name, 14-day invite-gated free trial, and frozen-read-only disconnect visibility. Confirmed "Noivos" is incorporated but not yet trademark/domain-screened | Founder directed that remaining open questions be asked interactively via CLI rather than left as prose in chat | Promoted all 8 answers from Open Questions (§8) into Product/Technical Decisions (§4, §6); added a trademark/domain screening action item to Known Risks (§9); PRD (`docs/02 Product Requirements/PRD.md`) updated to match |
 | 2026-08-02 | Approved Phase 2 Brand Statement — new color system (Electric Purple/Hot Coral/Acid Lime/Mint/Mango on Warm Ivory/Midnight), Sora/Inter typography, hand-drawn illustration style, AI/voice personality, design principles, logo and website direction | Founder supplied a complete, formal brand statement superseding the Phase 1 moodboard's specific palette and typography while keeping its underlying energy and illustration subjects | Drafted `docs/03 UX/Brand Guidelines.md`; updated §5 to record the new system as current (§5.1) while preserving the moodboard for history (§5.2); confirmed via founder Q&A that dark-mode text reuses Warm Ivory and the logo evolves the existing "N" mark rather than starting over; added icon-library choice (Lucide vs. Phosphor) as an open item |
+| 2026-08-02 | Reversed the above same-day: founder confirmed the Phase 1 moodboard, not the text Brand Statement, is the default brand system | Founder clarified "the one page I sent you" meant the original moodboard image, not the Brand Statement text, when asked directly | Rewrote `docs/03 UX/Brand Guidelines.md` to v2.0: moodboard's palette (Sour Lime/Sour Punch/Electric Blue/Citrus/Grape/Sour Cloud/Licorice) and Bebas Neue Bold typography now govern; Brand Statement's non-visual content (personality, tone, AI voice, design principles, motion, photography, website direction, brand promise, north star) kept as still in force; reinterpreted "Calm before color" given the now-default palette is vivid throughout; recomputed WCAG contrast table against the moodboard's actual hex values; added Success/Warning color mapping (Sour Lime/Citrus reuse) and a "which mode is primary" open item as new recommendations pending confirmation; restructured PROJECT_MEMORY.md §5 into §5.0/5.1/5.2 to keep both rounds fully intact |
 
 ---
 

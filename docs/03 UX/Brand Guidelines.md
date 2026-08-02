@@ -1,11 +1,11 @@
 # Noivos — Brand Guidelines
 
-**Status:** Draft v1.0 — awaiting founder sign-off
+**Status:** Draft v2.0 — awaiting founder sign-off
 **Phase:** 2 of the Documentation Roadmap (see `docs/README.md`)
 **Last updated:** 2026-08-02
 **Source of truth precedence:** Downstream of `PROJECT_MEMORY.md` §5 (Brand Decisions), which is the permanent record of what's approved. If this document and that file ever disagree, `PROJECT_MEMORY.md` wins until reconciled.
 
-> **Supersession note.** The Phase 1 brand moodboard (`docs/assets/brand/brand-moodboard-v1.png` — Sour Lime/Sour Punch neon palette, Bebas Neue Bold headlines) was logged as *creative direction, not a locked system*. This document is the founder's formal Phase 2 brand direction and **supersedes the moodboard's specific palette and typography**. The moodboard's underlying instinct — bold, energetic, human, not-corporate — carries forward; its exact colors and type do not. Nothing is deleted from history; see `PROJECT_MEMORY.md` §5 and §12 for both rounds recorded side by side.
+> **Reversal note (2026-08-02).** v1.0 of this document treated the founder's text Brand Statement as superseding the Phase 1 moodboard's palette and typography. The founder has since confirmed the opposite: **the original moodboard (`docs/assets/brand/brand-moodboard-v1.png`) is the default brand system** — its color palette, typography, logo mark, and illustration energy govern wherever it and the text Brand Statement disagree. The text Brand Statement's *non-visual* content — personality, brand keywords, tone of voice, AI personality, motion philosophy, photography direction, design principles, website direction, brand promise, and north star — does not conflict with the moodboard and remains in force, folded in below. Nothing from either round is deleted; both are preserved in `PROJECT_MEMORY.md` §5.
 
 ---
 
@@ -15,7 +15,7 @@ We're not building a finance app. We're building a lifestyle brand that happens 
 
 The product should feel more like Sour Strips, Notion, Apple, Poppi, and Liquid Death than a traditional banking app. Every interaction should reduce financial anxiety while increasing confidence. The brand should make people excited to open the app — not because they have to, but because they want to.
 
-This is the direct, explicit resolution to the tension flagged at the end of Phase 1: the moodboard's high-saturation neon energy vs. the founder brief's "Apple / Notion / Linear" calm reference points. The answer, per this brand statement and the "Calm before color" design principle (§9), is a calm, premium base with color deployed deliberately, in small, high-leverage moments — not a loud interface throughout.
+Worth noting: Sour Strips and Liquid Death are themselves bold, high-saturation, unapologetically loud brands — which is fully consistent with defaulting to the moodboard's neon-on-black energy rather than a quieter Apple/Notion-only read. The two inputs are less in tension than they first appeared.
 
 ## 2. Brand Personality
 
@@ -34,57 +34,55 @@ Together · Progress · Confidence · Momentum · Partnership · Growth · Trans
 
 ## 4. Visual Direction
 
-Imagine if Apple designed a finance app, Sour Strips gave it a personality, Notion simplified everything, and Duolingo added delight. That's the feeling: restrained, confident structure with warmth and delight layered on top — never the reverse.
+The moodboard is the reference: bold, high-contrast neon color on dark and light surfaces, a confident gradient wordmark, graffiti/scrapbook-energy illustration, pill-shaped UI. Confident and unmistakable, per §2 — not restrained-to-the-point-of-generic.
 
 ## 5. Color System
 
+Colors, names, and roles as defined in the Phase 1 moodboard — this is the default palette.
+
 | Role | Name | Hex | Use |
 |---|---|---|---|
-| Primary | Electric Purple | `#6B4EFF` | Ownable, modern, unexpected — our signature color |
-| Secondary | Hot Coral | `#FF6B6B` | Celebrations, highlights, energy |
-| Accent | Acid Lime | `#C7FF3D` | Momentum, goals, progress — **small moments only** |
-| Success | Mint | `#45E6B1` | Savings, goals reached, healthy finances |
-| Warning | Mango | `#FFB547` | Attention, reminders, upcoming bills |
-| Background (light) | Warm Ivory | `#FBF9F4` | Never pure white — warm, comfortable |
-| Background (dark) | Midnight | `#161616` | Not black — premium |
-| Text (light mode) | Charcoal | `#1F1F1F` | Maximum readability on Warm Ivory |
-| Text (dark mode) | Warm Ivory | `#FBF9F4` | **Added 2026-08-02** — the brand statement specified light-mode text only; reusing Warm Ivory keeps the "warm, never-pure" principle consistent across both modes rather than switching to a cold pure white. Confirmed by founder. |
+| Primary | Sour Lime | `#C6FF00` | Signature color; primary buttons, key emphasis |
+| Secondary | Sour Punch | `#FF2D8E` | Celebrations, highlights, secondary buttons |
+| Accent | Electric Blue | `#0066FF` | Links, informational accents |
+| Highlight | Citrus | `#FFE600` | Momentum, attention-getting moments |
+| Info | Grape | `#8A2BE2` | Informational UI, AI Coach touches |
+| Surface (light) | Sour Cloud | `#F5F5F7` | Light-mode background/surface |
+| Background (dark) | Licorice | `#0D0D0F` | Dark-mode background |
+| Text (light mode) | Licorice | `#0D0D0F` | **Added 2026-08-02** — the moodboard didn't label a dedicated text swatch; reusing the darkest palette color for maximum readability on Sour Cloud, mirroring how Licorice already anchors the dark-mode background. |
+| Text (dark mode) | Sour Cloud | `#F5F5F7` | **Added 2026-08-02** — same logic in reverse: reusing the lightest palette color rather than introducing a new one. |
+
+**Also added 2026-08-02 — Success/Warning roles.** The moodboard didn't define these (it has Primary/Secondary/Accent/Highlight/Info/Surface/Dark BG, not Success/Warning), but the PRD's AI Insights and notification requirements (goal reached, savings streak, bill due) need them. Recommendation, not yet confirmed: reuse **Sour Lime** for Success (it already reads as energetic/positive) and **Citrus** for Warning (yellow conventionally reads as caution). This avoids adding new hex values to an already-locked palette, but should be confirmed before Phase 4 (Design System) locks color tokens.
 
 ### 5.1 Accessibility & Contrast Notes — added by CTO/design review
 
-The brand statement didn't specify text-on-color pairings, so this table exists to make sure the palette is actually usable, not just beautiful. Contrast ratios computed against WCAG 2.1 AA thresholds (4.5:1 normal text, 3:1 large text/UI components):
+Contrast ratios computed against WCAG 2.1 AA thresholds (4.5:1 normal text, 3:1 large text/UI components):
 
-| Surface | Charcoal text | White/Ivory text |
+| Surface | Licorice text | Sour Cloud / white text |
 |---|---|---|
-| Warm Ivory background | **15.7:1** — use for all body text | — |
-| Midnight background | fails (near-invisible) | **17–18:1** — use Warm Ivory or white |
-| Electric Purple | fails | **~5:1** — passes AA normal text; safe for button labels |
-| Hot Coral | **~5.9:1** — passes, use Charcoal | fails (~2.8:1) — do not use white text on coral |
-| Acid Lime | **~14:1** — use Charcoal | fails badly |
-| Mint | **~10.4:1** — use Charcoal | fails badly |
-| Mango | **~9.4:1** — use Charcoal | fails badly |
+| Sour Cloud (light-mode bg) | **17.8:1** — use for all light-mode body text | — |
+| Licorice (dark-mode bg) | fails (near-invisible) | **17.8:1** — use for all dark-mode body text |
+| Sour Lime | **16.4:1** — use Licorice | fails badly |
+| Sour Punch | **5.6:1** — passes, use Licorice | ~3.5:1 — fails normal text; large headline/UI use only |
+| Electric Blue | ~4.0:1 — large text/UI only, fails normal-text AA | **~4.8:1** — passes normal text (barely) |
+| Citrus | **15.3:1** — use Licorice | fails badly |
+| Grape | ~3.3:1 — large text/UI only, fails normal-text AA | **~6.0:1** — passes normal text |
 
-**Rule of thumb for engineering/design: Charcoal is the only text color that reliably passes AA on every accent color (Coral, Lime, Mint, Mango). Only Electric Purple and Midnight support light-colored text.** This should be encoded as a hard constraint in the Design System (Phase 4) component library — e.g., a "Badge" or "Pill" component should never allow a color/text-color combination outside this table, ideally enforced by the component API rather than left to per-screen judgment.
-
-Electric Purple as small text *on* Midnight (dark mode) sits at ~3.6:1 — fine for large text/icons/UI elements, not for body copy. Recommend a lightened "dark-mode tint" of Electric Purple for any body-text use in dark mode; Design System (Phase 4) should define it.
+**Rule of thumb: Licorice is the reliable text color on Sour Lime, Sour Punch, and Citrus. Sour Cloud/white is the reliable text color on Electric Blue and Grape.** Neither light nor dark text is safe on every accent — this needs to be a hard constraint in the Phase 4 component library (e.g., a button/badge component's allowed color × text-color combinations should be an enforced enum, not left to per-screen judgment), the same way it would for any palette this saturated.
 
 ## 6. Typography
 
-- **Headlines:** Sora — bold, rounded, friendly, confident.
-- **Body:** Inter — readable, modern, excellent on every platform.
-- **Numbers:** tabular figures throughout the app, so balances, budgets, and transactions align cleanly and feel polished. This is a hard requirement for any UI displaying currency or numeric data — not optional polish.
-
-*(Supersedes the Phase 1 moodboard's Bebas Neue Bold headline treatment — see supersession note above.)*
+- **Headlines:** Bebas Neue Bold — condensed, high-energy, matches the moodboard exactly.
+- **Body:** Inter — readable, modern, excellent on every platform. (Both brand inputs agreed on this one.)
+- **Numbers:** tabular figures throughout the app, so balances, budgets, and transactions align cleanly and feel polished. Carried forward from the text Brand Statement — a typographic detail, not a visual-identity conflict, so it stands.
 
 ## 7. Iconography
 
-Rounded, minimal, friendly. Use **Lucide** or **Phosphor** icon sets. Nothing corporate, nothing skeuomorphic. **Open item for Phase 4 (Design System):** pick one of Lucide or Phosphor as the single system-of-record — mixing both across the product would undercut the "one shared design system" principle in `PROJECT_MEMORY.md`.
+The moodboard shows a bespoke, colorful icon set for primary navigation (Home, Goals, Insights, Activity, AI Coach, Plan, Budget, Savings, Milestone, More) rendered in the brand's own palette — that's the default direction for primary nav icons, and will likely need custom illustration work to match rather than a generic outline library. For secondary/utility UI icons (chevrons, close buttons, form controls) where a bespoke icon isn't warranted, **Lucide** or **Phosphor** (rounded, minimal, non-corporate) remain reasonable system choices — pick one before Phase 4 component work begins.
 
 ## 8. Illustration Style
 
-No stock illustrations. Instead: hand-drawn doodles, sticker graphics, small stars, lightning bolts, hearts, confetti, arrows, organic shapes, playful accents. The app should feel alive.
-
-*(This is compatible with — and can absorb — the Phase 1 moodboard's illustration *subjects* — "Together," "Build a Life," "Reach Goals," "Celebrate Wins" — even though the rendering style shifts from bold graffiti/neon to hand-drawn doodle/sticker. Those subjects remain good creative briefs for Phase 4/8 illustration work.)*
+Primary illustration style follows the moodboard: bold, high-contrast, graffiti/scrapbook-energy full scenes (e.g., "Together," "Build a Life," "Reach Goals," "Celebrate Wins") — not flat, corporate, or stock. The text Brand Statement's guidance on hand-drawn doodles, sticker graphics, small stars, lightning bolts, hearts, confetti, arrows, and organic shapes isn't in conflict with this — read it as the **secondary/accent layer** (small decorative marks used around and on top of the primary illustrations and UI), not a replacement rendering style for the primary illustrations themselves.
 
 ## 9. Photography
 
@@ -94,7 +92,7 @@ Never: business handshakes, people in suits, corporate office photography, dolla
 
 ## 10. Motion
 
-Motion should reward, not distract. Small, fast, delightful. Reference moments: goal completed, partner joined, wedding funded, savings streak, purchase approved. Motion design detail (durations, easing curves, exact micro-interaction specs) is deferred to the Design System (Phase 4), but the *philosophy* — celebratory, brief, never gratuitous — is locked here.
+Motion should reward, not distract. Small, fast, delightful. Reference moments: goal completed, partner joined, wedding funded, savings streak, purchase approved. Exact micro-interaction specs (durations, easing) are deferred to the Design System (Phase 4); the philosophy — celebratory, brief, never gratuitous — is locked here.
 
 ## 11. AI Personality
 
@@ -106,7 +104,7 @@ Not:
 
 > "Purchase denied."
 
-Never shame. Never guilt. Always inform. This directly matches — and formally locks in brand voice terms — the AI Philosophy already approved in the PRD (`docs/02 Product Requirements/PRD.md` §14): informative, never prescriptive, never a verdict.
+Never shame. Never guilt. Always inform. This matches — and formally locks in brand voice terms for — the AI Philosophy already approved in the PRD (`docs/02 Product Requirements/PRD.md` §14): informative, never prescriptive, never a verdict.
 
 ## 12. Tone of Voice
 
@@ -118,11 +116,13 @@ Users should feel **"I've got this."** Never **"I'm bad with money."** Every pie
 
 ## 14. UI Philosophy
 
-Lots of breathing room. Rounded corners. Large typography. Big progress bars. Friendly cards. Micro-interactions everywhere. Minimal clutter. One primary action per screen. No information overload.
+Lots of breathing room. Rounded corners. Large typography. Big progress bars. Friendly cards. Micro-interactions everywhere. Minimal clutter. One primary action per screen. No information overload. Pill-shaped buttons and celebratory milestone cards, per the moodboard's UI element examples.
+
+**Open item — which mode is primary?** The moodboard's dark background (Licorice) is where the neon palette reads most vivid; a fintech app defaulting to dark mode (rather than treating it as an alternate) would be a distinctive, on-brand choice, not just a preference toggle. Recommend deciding this deliberately in Phase 3 (UX/UI Blueprint) rather than defaulting to the industry-standard "light mode primary."
 
 ## 15. Design Principles
 
-1. **Calm before color.** The interface stays clean; color appears only when something deserves attention.
+1. **Calm before color.** — **Reinterpreted 2026-08-02:** given the moodboard's palette is vivid throughout rather than reserved for rare accents, read this principle as *restraint in layout and information density*, not *restraint in saturation*. The interface should still feel uncluttered and single-focus per screen (§14) even though the palette itself is bold everywhere. Flagging this explicitly so it isn't silently applied in the original, more literal sense during Phase 3/4 UI work.
 2. **Celebrate progress.** Every financial win matters, even saving $20.
 3. **Real life first.** Design around how couples actually spend money, not accounting spreadsheets.
 4. **Personality over polish.** Don't be afraid of warmth — the brand should have a heartbeat.
@@ -130,9 +130,7 @@ Lots of breathing room. Rounded corners. Large typography. Big progress bars. Fr
 
 ## 16. Logo Direction
 
-Requirements: simple enough to recognize at 24px; strong enough to stand alone without text; rounded and approachable; modern, not trendy; instantly recognizable as an app icon; works in monochrome. Avoid obvious finance symbols — no dollar signs, piggy banks, or bar charts.
-
-**Confirmed 2026-08-02:** the Phase 1 moodboard's bold gradient "N" mark (a nudge forward, partnership, momentum) is the right underlying concept and should be **evolved, not replaced** — re-colored into the new system (an Electric Purple → Hot Coral gradient reads as a natural fit for "celebration, energy, momentum") and refined toward rounder, more approachable geometry to match §14's UI philosophy. Producing the actual refined mark (multiple weights, monochrome version, app-icon-specific crop) is design production work, not a documentation deliverable — flagged as the first concrete task for whoever executes Phase 4 (Design System) or a dedicated logo pass.
+The moodboard's bold gradient "N" mark (Sour Lime → Sour Punch, a nudge forward, partnership, momentum, always moving forward together) is the default logo. Requirements: simple enough to recognize at 24px; strong enough to stand alone without text; rounded and approachable; modern, not trendy; instantly recognizable as an app icon; works in monochrome. Avoid obvious finance symbols — no dollar signs, piggy banks, or bar charts. Producing final production assets (refined vector, monochrome variant, app-icon-specific crop) is design execution work, not a documentation deliverable — flagged as the first concrete task for Phase 4 (Design System) or a dedicated logo pass.
 
 ## 17. Website Direction
 
@@ -150,10 +148,11 @@ Build a brand people wear on a hoodie — not just an app they download.
 
 ## 20. Open Items Carried to Later Phases
 
-- **Icon library choice (Lucide vs. Phosphor)** — pick one before Phase 4 component work begins (§7).
-- **Dark-mode tint of Electric Purple** for body-text-weight use on Midnight backgrounds — needed before Phase 4 locks color tokens (§5.1).
-- **Logo production** (final vector, monochrome variant, app-icon crop) — design execution, not specification; first task for Phase 4 or a dedicated design pass (§16).
-- **Tagline continuity** — "Better Money. Together." (from the Phase 1 moodboard) was not explicitly revisited in this brand statement and is not contradicted by it. Carrying it forward as the working tagline unless the founder says otherwise.
+- **Success/Warning color mapping** (Sour Lime/Citrus reuse, §5) — recommended, not yet confirmed.
+- **Icon library choice** for secondary/utility icons (Lucide vs. Phosphor, §7) — pick one before Phase 4 component work begins.
+- **Primary appearance mode** — dark (Licorice-based) vs. light (Sour Cloud-based) as the app's default, not just an available toggle (§14) — recommend deciding deliberately in Phase 3.
+- **Logo production** (final vector, monochrome variant, app-icon crop) — design execution, not specification (§16).
+- **Tagline continuity** — "Better Money. Together." (from the moodboard) has not been contradicted by anything since and remains the working tagline.
 
 ---
 
