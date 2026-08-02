@@ -46,7 +46,27 @@ Help couples make smarter financial decisions **together** by replacing financia
 
 ## 5. Brand Decisions
 
-A first-pass brand moodboard was supplied by the founder on 2026-08-02 (stored at `docs/assets/brand/brand-moodboard-v1.png`). This is **input to Phase 2 (Brand Guidelines)** — treated as strong creative direction, not yet a locked system. Logged here so it is never lost or contradicted by later work.
+### 5.1 Approved Phase 2 Brand System (2026-08-02) — current
+
+The founder delivered a full, formal Brand Statement on 2026-08-02, drafted into `docs/03 UX/Brand Guidelines.md`. This **supersedes the specific palette and typography** of the Phase 1 moodboard below (§5.2), while carrying forward its underlying instinct (bold, human, not-corporate) and its illustration *subjects*. Full detail lives in the Brand Guidelines doc; summarized here so it's never lost:
+
+- **Brand statement:** a lifestyle brand that happens to help couples make smarter financial decisions together — closer to Sour Strips/Notion/Apple/Poppi/Liquid Death than a banking app.
+- **Personality:** Confident, Optimistic, Human, Playful (without childish), Premium, Relatable.
+- **Color system:** Primary Electric Purple `#6B4EFF`; Secondary Hot Coral `#FF6B6B`; Accent Acid Lime `#C7FF3D` (small moments only); Success Mint `#45E6B1`; Warning Mango `#FFB547`; Background Warm Ivory `#FBF9F4`; Dark mode Midnight `#161616`; Text Charcoal `#1F1F1F` (light mode).
+- **Dark-mode text color** (gap in the founder's brief, since Charcoal is unreadable on Midnight): **confirmed 2026-08-02 to reuse Warm Ivory `#FBF9F4`** for dark-mode text, keeping the "warm, never-pure" principle consistent in both modes.
+- **Typography:** Headlines in Sora; body in Inter; tabular numbers required throughout for all currency/numeric display.
+- **Iconography:** Lucide or Phosphor (single library choice still open — see Brand Guidelines §20).
+- **Illustration:** hand-drawn doodles/stickers/confetti/organic shapes, not stock illustration.
+- **Photography:** only authentic lifestyle moments (grocery runs, IKEA trips, moving boxes); never corporate/handshake/suit imagery.
+- **Logo:** **confirmed 2026-08-02** — evolve the Phase 1 moodboard's gradient "N" mark into the new palette/rounder geometry rather than redesigning from scratch. Production (final vector, monochrome, app-icon crop) is still outstanding design work.
+- **Design principles:** Calm before color; celebrate progress; real life first; personality over polish; build trust through simplicity.
+- **Brand promise:** "We help couples make smarter financial decisions — together. Not by telling them what to do. By giving them the clarity and confidence to decide together."
+- **North star:** Build a brand people wear on a hoodie, not just an app they download.
+- **Tagline continuity:** "Better Money. Together." (from the Phase 1 moodboard) was not revisited or contradicted — carried forward as the working tagline.
+
+### 5.2 Phase 1 Brand Moodboard (2026-08-02) — superseded on palette/type, kept for history
+
+A first-pass brand moodboard was supplied by the founder on 2026-08-02 (stored at `docs/assets/brand/brand-moodboard-v1.png`). It was logged as **input to Phase 2**, not a locked system — and Phase 2 (above) has now formally superseded its specific palette (Sour Lime/Sour Punch/neon-on-black) and typography (Bebas Neue Bold). Preserved here in full per the "never delete history" rule.
 
 - **Tagline:** "Better Money. Together."
 - **Logo concept:** Bold gradient "N" mark — a nudge forward, partnership, momentum, always moving forward together.
@@ -97,6 +117,7 @@ The 8 questions carried in this section as of the PRD draft were put to the foun
 1. **Premium billing on disconnect.** The confirmed disconnect decision (§4) covers *data visibility* (frozen read-only access). It does not cover what happens to the *Premium subscription itself* when a Partnership disconnects. Working assumption, not yet confirmed: the payer keeps Premium going forward, no refund/proration.
 2. **Legal review scheduling.** AI Financial Coach / Purchase Advisor guardrails are confirmed in principle (§4), but no legal review of the AI-advice posture has been scheduled. Recommend booking it before Phase 8 (AI Architecture) is finalized.
 3. **Trademark/domain screening timeline.** Confirmed "Noivos" hasn't been screened yet (§9). Recommend running the screen now, in parallel with Phase 2, rather than waiting until the Marketing Website phase — a conflict found after brand work is done would waste design effort.
+4. **Icon library choice.** Brand Guidelines (Phase 2) approved either Lucide or Phosphor for iconography but didn't pick one. Needs a decision before Phase 4 (Design System) component work begins — see `docs/03 UX/Brand Guidelines.md` §20.
 
 Review this list at the start of every new work session — it will keep accumulating new forks as later architecture phases (Database, Backend, AI, Security) surface decisions that need founder input.
 
@@ -130,6 +151,7 @@ No open assumptions at this time — the working assumptions carried in the PRD 
 | 2026-08-02 | Adopted repository skeleton (`apps/`, `packages/`, `docs/`, `infrastructure/`) | Founder specified professional monorepo structure as a standing requirement, independent of the phased documentation roadmap | No code was written into these folders — placeholders only, pending approved architecture docs |
 | 2026-08-02 | Logged founder-supplied brand moodboard as Phase-2 input, not a locked brand system | Moodboard was shared as context, not formally approved as final brand guidelines | Phase 2 (Brand Guidelines) will formally reconcile and ratify brand direction |
 | 2026-08-02 | Resolved all 8 open questions from the PRD draft via direct founder Q&A: read-only-only money model, per-Partnership billing, web-first billing rollout (IAP/Play Billing added at mobile launch), US/USD/English launch scope, educational-only AI Financial Coach pending legal review, "Partnership" as the internal entity name, 14-day invite-gated free trial, and frozen-read-only disconnect visibility. Confirmed "Noivos" is incorporated but not yet trademark/domain-screened | Founder directed that remaining open questions be asked interactively via CLI rather than left as prose in chat | Promoted all 8 answers from Open Questions (§8) into Product/Technical Decisions (§4, §6); added a trademark/domain screening action item to Known Risks (§9); PRD (`docs/02 Product Requirements/PRD.md`) updated to match |
+| 2026-08-02 | Approved Phase 2 Brand Statement — new color system (Electric Purple/Hot Coral/Acid Lime/Mint/Mango on Warm Ivory/Midnight), Sora/Inter typography, hand-drawn illustration style, AI/voice personality, design principles, logo and website direction | Founder supplied a complete, formal brand statement superseding the Phase 1 moodboard's specific palette and typography while keeping its underlying energy and illustration subjects | Drafted `docs/03 UX/Brand Guidelines.md`; updated §5 to record the new system as current (§5.1) while preserving the moodboard for history (§5.2); confirmed via founder Q&A that dark-mode text reuses Warm Ivory and the logo evolves the existing "N" mark rather than starting over; added icon-library choice (Lucide vs. Phosphor) as an open item |
 
 ---
 
