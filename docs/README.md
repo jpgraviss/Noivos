@@ -10,7 +10,7 @@ This directory is the source of truth for the Noivos product and engineering org
 3. UX/UI Blueprint — `03 UX/UX-UI Blueprint.md` ✅ drafted, awaiting approval
 4. Design System — `03 UX/Design System.md` ✅ drafted, awaiting approval (1 item — glow-based elevation — flagged for visual validation)
 5. Database Architecture — `04 Database/Database Architecture.md` ✅ drafted, awaiting approval (2 items — deletion grace period, Plaid encryption approach — flagged pending confirmation)
-6. Backend Architecture — in progress
+6. Backend Architecture — `07 Backend/Backend Architecture.md` ✅ drafted, awaiting approval (2 items — client/Supabase access pattern, Inngest vs. Trigger.dev — flagged pending confirmation)
 7. API Documentation — not started
 8. AI Architecture — not started
 9. Security Architecture — not started (baseline pass only, before coding; full compliance pass can come later)

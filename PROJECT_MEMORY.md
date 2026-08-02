@@ -112,6 +112,20 @@ A first-pass brand moodboard was supplied by the founder on 2026-08-02 (stored a
 
 No infrastructure, hosting, or CI/CD decisions have been made yet — deferred to the Infrastructure document (Phase 10).
 
+### 6.0 Backend Architecture (Phase 6, 2026-08-02)
+
+`docs/07 Backend/Backend Architecture.md` drafted. Key decisions:
+
+| Area | Decision | Status |
+|---|---|---|
+| Backend topology | **Vercel-hosted API layer (Next.js Route Handlers)** for custom logic (Plaid webhooks, billing reconciliation, AI orchestration, notifications); **Supabase stays scoped to Postgres/Auth/Storage**, not Edge Functions for business logic | Approved 2026-08-02 |
+| Plaid sync | **Webhook-driven with a daily reconciliation poll as backup** | Approved 2026-08-02 |
+| Background jobs | **Dedicated job/queue service — Inngest** (not Supabase `pg_cron`), given Vercel's serverless functions aren't suited to long-running/retryable workflows | Approved 2026-08-02 |
+| Auth passthrough | Even Vercel-mediated requests use a user-scoped Supabase client (the caller's JWT), so RLS still governs — service-role credentials reserved only for asynchronous/system-initiated writes (webhooks, scheduled jobs) with no live user session, and even then must replicate ownership/sharing rules in code | Approved 2026-08-02 |
+| Billing reconciliation | Stripe (web), Apple IAP + Google Play Billing (mobile, when it ships) all write to the same `subscriptions` table; Premium status is one computed read regardless of route | Approved 2026-08-02 |
+| Client-to-Supabase pattern | Recommend clients call Supabase **directly** for simple CRUD (RLS-protected), reserving the Vercel API layer for logic needing secrets/third-party calls/cross-cutting writes | Pending — design recommendation, not yet explicitly confirmed |
+| Job service specifics | Inngest picked over Trigger.dev as a reasonable default | Pending — lower-stakes, swappable |
+
 ### 6.1 Database Architecture (Phase 5, 2026-08-02)
 
 `docs/04 Database/Database Architecture.md` drafted. Key decisions:
@@ -162,6 +176,11 @@ New from Phase 5 (Database Architecture) drafting:
 1. **30-day account-deletion grace period.** Recommended in the Database Architecture doc (§12) but not one of the four questions explicitly asked before drafting — needs confirmation before the deletion-purge job is built.
 2. **Plaid token encryption approach.** Supabase Vault recommended as a technical choice; full sign-off deferred to Security Architecture (Phase 9), not urgent now.
 
+New from Phase 6 (Backend Architecture) drafting:
+
+3. **Client-to-Supabase access pattern.** Recommended: clients call Supabase directly for simple CRUD (RLS-protected), reserving the Vercel API layer for logic needing secrets/third-party calls — not one of the three founder-confirmed questions. Flag if a single consistent API surface (everything through Vercel) is preferred instead.
+4. **Inngest vs. Trigger.dev.** Inngest picked as a reasonable default for the job/queue service; low-stakes, swappable if there's a preference.
+
 Review this list at the start of every new work session — it will keep accumulating new forks as later architecture phases (Database, Backend, AI, Security) surface decisions that need founder input.
 
 ## 9. Known Risks
@@ -199,6 +218,7 @@ No open assumptions at this time — the working assumptions carried in the PRD 
 | 2026-08-02 | Drafted Phase 3 (UX/UI Blueprint): dark-mode-primary, 5-tab nav (Home/Budget/Goals/AI Coach/More), early-non-blocking partner invite, contextual Premium paywall | Founder confirmed all four via direct Q&A before drafting, since they shape onboarding and IA broadly | Wrote `docs/03 UX/UX-UI Blueprint.md`; updated §7 (UX Decisions) with the confirmed structure; added two design-judgment-call open items (Wedding Mode tab consolidation, Money Meeting placement) to §8 pending founder confirmation |
 | 2026-08-02 | Confirmed the four items still open from Phases 2–3 (icon library: Lucide; Success/Warning colors: Sour Lime/Citrus reuse; Wedding Mode relabels the Goals tab; Money Meeting stays a Home card), then drafted Phase 4 (Design System) | Founder answered all four directly before Phase 4 drafting so they wouldn't get silently baked into components | Updated Brand Guidelines §20 and UX/UI Blueprint §11 to mark items resolved; wrote `docs/03 UX/Design System.md` — color/type/spacing/radius/motion tokens, text-on-color enforcement table, core component specs; flagged a glow-based elevation model (§6) as a recommendation still pending visual validation |
 | 2026-08-02 | Confirmed data retention (keepsake by default, request-driven deletion), daily balance snapshots from V1, lightweight V1 audit logging (full trail deferred to Phase 9), and simple-ledger family contributions, then drafted Phase 5 (Database Architecture) | Founder answered all four directly before Phase 5 drafting since they're expensive to change once migrations exist | Wrote `docs/04 Database/Database Architecture.md` — full entity model, RLS-based privacy enforcement strategy, one-active-partnership constraint, disconnect freeze mechanics, retention/deletion policy, encryption recommendation (Supabase Vault); added a hard rule that AI/background services must never use a service-role key that bypasses RLS |
+| 2026-08-02 | Confirmed backend topology (Vercel API layer + Supabase Postgres/Auth/Storage, not Edge Functions), Plaid sync strategy (webhook + daily reconciliation poll), and job scheduling (Inngest, not pg_cron), then drafted Phase 6 (Backend Architecture) | Founder answered all three directly before drafting since they set the shape of every subsequent backend/API/AI phase | Wrote `docs/07 Backend/Backend Architecture.md` — system topology diagram, auth-passthrough rule (RLS still governs even through the API layer, service-role reserved for async/system-initiated writes only), Plaid integration flow, billing entitlement reconciliation across Stripe/IAP/Play Billing, AI service boundary (context assembly must use the same RLS-respecting path), background job list, notification dispatch |
 | 2026-08-02 | Re-sequenced the Documentation Roadmap: "fast-track to code" — prioritize Backend Architecture, API Documentation, AI Architecture, a Security Architecture baseline, and Frontend Architecture (the 5 remaining docs that actually gate engineering), then start building. Marketing Website, Admin Dashboard, Analytics, Testing Strategy, Launch Strategy, Business Plan, and Investor Documentation deferred, not skipped | Founder asked how much planning remained; offered a full-sequence option and a fast-track option distinguishing engineering-blocking docs from business/marketing docs that don't gate code — founder chose fast-track | Updated `docs/README.md` roadmap to reflect the new priority order and mark 7 documents as deferred-not-skipped; no change to already-approved documents |
 
 ---
