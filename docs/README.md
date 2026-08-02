@@ -11,11 +11,13 @@ This directory is the source of truth for the Noivos product and engineering org
 4. Design System — `03 UX/Design System.md` ✅ drafted, awaiting approval (1 item — glow-based elevation — flagged for visual validation)
 5. Database Architecture — `04 Database/Database Architecture.md` ✅ drafted, awaiting approval (2 items — deletion grace period, Plaid encryption approach — flagged pending confirmation)
 6. Backend Architecture — `07 Backend/Backend Architecture.md` ✅ drafted, awaiting approval (2 items — client/Supabase access pattern, Inngest vs. Trigger.dev — flagged pending confirmation)
-7. API Documentation — not started
-8. AI Architecture — not started
-9. Security Architecture — not started (baseline pass only, before coding; full compliance pass can come later)
-10. Infrastructure — not started (expected to be quick — Supabase/Vercel/Expo are already chosen)
-11. Frontend Architecture — not started
+7. API Documentation — `05 API/API Documentation.md` ✅ drafted, awaiting approval
+8. AI Architecture — `06 AI/AI Architecture.md` ✅ drafted, awaiting approval (model version deliberately left unpinned — see doc §8)
+9. Security Architecture — `12 Security/Security Architecture.md` ✅ drafted — **baseline only, by design**; full compliance pass (SOC 2, pen testing, incident-response plan) explicitly deferred to before public launch
+10. Infrastructure — not started (expected to be quick — Supabase/Vercel/Expo are already chosen; not one of the 5 fast-track docs, can be picked up alongside early engineering)
+11. Frontend Architecture — `08 Frontend/Frontend Architecture.md` ✅ drafted, awaiting approval
+
+**Fast-track list complete.** All 5 documents that gate writing application code are drafted. Infrastructure (10) wasn't part of that 5 — it gates *deploying*, not coding — and can be picked up quickly alongside early engineering rather than blocking the start.
 
 **Deferred — not blocking engineering, to run later or in parallel:**
 12. Marketing Website
