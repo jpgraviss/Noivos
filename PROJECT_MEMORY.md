@@ -112,6 +112,21 @@ A first-pass brand moodboard was supplied by the founder on 2026-08-02 (stored a
 
 No infrastructure, hosting, or CI/CD decisions have been made yet — deferred to the Infrastructure document (Phase 10).
 
+### 6.1 Database Architecture (Phase 5, 2026-08-02)
+
+`docs/04 Database/Database Architecture.md` drafted. Key decisions:
+
+| Area | Decision | Status |
+|---|---|---|
+| Privacy enforcement | Postgres Row-Level Security is the actual privacy gate (not application code) — every personal/shared table checks `owner_id` or `partnership_id` + `is_shared` via RLS policies | Approved 2026-08-02 |
+| One active Partnership | Enforced by a partial unique index on `partnership_members`, not just app logic | Approved 2026-08-02 |
+| Data retention on disconnect/deletion | Shared data from a disconnected Partnership retained indefinitely as a keepsake; account deletion is request-driven, with a recommended (not yet confirmed) 30-day soft-delete grace period | Approved 2026-08-02 (retention policy); grace period is a pending recommendation |
+| Balance history | Daily `account_balance_snapshots` captured from V1, not deferred | Approved 2026-08-02 |
+| Audit logging | Lightweight for V1 (`created_at`/`updated_at` + soft-delete only); full audit trail deferred to Security Architecture (Phase 9) | Approved 2026-08-02 |
+| Wedding family contributions | Simple ledger line (name/amount/note), no structured contributor entity, no implied account access | Approved 2026-08-02 |
+| Plaid token encryption | Recommend Supabase Vault (pgsodium-backed) | Pending — technical recommendation, Phase 9 will confirm |
+| AI context assembly | AI service must query through the same RLS-respecting role as the app — never a service-role key that bypasses RLS — flagged as a hard rule for Phase 6/8 | Approved 2026-08-02 |
+
 ## 7. UX Decisions
 
 Phase 3 (UX/UI Blueprint, `docs/03 UX/UX-UI Blueprint.md`) drafted and approved-pending-sign-off 2026-08-02:
@@ -141,6 +156,11 @@ The 8 questions carried in this section as of the PRD draft were put to the foun
 2. **Legal review scheduling.** AI Financial Coach / Purchase Advisor guardrails are confirmed in principle (§4), but no legal review of the AI-advice posture has been scheduled. Recommend booking it before Phase 8 (AI Architecture) is finalized.
 3. **Trademark/domain screening timeline.** Confirmed "Noivos" hasn't been screened yet (§9). Recommend running the screen now, in parallel with Phase 2, rather than waiting until the Marketing Website phase — a conflict found after brand work is done would waste design effort.
 Items 4–7 from the previous round (icon library, Success/Warning color mapping, Wedding Mode nav placement, Money Meeting nav placement) were all confirmed by the founder on 2026-08-02 before Phase 4 drafting — see §4/§6/§7 and the Decision Log.
+
+New from Phase 5 (Database Architecture) drafting:
+
+1. **30-day account-deletion grace period.** Recommended in the Database Architecture doc (§12) but not one of the four questions explicitly asked before drafting — needs confirmation before the deletion-purge job is built.
+2. **Plaid token encryption approach.** Supabase Vault recommended as a technical choice; full sign-off deferred to Security Architecture (Phase 9), not urgent now.
 
 Review this list at the start of every new work session — it will keep accumulating new forks as later architecture phases (Database, Backend, AI, Security) surface decisions that need founder input.
 
@@ -178,6 +198,7 @@ No open assumptions at this time — the working assumptions carried in the PRD 
 | 2026-08-02 | Reversed the Phase 2 entry above same-day: founder confirmed the Phase 1 moodboard, not the text Brand Statement, is the default brand system | Founder clarified "the one page I sent you" meant the original moodboard image, not the Brand Statement text, when asked directly | Rewrote `docs/03 UX/Brand Guidelines.md` to v2.0: moodboard's palette (Sour Lime/Sour Punch/Electric Blue/Citrus/Grape/Sour Cloud/Licorice) and Bebas Neue Bold typography now govern; Brand Statement's non-visual content (personality, tone, AI voice, design principles, motion, photography, website direction, brand promise, north star) kept as still in force; reinterpreted "Calm before color" given the now-default palette is vivid throughout; recomputed WCAG contrast table against the moodboard's actual hex values; added Success/Warning color mapping (Sour Lime/Citrus reuse) and a "which mode is primary" open item as new recommendations pending confirmation; restructured PROJECT_MEMORY.md §5 into §5.0/5.1/5.2 to keep both rounds fully intact |
 | 2026-08-02 | Drafted Phase 3 (UX/UI Blueprint): dark-mode-primary, 5-tab nav (Home/Budget/Goals/AI Coach/More), early-non-blocking partner invite, contextual Premium paywall | Founder confirmed all four via direct Q&A before drafting, since they shape onboarding and IA broadly | Wrote `docs/03 UX/UX-UI Blueprint.md`; updated §7 (UX Decisions) with the confirmed structure; added two design-judgment-call open items (Wedding Mode tab consolidation, Money Meeting placement) to §8 pending founder confirmation |
 | 2026-08-02 | Confirmed the four items still open from Phases 2–3 (icon library: Lucide; Success/Warning colors: Sour Lime/Citrus reuse; Wedding Mode relabels the Goals tab; Money Meeting stays a Home card), then drafted Phase 4 (Design System) | Founder answered all four directly before Phase 4 drafting so they wouldn't get silently baked into components | Updated Brand Guidelines §20 and UX/UI Blueprint §11 to mark items resolved; wrote `docs/03 UX/Design System.md` — color/type/spacing/radius/motion tokens, text-on-color enforcement table, core component specs; flagged a glow-based elevation model (§6) as a recommendation still pending visual validation |
+| 2026-08-02 | Confirmed data retention (keepsake by default, request-driven deletion), daily balance snapshots from V1, lightweight V1 audit logging (full trail deferred to Phase 9), and simple-ledger family contributions, then drafted Phase 5 (Database Architecture) | Founder answered all four directly before Phase 5 drafting since they're expensive to change once migrations exist | Wrote `docs/04 Database/Database Architecture.md` — full entity model, RLS-based privacy enforcement strategy, one-active-partnership constraint, disconnect freeze mechanics, retention/deletion policy, encryption recommendation (Supabase Vault); added a hard rule that AI/background services must never use a service-role key that bypasses RLS |
 
 ---
 
