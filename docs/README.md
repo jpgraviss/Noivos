@@ -4,9 +4,9 @@ This directory is the source of truth for the Noivos product and engineering org
 
 **Roadmap (in order):**
 1. Product Requirements Document — `02 Product Requirements/PRD.md` ✅ drafted, open questions resolved, awaiting final sign-off
-2. Brand Guidelines — `03 UX/Brand Guidelines.md` ✅ drafted, awaiting approval
-3. UX/UI Blueprint — not started
-4. Design System — not started (will live alongside Brand Guidelines under `03 UX/`)
+2. Brand Guidelines — `03 UX/Brand Guidelines.md` ✅ drafted (v2.0), awaiting approval
+3. UX/UI Blueprint — `03 UX/UX-UI Blueprint.md` ✅ drafted, awaiting approval (2 design judgment calls flagged for confirmation)
+4. Design System — not started (will live alongside Brand Guidelines and the UX/UI Blueprint under `03 UX/`)
 5. Database Architecture — not started
 6. Backend Architecture — not started
 7. API Documentation — not started
