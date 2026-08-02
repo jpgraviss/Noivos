@@ -1,11 +1,11 @@
 # Noivos — Product Requirements Document (PRD)
 
-**Status:** Draft v1.0 — awaiting founder approval
+**Status:** Draft v1.1 — all Phase 1 open questions resolved 2026-08-02; awaiting founder sign-off on the document as a whole
 **Owner:** Product/CTO function
 **Last updated:** 2026-08-02
 **Source of truth precedence:** This PRD is downstream of `PROJECT_MEMORY.md`. If anything here conflicts with that file, `PROJECT_MEMORY.md` wins until the founder reconciles them.
 
-> This document assumes a professional engineering team will build directly from it. Where a decision could not be made without founder input, it is marked **[ASSUMPTION]** or **[OPEN QUESTION]** rather than silently resolved — see §21 and §22.
+> v1.0 flagged several decisions as **[ASSUMPTION]** / **[OPEN QUESTION]** rather than silently resolving them. All eight were put to the founder directly and confirmed on 2026-08-02 — those markers have been resolved throughout the document; see §21 and §22 for the final record.
 
 ---
 
@@ -78,7 +78,7 @@ Individuals not yet partnered who want good financial habits before combining fi
 - Personal finance app category is large and growing (Mint's shutdown displaced millions of users; Monarch, Copilot, Rocket Money, YNAB are all growing individual/household budgeting products), but none are built couples-first from the ground up — they retrofit "shared" as a feature of an individually-designed product.
 - Direct couples-finance competitors (Honeydue, Zeta) validate demand for shared visibility but are narrower in scope (largely bill tracking / account aggregation) and have not evolved into an AI-native, conversation-centered product.
 - The engaged-couple wedge is a **defensible, differentiated acquisition channel**: wedding vendors, registries, and planning tools (Zola, The Knot, registries) are natural partnership/co-marketing channels no general budgeting app can credibly enter.
-- **[ASSUMPTION]** Initial addressable market is US-only, English-only, USD-only — see Open Question §22.1.
+- Initial addressable market is US-only, English-only, USD-only — confirmed by the founder 2026-08-02.
 
 ## 8. Product Positioning
 
@@ -97,10 +97,10 @@ Positioning statement: *For engaged and newly married couples who want to build 
 ## 9. Business Model
 
 - **Free tier:** manual expense tracking, budgets, goals, basic insights, full relationship workspace, Wedding Mode core features. Deliberately excludes Plaid and AI so the free tier carries near-zero marginal cost per user (no per-connection Plaid fees, no LLM inference cost) while still delivering the core "shared workspace" value proposition that drives both-partners activation.
-- **Premium tier:** $100/year, or a monthly-equivalent price ~15% higher than the annualized monthly rate (i.e., monthly price × 12 ≈ $118, consistent with the requested ~15% annual discount). **[OPEN QUESTION §22.2]** Billed per Partnership (one subscription unlocks Premium for both partners' personal and shared spaces) — this is the working assumption because the product's value is explicitly two-sided, and charging both partners separately for one shared experience undercuts the "we're in this together" positioning.
+- **Premium tier:** $100/year, or a monthly-equivalent price ~15% higher than the annualized monthly rate (i.e., monthly price × 12 ≈ $118, consistent with the requested ~15% annual discount). **Confirmed 2026-08-02:** billed per Partnership — one subscription unlocks Premium for both partners' personal and shared spaces. Charging both partners separately for one shared experience would undercut the "we're in this together" positioning.
 - Premium unlocks: Plaid bank connections (checking/savings/credit/loans, automatic sync), AI Purchase Advisor, AI Financial Coach, advanced AI Insights, OCR/receipt/camera scanning, unlimited smart features.
-- **Trial strategy [OPEN — not specified by founder]:** recommend a time-boxed free trial of Premium (e.g., 14 days) gated behind partner-invite acceptance, so the couple experiences Plaid + AI together before paying. To be confirmed with the founder before Pricing/Paywall UX is finalized.
-- **Billing mechanics risk:** see §18 Risks — Stripe-only billing likely conflicts with Apple/Google in-app purchase requirements for a native mobile subscription. This PRD assumes the eventual architecture uses Apple IAP + Google Play Billing for mobile purchases and Stripe for web/marketing-site checkout, reconciled via a shared entitlement record in Postgres — to be finalized in Backend Architecture (Phase 6) and confirmed with the founder first.
+- **Trial strategy — confirmed 2026-08-02:** a 14-day free trial of Premium, gated behind partner-invite acceptance (the trial doesn't start until both partners are in), so the couple experiences Plaid + AI together before paying.
+- **Billing rollout — confirmed 2026-08-02:** launch **web-only first** on Stripe. When the native mobile apps ship, mobile purchases move to **Apple IAP and Google Play Billing** (not Stripe on-device), reconciled against the same Partnership entitlement record so a Premium status granted through any route unlocks the same features everywhere. Full mechanics to be finalized in Backend Architecture (Phase 6); the remaining engineering risk (entitlement reconciliation across billing routes) is tracked in `PROJECT_MEMORY.md` §9.
 
 ## 10. Relationship Lifecycle (Product Model)
 
@@ -117,9 +117,9 @@ Every Noivos user has exactly one personal account. A personal account can be in
 5. **Re-Partnered** — a user may form a new Partnership with a different person at any time. Their personal account, personal history, and personal goals carry forward. Prior shared-workspace data from a previous Partnership is never exposed to the new partner, directly or through aggregate insights (e.g., "your spending trend" must not silently include data from a prior Partnership's shared budget in a way the new partner could see).
 
 **Edge cases (must be resolved in Database Architecture, flagged here so they aren't lost):**
-- Unilateral disconnect: what does the *other* partner see immediately after? (Recommendation: they retain read-only access to the archived shared workspace as it stood at disconnect, but it stops updating — this avoids one partner unilaterally erasing shared history the other partner also has a stake in, while still fully separating going-forward data.) **Needs founder confirmation.**
+- Unilateral disconnect: what does the *other* partner see immediately after? **Confirmed 2026-08-02:** they retain frozen, read-only access to the archived shared workspace as it stood at disconnect, but it stops updating — this avoids one partner unilaterally erasing shared history the other partner also has a stake in, while still fully separating going-forward data.
 - Shared debts/goals mid-disconnect (e.g., a joint "House Down Payment" goal with contributions from both) — contribution history should remain individually attributable and visible to each contributor in their own archived view.
-- What happens to an active Premium subscription on disconnect? Whoever is the subscription's payer keeps Premium on their personal account going forward (no refund for the unused period, standard SaaS practice) — **[ASSUMPTION, confirm with founder]**.
+- What happens to an active Premium subscription on disconnect? Working assumption, not yet put to the founder as its own question: whoever is the subscription's payer keeps Premium on their personal account going forward, no refund for the unused period (standard SaaS practice). **[ASSUMPTION — narrower than the disconnect-visibility question above, which is confirmed; this specific billing-on-disconnect point still needs founder sign-off.]**
 - A user blocks or is blocked by a former partner from re-inviting them.
 
 ## 11. Personal vs. Shared Finances (Data Model, Product-Level)
@@ -187,7 +187,7 @@ Each feature area below includes purpose, key requirements, and edge cases. Full
 
 ### 12.10 AI Financial Coach (Premium)
 - Conversational Q&A: "Can we afford this?", "What happens if we buy a truck?", "How much should we save?", "Can we go on vacation?", "When will we finish paying off debt?", "Should we refinance?", "How much house can we afford?"
-- **Regulatory guardrail [OPEN QUESTION §22.5]:** answers must stay educational/scenario-based (impact on cash flow, goals, and timelines) and avoid specific product recommendations (naming a lender, a specific investment) or fiduciary-style directives. Legal review recommended before public launch of this feature specifically.
+- **Regulatory guardrail — confirmed 2026-08-02:** answers must stay educational/scenario-based (impact on cash flow, goals, and timelines) and avoid specific product recommendations (naming a lender, a specific investment) or fiduciary-style directives. Legal review is still required before public launch of this feature specifically — not yet scheduled.
 
 ### 12.11 AI Insights
 - Automatic, periodic observations: rising dining spend, new subscription detected, emergency fund ahead of schedule, savings streak, budget category drift, large/unusual purchase, potential financial risk, opportunity (e.g., "you could hit your goal 2 months early at your current pace").
@@ -235,7 +235,7 @@ Each feature area below includes purpose, key requirements, and edge cases. Full
 - The AI is a **teammate**, never an authority. It never says "you shouldn't," "you must," or issues verdicts. It presents financial impact, goal impact, and alternatives, and prompts a conversation between the two partners.
 - The AI's outputs are designed to be **shared and discussed**, not just consumed solo — every AI response should feel natural to show or read to a partner.
 - The AI never shames. No response should be able to be read as "you're bad with money."
-- The AI must not overstep into regulated financial, legal, tax, or lending advice. It reasons about the user's own stated goals, budgets, and cash flow, and describes tradeoffs and scenarios — it does not recommend specific financial products, lenders, or investment vehicles, and does not issue fiduciary-style directives. **[OPEN QUESTION §22.5 — needs legal review before public launch.]**
+- The AI must not overstep into regulated financial, legal, tax, or lending advice. It reasons about the user's own stated goals, budgets, and cash flow, and describes tradeoffs and scenarios — it does not recommend specific financial products, lenders, or investment vehicles, and does not issue fiduciary-style directives. **Confirmed by the founder 2026-08-02; legal review is still required before public launch and is not yet scheduled.**
 - The AI must respect the personal/shared data boundary absolutely: it can never use one partner's private data to answer a question posed in a shared context, and can never reveal in a shared answer information the asking partner didn't have permission to see.
 - Multi-modal input (text, voice, photo, receipt/price-tag scan) all funnel into the same underlying reasoning — the input mode is a convenience, not a different feature.
 
@@ -296,40 +296,30 @@ Long-term/aspirational:
 ## 20. Risks
 
 See `PROJECT_MEMORY.md` §9 (Known Risks) for the canonical, living list. Summarized here for PRD context:
-1. Mobile app store billing compliance (Stripe vs. Apple IAP/Google Play Billing).
-2. Regulatory exposure from AI financial/lending guidance.
+1. Mobile app store billing — mitigated by the web-first rollout confirmed 2026-08-02, but the entitlement-reconciliation engineering (Stripe on web vs. IAP/Play Billing on mobile, same Partnership) is still real work, not yet designed.
+2. Regulatory exposure from AI financial/lending guidance — product guardrail confirmed, legal review still outstanding and not yet scheduled.
 3. Security/compliance bar required to safely hold Plaid-derived banking data.
-4. Relationship-data handling on breakup (privacy, retention, deletion).
+4. Relationship-data handling on breakup (privacy, retention, deletion) — visibility model confirmed 2026-08-02 (§10); deletion/retention specifics still deferred to Database Architecture.
 5. Two-sided activation — the product fails if only one partner ever engages.
 6. Emotional-safety risk — a poorly designed insight or notification could cause real relationship harm, a materially higher bar than typical fintech UX risk.
+7. Trademark/domain risk — "Noivos" is incorporated but not yet trademark- or domain-screened (confirmed 2026-08-02); must close before the Marketing Website phase and any public launch.
 
 ## 21. Assumptions
 
-The following working assumptions were made to keep this PRD complete and internally consistent. None are locked — see §22 for the corresponding open questions requiring founder sign-off.
+The eight working assumptions carried in the v1.0 draft were all put to the founder directly and confirmed on 2026-08-02 (see the Decision Log in `PROJECT_MEMORY.md` §12). They are no longer assumptions — they're recorded as approved decisions in §4/§6 there, and inline throughout this document wherever they apply. One narrower point was not explicitly asked and remains an open assumption:
 
-- Read-only financial aggregation only; no custody or money movement in V1.
-- Premium billed per Partnership, not per individual.
-- US-only, USD-only, English-only at launch.
-- Shared workspace entity referred to internally as "Partnership."
-- AI Financial Coach stays educational/scenario-based, never issuing specific product recommendations or directive advice.
-- On disconnect, the non-owning partner retains read-only (frozen) access to the shared workspace as it stood at disconnect; going-forward data fully separates.
-- Premium subscription, on disconnect, stays with whichever partner was the payer; no proration/refund.
+- On Partnership disconnect, the subscription payer keeps Premium on their personal account going forward, with no proration or refund for the unused period (standard SaaS practice). This is distinct from the *visibility* question (which is confirmed) — it's specifically about what happens to the *billing*. Flagged in §22 below for the founder to confirm or override.
 
 ## 22. Open Questions
 
-Mirrors `PROJECT_MEMORY.md` §8 — resolve there as the canonical list; repeated here for PRD-reader convenience.
+All ten open questions from the v1.0 draft were resolved by the founder on 2026-08-02 via direct Q&A (recorded in `PROJECT_MEMORY.md` §4, §6, §9, §12). One new, narrower question surfaced while reconciling the document afterward:
 
-1. Confirm money-movement scope is truly read-only aggregation for V1 (no custody, no transfers, no Noivos-branded account/card).
-2. Confirm Premium is billed per Partnership, not per individual.
-3. Decide mobile billing architecture (Apple IAP / Google Play Billing vs. Stripe-only) before Backend Architecture is written — current plan (Stripe-only) is very likely non-compliant with app store policy for a native app.
-4. Confirm launch geography/currency/language scope.
-5. Confirm AI Financial Coach's regulatory posture and whether legal review is required before that feature ships publicly.
-6. Confirm "Partnership" as the internal entity name before Database Architecture is written.
-7. Confirm company/legal entity status and trademark/domain screening timeline for "Noivos" (not PRD-blocking, but blocking before Marketing Website phase and public launch).
-8. Confirm whether the supplied brand moodboard originates from an existing Canva project the team should continue building in Canva for Phase 2.
-9. Confirm free-trial strategy for Premium (recommended: 14-day trial gated behind partner-invite acceptance) — not specified in the founder brief.
-10. Confirm the disconnect data-visibility model in §10 (frozen read-only access for the non-owning partner) — this is a meaningful product/legal decision, not just an engineering detail.
+1. **Premium billing on disconnect.** Does the subscription payer simply keep Premium going forward with no refund (the working assumption in §21), or should disconnect trigger some other billing behavior (e.g., a grace period, an option for the non-paying partner to take over billing to keep their own access)? Not previously asked; the disconnect question that *was* asked and confirmed was about data visibility, not billing.
+2. **Legal review scheduling.** AI Financial Coach and AI Purchase Advisor guardrails are confirmed in principle (educational/scenario-based only), but no legal review has been scheduled yet. Recommend booking this before Phase 8 (AI Architecture) is finalized, not after.
+3. **Trademark/domain screening timeline.** Confirmed "Noivos" hasn't been screened yet — recommend running this now, in parallel with Phase 2, rather than waiting until the Marketing Website phase, since a conflict found late (post-Phase-2 brand work) would waste design effort.
+
+This section will keep accumulating new forks as later architecture phases (Database, Backend, AI, Security) surface decisions that need founder input — check it at the start of every session even when short.
 
 ---
 
-*Next step per the Documentation Roadmap: await founder review and approval of this PRD. Once approved, record the approval and any amendments in `PROJECT_MEMORY.md` §4/§12, then proceed to Phase 2 — Brand Guidelines, which should formally reconcile the supplied moodboard (`docs/assets/brand/brand-moodboard-v1.png`) into a locked brand system.*
+*Next step per the Documentation Roadmap: await founder review and approval of this PRD as a whole. Once approved, record the approval in `PROJECT_MEMORY.md` §12, then proceed to Phase 2 — Brand Guidelines, which should formally reconcile the supplied moodboard (`docs/assets/brand/brand-moodboard-v1.png`, confirmed 2026-08-02 to be a reference image rather than a live Canva design) into a locked brand system.*
