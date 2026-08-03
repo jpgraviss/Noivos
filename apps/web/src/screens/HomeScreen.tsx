@@ -18,8 +18,18 @@ function useSavingsTrend() {
   return weeks.map((label, i) => ({ label, value: Math.round(total * shape[i]) }));
 }
 
-export function HomeScreen() {
+export interface HomeScreenProps {
+  userName?: string;
+}
+
+// userName is the real signed-in person's name (see AppShell/
+// AuthenticatedAppShell) — the greeting and avatar chip use it instead of
+// the mock persona's name, since the mock financial data (contributor
+// amounts, activity feed) stays tied to the illustrative "Ava & Marcus"
+// scenario regardless of who's actually signed in.
+export function HomeScreen({ userName }: HomeScreenProps = {}) {
   const { colors } = useTheme();
+  const displayName = userName || currentUser.name;
   const weddingGoal = goals[0];
   const weddingTotal = weddingGoal.contributors.reduce((s, c) => s + c.amount, 0);
   const weddingPercent = Math.round((weddingTotal / weddingGoal.target) * 100);
@@ -43,9 +53,9 @@ export function HomeScreen() {
             <Text variant="caption" secondary>
               Good afternoon
             </Text>
-            <Text variant="display">Hey, {currentUser.name}</Text>
+            <Text variant="display">Hey, {displayName}</Text>
           </View>
-          <AvatarStack names={[currentUser.name, currentUser.partnerName]} />
+          <AvatarStack names={[displayName, currentUser.partnerName]} />
         </View>
       </ScreenGridWide>
 

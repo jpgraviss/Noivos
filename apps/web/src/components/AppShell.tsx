@@ -30,9 +30,13 @@ const SCREENS: Record<Tab, ComponentType<any>> = {
   More: MoreScreen,
 };
 
-function Shell({ onSignOut }: { onSignOut?: () => void }) {
+function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: string }) {
   const [tab, setTab] = useState<Tab>("Home");
   const { colors } = useTheme();
+  // Real signed-in name when Clerk is configured (see AuthenticatedAppShell);
+  // falls back to the mock persona otherwise, same as everywhere else in
+  // this dev-mode app.
+  const displayName = userName || currentUser.name;
   // Same relabel rule as apps/mobile's RootNavigator (UX/UI Blueprint §3.2).
   const goalsLabel = weddingDetails.active ? "Wedding" : "Goals";
   const ActiveScreen = SCREENS[tab];
@@ -124,7 +128,7 @@ function Shell({ onSignOut }: { onSignOut?: () => void }) {
                 flexShrink: 0,
               }}
             >
-              {currentUser.name.slice(0, 1)}
+              {displayName.slice(0, 1)}
             </span>
             <span
               style={{
@@ -136,7 +140,7 @@ function Shell({ onSignOut }: { onSignOut?: () => void }) {
                 whiteSpace: "nowrap",
               }}
             >
-              {currentUser.name}
+              {displayName}
             </span>
           </div>
           {onSignOut && (
@@ -178,7 +182,7 @@ function Shell({ onSignOut }: { onSignOut?: () => void }) {
         </header>
 
         <div className="noivos-page-inner">
-          <ActiveScreen {...(tab === "More" ? { onSignOut } : {})} />
+          <ActiveScreen userName={displayName} {...(tab === "More" ? { onSignOut } : {})} />
         </div>
       </div>
 
@@ -226,13 +230,14 @@ function Shell({ onSignOut }: { onSignOut?: () => void }) {
 }
 
 // Dark mode is primary (UX/UI Blueprint §2) — ThemeProvider defaults to it.
-// onSignOut is injected by the caller rather than read via useClerk() here,
-// so this component never assumes a ClerkProvider ancestor exists (it's also
-// rendered directly when Clerk isn't configured — see app/page.tsx).
-export function AppShell({ onSignOut }: { onSignOut?: () => void } = {}) {
+// onSignOut/userName are injected by the caller rather than read via
+// useClerk()/useUser() here, so this component never assumes a ClerkProvider
+// ancestor exists (it's also rendered directly when Clerk isn't configured
+// — see app/page.tsx).
+export function AppShell({ onSignOut, userName }: { onSignOut?: () => void; userName?: string } = {}) {
   return (
     <ThemeProvider>
-      <Shell onSignOut={onSignOut} />
+      <Shell onSignOut={onSignOut} userName={userName} />
     </ThemeProvider>
   );
 }

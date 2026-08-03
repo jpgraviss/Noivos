@@ -3,6 +3,7 @@ import { ChevronRight, LogOut, Settings, Sparkles, Users } from "lucide-react-na
 import { Card, Text, useTheme, spacing } from "@noivos/ui";
 import { currentUser } from "../data/mockData";
 import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
+import { IdentitySettings } from "../components/IdentitySettings";
 
 const sections: { title: string; icon: typeof Users; items: string[] }[] = [
   { title: "Partnership", icon: Users, items: [`You & ${currentUser.partnerName}`, "Invite settings", "Disconnect Partnership"] },
@@ -12,9 +13,10 @@ const sections: { title: string; icon: typeof Users; items: string[] }[] = [
 
 export interface MoreScreenProps {
   onSignOut?: () => void;
+  userName?: string;
 }
 
-export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
+export function MoreScreen({ onSignOut, userName }: MoreScreenProps = {}) {
   const { colors, mode, setMode } = useTheme();
 
   return (
@@ -22,6 +24,8 @@ export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
       <ScreenGridWide>
         <Text variant="h1">More</Text>
       </ScreenGridWide>
+
+      <IdentitySettings defaultName={userName} />
 
       <Card>
         <Text variant="h3">Appearance</Text>
