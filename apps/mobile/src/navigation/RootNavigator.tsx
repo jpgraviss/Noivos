@@ -21,7 +21,11 @@ const ICONS: Record<string, string> = {
   More: '⋯',
 };
 
-export function RootNavigator() {
+export interface RootNavigatorProps {
+  onSignOut?: () => void;
+}
+
+export function RootNavigator({ onSignOut }: RootNavigatorProps = {}) {
   const { colors, mode } = useTheme();
   const goalsTabLabel = weddingDetails.active ? 'Wedding' : 'Goals';
 
@@ -52,7 +56,7 @@ export function RootNavigator() {
         <Tab.Screen name="Budget" component={BudgetScreen} />
         <Tab.Screen name={goalsTabLabel} component={GoalsScreen} />
         <Tab.Screen name="AI Coach" component={AICoachScreen} />
-        <Tab.Screen name="More" component={MoreScreen} />
+        <Tab.Screen name="More">{() => <MoreScreen onSignOut={onSignOut} />}</Tab.Screen>
       </Tab.Navigator>
     </NavigationContainer>
   );

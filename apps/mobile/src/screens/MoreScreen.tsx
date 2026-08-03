@@ -9,7 +9,11 @@ const sections: { title: string; items: string[] }[] = [
   { title: 'Account', items: ['Appearance', 'Notifications', 'Subscription', 'Support'] },
 ];
 
-export function MoreScreen() {
+export interface MoreScreenProps {
+  onSignOut?: () => void;
+}
+
+export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
   const { colors, mode, setMode } = useTheme();
 
   return (
@@ -55,6 +59,14 @@ export function MoreScreen() {
           ))}
         </Card>
       ))}
+
+      {onSignOut && (
+        <Card>
+          <Text variant="body" onPress={onSignOut} style={{ fontWeight: '600' }}>
+            Sign Out
+          </Text>
+        </Card>
+      )}
     </ScreenContainer>
   );
 }

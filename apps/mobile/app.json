@@ -3,6 +3,7 @@
     "name": "Noivos",
     "slug": "noivos",
     "version": "1.0.0",
+    "scheme": "noivos",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
