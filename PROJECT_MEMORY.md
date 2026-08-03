@@ -99,18 +99,31 @@ A first-pass brand moodboard was supplied by the founder on 2026-08-02 (stored a
 | Layer | Choice | Notes |
 |---|---|---|
 | Mobile/Web frontend | React Native + Expo | Shared codebase target for iOS/Android; web app architecture TBD in Frontend Architecture doc |
-| Backend | Supabase | Postgres, Auth, Storage, Edge Functions |
-| Database | PostgreSQL | Via Supabase |
-| Auth | Supabase Auth | Email, Apple, Google |
+| Backend | Vercel (Next.js Route Handlers) + Neon Postgres | **Superseded 2026-08-02 — was Supabase.** See §6.4 below for the full pivot and reasoning. |
+| Database | PostgreSQL via **Neon** | ~~Via Supabase~~ — superseded 2026-08-02. RLS-based privacy design (Database Architecture §10) is unaffected, since RLS is a Postgres feature, not a Supabase one. |
+| Auth | **Clerk** | ~~Supabase Auth~~ — superseded 2026-08-02. Email, Apple, Google still required (PRD §12.1); Clerk supports all three and works across both Next.js (web) and Expo (mobile). |
 | Payments | Stripe (web) at launch; Apple IAP + Google Play Billing to be added when native mobile ships | **Approved 2026-08-02: launch web-only first on Stripe. When mobile apps ship, mobile purchases move to Apple IAP / Google Play Billing (not Stripe on-device) to stay compliant with store policy — a shared entitlements service reconciles whichever route a user paid through. See §9 for remaining engineering risk.** |
 | Banking data | Plaid | Checking, savings, credit, loans; manual accounts as fallback |
 | AI | OpenAI Responses API | Text, vision (receipt/price-tag scanning), voice input |
-| Storage | Supabase Storage | Receipts, attachments, avatars |
+| Storage | **Vercel Blob** | ~~Supabase Storage~~ — superseded 2026-08-02. Receipts, attachments, avatars. Chosen since the backend is already Vercel-hosted — one less vendor to integrate. |
 | Push notifications | Firebase Cloud Messaging + Apple Push Notification service | |
 | Analytics | PostHog | |
 | Monitoring | Sentry | |
 
 No infrastructure, hosting, or CI/CD decisions have been made yet — deferred to the Infrastructure document (Phase 10).
+
+### 6.4 Supabase → Neon/Clerk/Vercel Blob Pivot (2026-08-02)
+
+Supabase was unworkable in the founder's environment ("unable to do Supabase"). Rather than block, the stack was re-pointed to keep moving:
+
+- **Database:** Neon replaces Supabase for Postgres hosting. This is a low-disruption swap for everything already documented in `docs/04 Database/Database Architecture.md` — RLS (§10), the schema (§3–§9), and the one-active-Partnership constraint are all plain Postgres features, not Supabase-specific, so none of that redesigns. **Neon also has its own database-branching feature**, directly replacing the "Supabase branch per environment" plan in Backend Architecture §10 — same environment model (dev/staging/prod branches), different provider.
+- **Auth:** Clerk replaces Supabase Auth. Still needs to support Email, Apple, Google (PRD §12.1) — Clerk does, and works across both the Next.js web app and the Expo mobile app, which Supabase Auth would have too, so this is a like-for-like swap, not a scope change.
+- **Storage:** Vercel Blob replaces Supabase Storage for receipts/attachments/avatars — picked because the backend is already Vercel-hosted (Backend Architecture §1), one less vendor rather than a deliberate feature comparison.
+- **What does NOT change:** the Vercel API layer, the Plaid/Stripe/AI architecture, the RLS-based privacy model, and the schema itself — all of `docs/07 Backend/Backend Architecture.md` and `docs/04 Database/Database Architecture.md` remain valid except for their Supabase-specific mechanics (Supabase Vault for token encryption, Supabase branching, Supabase Auth/Storage references), which are superseded by this entry rather than rewritten line-by-line in those documents.
+- **Plaid token encryption (Database Architecture §14):** Supabase Vault is no longer available. **Not yet decided** — needs a replacement (e.g., `pgcrypto` with an application-managed key, or a dedicated secrets manager) before Plaid integration is built for real. Flagged, not resolved.
+- These were fast calls made under the founder's "move as fast as possible" direction, not put to a fresh round of questions — flagged here precisely so they're easy to revisit if wrong, per the same pattern used for every other fast-tracked decision this session.
+
+**Schema written and tested 2026-08-02:** `packages/database/migrations/0001_init.sql` (full schema) and `0002_rls.sql` (RLS policies) translate the Database Architecture doc into runnable, Neon-compatible SQL. Since Neon has no Supabase-style `auth.uid()`, RLS policies read a `current_user_id()` helper backed by a Postgres session variable that the API layer must set per request (via `set_config('app.current_user_id', ...)`) — documented in `packages/database/README.md`. **Both migrations were applied to a real local Postgres instance and functionally tested** (not just syntax-checked) using a non-superuser role: confirmed a partner can see a shared account but not a personal one, a stranger sees neither, a partner cannot mutate an account they don't own even when it's shared, and after Partnership disconnect both former partners keep read access while all writes freeze for both — exactly the guarantees Database Architecture §10–§11 call for. Testing also caught and fixed a real gap: the first draft had no INSERT policies on `users`/`partnerships`/`partnership_members` at all, which would have made account creation and Partnership formation impossible.
 
 ### 6.0 Backend Architecture (Phase 6, 2026-08-02)
 
@@ -149,7 +162,7 @@ No code has been written — all four remain documentation, consistent with Rule
 | Balance history | Daily `account_balance_snapshots` captured from V1, not deferred | Approved 2026-08-02 |
 | Audit logging | Lightweight for V1 (`created_at`/`updated_at` + soft-delete only); full audit trail deferred to Security Architecture (Phase 9) | Approved 2026-08-02 |
 | Wedding family contributions | Simple ledger line (name/amount/note), no structured contributor entity, no implied account access | Approved 2026-08-02 |
-| Plaid token encryption | Recommend Supabase Vault (pgsodium-backed) | Pending — technical recommendation, Phase 9 will confirm |
+| Plaid token encryption | ~~Recommend Supabase Vault (pgsodium-backed)~~ | **Superseded 2026-08-02 — see §6.4.** No longer available post-Neon pivot; replacement not yet decided |
 | AI context assembly | AI service must query through the same RLS-respecting role as the app — never a service-role key that bypasses RLS — flagged as a hard rule for Phase 6/8 | Approved 2026-08-02 |
 
 ## 6.3 First Code Milestone (2026-08-02)
@@ -191,6 +204,11 @@ The 8 questions carried in this section as of the PRD draft were put to the foun
 2. **Legal review scheduling.** AI Financial Coach / Purchase Advisor guardrails are confirmed in principle (§4), but no legal review of the AI-advice posture has been scheduled. Recommend booking it before Phase 8 (AI Architecture) is finalized.
 3. **Trademark/domain screening timeline.** Confirmed "Noivos" hasn't been screened yet (§9). Recommend running the screen now, in parallel with Phase 2, rather than waiting until the Marketing Website phase — a conflict found after brand work is done would waste design effort.
 Items 4–7 from the previous round (icon library, Success/Warning color mapping, Wedding Mode nav placement, Money Meeting nav placement) were all confirmed by the founder on 2026-08-02 before Phase 4 drafting — see §4/§6/§7 and the Decision Log.
+
+**New from the Supabase → Neon pivot (2026-08-02):**
+
+8. **Plaid access-token encryption.** Supabase Vault is gone; needs a replacement (`pgcrypto` + app-managed key, or a dedicated secrets manager) before Plaid integration is built for real — not yet decided. See §6.4.
+9. **Neon project provisioning.** No Neon MCP tool is available in this session, unlike Supabase's — the founder needs to create the Neon project directly (neon.tech) and provide a connection string before the app can move off mock data.
 
 New from Phase 5 (Database Architecture) drafting:
 
@@ -249,6 +267,8 @@ No open assumptions at this time — the working assumptions carried in the PRD 
 | 2026-08-02 | Confirmed backend topology (Vercel API layer + Supabase Postgres/Auth/Storage, not Edge Functions), Plaid sync strategy (webhook + daily reconciliation poll), and job scheduling (Inngest, not pg_cron), then drafted Phase 6 (Backend Architecture) | Founder answered all three directly before drafting since they set the shape of every subsequent backend/API/AI phase | Wrote `docs/07 Backend/Backend Architecture.md` — system topology diagram, auth-passthrough rule (RLS still governs even through the API layer, service-role reserved for async/system-initiated writes only), Plaid integration flow, billing entitlement reconciliation across Stripe/IAP/Play Billing, AI service boundary (context assembly must use the same RLS-respecting path), background job list, notification dispatch |
 | 2026-08-02 | Drafted the remaining fast-track documents together at founder request (API Documentation, AI Architecture, Security Architecture baseline, Frontend Architecture — Phases 7/8/9/11) | Founder said to get planning done as fast as possible; these four build directly on already-approved Backend/Database/Design decisions with no remaining founder-level forks large enough to justify pausing for Q&A | Wrote all four documents; updated §6 with a combined summary, §8 with 3 new flagged items (RN-Web unification, AI model pinning, deferred compliance program), and this log entry; completes the 5-document fast-track list — engineering can start once these are reviewed |
 | 2026-08-02 | Started real implementation: `apps/mobile` (Expo/React Native) and `packages/ui` (shared design tokens/components), wired to mock data, no backend yet | Founder asked to move from documentation to a visible build, prioritizing the app over the marketing website | First code committed since the repo was scaffolded; verified via a headless-browser screenshot pass (5 tabs, no console errors) and a clean `tsc --noEmit`; full detail in §6.3 |
+| 2026-08-02 | Pivoted the backend off Supabase entirely: Neon replaces Supabase Postgres, Clerk replaces Supabase Auth, Vercel Blob replaces Supabase Storage | Supabase was unworkable in the founder's environment ("unable to do Supabase"); founder directed "we can do Neon" | Updated Technical Decisions (§6) and added §6.4 documenting the full pivot; RLS design and schema (Database Architecture) carry over unchanged since they're plain Postgres features; Plaid token encryption approach is now an open question (Supabase Vault is gone, no replacement chosen yet); Neon project itself still needs to be created by the founder since no Neon MCP tool is available in this session |
+| 2026-08-02 | Wrote and functionally tested the real schema (`packages/database/migrations/0001_init.sql`, `0002_rls.sql`) against a local Postgres instance | Wanted actual proof the RLS privacy model works, not just a syntax check, before it's ever pointed at a live Neon database | Applied both migrations to a scratch local database, ran adversarial-style tests as a non-superuser role (shared-vs-personal visibility, mutate-without-owning, post-disconnect freeze) — all passed; caught and fixed a real gap (missing INSERT policies on `users`/`partnerships`/`partnership_members` that would have blocked account/Partnership creation entirely) |
 
 ---
 
