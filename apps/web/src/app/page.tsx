@@ -21,8 +21,10 @@ function MarketingPlaceholder() {
         color: "#F5F5F7",
       }}
     >
-      <h1 style={{ fontSize: 40, margin: 0 }}>Noivos</h1>
-      <p style={{ color: "rgba(245,245,247,0.64)", margin: 0 }}>Better money. Together.</p>
+      <h1 style={{ fontFamily: "var(--font-bebas)", fontSize: 40, margin: 0 }}>Noivos</h1>
+      <p style={{ fontFamily: "var(--font-inter)", color: "rgba(245,245,247,0.64)", margin: 0 }}>
+        Better money. Together.
+      </p>
     </main>
   );
 }

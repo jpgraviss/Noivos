@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ViewProps } from 'react-native';
+import { Platform, View, ViewProps } from 'react-native';
 import { useTheme } from './ThemeProvider';
 import { radius, spacing } from './tokens';
 
@@ -9,6 +9,10 @@ export interface CardProps extends ViewProps {
 
 // Glow-based elevation (Design System §6) instead of a traditional drop
 // shadow, since flat shadows read poorly on the Licorice dark background.
+// react-native-web deprecates the shadow* props in favor of the CSS
+// `boxShadow` style prop, so web gets its own branch here; native (iOS/
+// Android) keeps the standard shadow* props, which react-native-web doesn't
+// touch.
 export function Card({ glow, style, children, ...rest }: CardProps) {
   const { colors } = useTheme();
   return (
@@ -22,12 +26,14 @@ export function Card({ glow, style, children, ...rest }: CardProps) {
           borderColor: glow ?? colors.border,
           padding: spacing.lg,
           ...(glow
-            ? {
-                shadowColor: glow,
-                shadowOpacity: 0.35,
-                shadowRadius: 12,
-                shadowOffset: { width: 0, height: 0 },
-              }
+            ? Platform.OS === 'web'
+              ? { boxShadow: `0 0 12px ${glow}59` } // '59' hex ≈ 0.35 alpha
+              : {
+                  shadowColor: glow,
+                  shadowOpacity: 0.35,
+                  shadowRadius: 12,
+                  shadowOffset: { width: 0, height: 0 },
+                }
             : null),
         },
         style,

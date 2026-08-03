@@ -1,15 +1,22 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Bebas_Neue, Inter } from "next/font/google";
 import { ClerkProvider, SignInButton, SignUpButton, Show, UserButton } from "@clerk/nextjs";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Brand typography (Design System §3): Bebas Neue Bold headings, Inter body.
+// packages/ui's typography tokens reference these as `var(--font-bebas)` /
+// `var(--font-inter)` on web (see packages/ui/src/tokens.ts) — the weights
+// loaded here (400/500/600/700) match what apps/mobile loads via
+// @expo-google-fonts so both platforms render the same type scale.
+const bebasNeue = Bebas_Neue({
+  weight: "400",
+  variable: "--font-bebas",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inter = Inter({
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
@@ -47,7 +54,7 @@ export default function RootLayout({
   );
 
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="en" className={`${bebasNeue.variable} ${inter.variable}`}>
       <body>{body}</body>
     </html>
   );

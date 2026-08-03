@@ -2,6 +2,8 @@
 // approved Brand Guidelines palette. Dark mode is primary (confirmed
 // in docs/03 UX/UX-UI Blueprint.md §2).
 
+import { Platform } from 'react-native';
+
 export const palette = {
   sourLime: '#C6FF00',
   sourPunch: '#FF2D8E',
@@ -90,15 +92,24 @@ export const radius = {
   pill: 999,
 } as const;
 
+// apps/mobile loads these exact family names via @expo-google-fonts
+// (useAppFonts.ts). apps/web loads the same two typefaces via next/font/
+// google (see app/layout.tsx) and exposes them as CSS variables — RNW passes
+// a `var(--...)` fontFamily value straight through to the compiled CSS, so
+// each platform ends up rendering the same Bebas Neue/Inter type scale.
+const displayFamily = Platform.select({ web: 'var(--font-bebas)', default: 'BebasNeue_400Regular' });
+const interRegular = Platform.select({ web: 'var(--font-inter)', default: 'Inter_400Regular' });
+const interMedium = Platform.select({ web: 'var(--font-inter)', default: 'Inter_500Medium' });
+
 export const typography = {
-  display: { fontFamily: 'BebasNeue_400Regular', fontSize: 40, lineHeight: 44 },
-  h1: { fontFamily: 'BebasNeue_400Regular', fontSize: 32, lineHeight: 36 },
-  h2: { fontFamily: 'BebasNeue_400Regular', fontSize: 24, lineHeight: 28 },
-  h3: { fontFamily: 'BebasNeue_400Regular', fontSize: 20, lineHeight: 24 },
-  bodyLarge: { fontFamily: 'Inter_500Medium', fontSize: 17, lineHeight: 24 },
-  body: { fontFamily: 'Inter_400Regular', fontSize: 15, lineHeight: 22 },
-  bodySmall: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 18 },
-  caption: { fontFamily: 'Inter_500Medium', fontSize: 11, lineHeight: 14 },
+  display: { fontFamily: displayFamily, fontWeight: '400', fontSize: 40, lineHeight: 44 },
+  h1: { fontFamily: displayFamily, fontWeight: '400', fontSize: 32, lineHeight: 36 },
+  h2: { fontFamily: displayFamily, fontWeight: '400', fontSize: 24, lineHeight: 28 },
+  h3: { fontFamily: displayFamily, fontWeight: '400', fontSize: 20, lineHeight: 24 },
+  bodyLarge: { fontFamily: interMedium, fontWeight: '500', fontSize: 17, lineHeight: 24 },
+  body: { fontFamily: interRegular, fontWeight: '400', fontSize: 15, lineHeight: 22 },
+  bodySmall: { fontFamily: interRegular, fontWeight: '400', fontSize: 13, lineHeight: 18 },
+  caption: { fontFamily: interMedium, fontWeight: '500', fontSize: 11, lineHeight: 14 },
 } as const;
 
 export const motion = {
