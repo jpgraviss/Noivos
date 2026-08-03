@@ -1,12 +1,13 @@
-import React from 'react';
-import { View } from 'react-native';
-import { Card, ScreenContainer, Text, useTheme, spacing } from '@noivos/ui';
-import { currentUser } from '../data/mockData';
+import { View, Pressable } from "react-native";
+import { ChevronRight, LogOut, Settings, Sparkles, Users } from "lucide-react-native";
+import { Card, Text, useTheme, spacing } from "@noivos/ui";
+import { currentUser } from "../data/mockData";
+import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
 
-const sections: { title: string; items: string[] }[] = [
-  { title: 'Partnership', items: [`You & ${currentUser.partnerName}`, 'Invite settings', 'Disconnect Partnership'] },
-  { title: 'Community', items: ['Challenges', 'Milestones shared'] },
-  { title: 'Account', items: ['Appearance', 'Notifications', 'Subscription', 'Support'] },
+const sections: { title: string; icon: typeof Users; items: string[] }[] = [
+  { title: "Partnership", icon: Users, items: [`You & ${currentUser.partnerName}`, "Invite settings", "Disconnect Partnership"] },
+  { title: "Community", icon: Sparkles, items: ["Challenges", "Milestones shared"] },
+  { title: "Account", icon: Settings, items: ["Notifications", "Subscription", "Support"] },
 ];
 
 export interface MoreScreenProps {
@@ -17,16 +18,18 @@ export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
   const { colors, mode, setMode } = useTheme();
 
   return (
-    <ScreenContainer>
-      <Text variant="h1">More</Text>
+    <ScreenGrid>
+      <ScreenGridWide>
+        <Text variant="h1">More</Text>
+      </ScreenGridWide>
 
       <Card>
         <Text variant="h3">Appearance</Text>
         <Text variant="bodySmall" secondary style={{ marginBottom: spacing.sm }}>
-          Dark is Noivos' default look — light mode is available too.
+          Dark is Noivos&apos; default look — light mode is available too.
         </Text>
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          {(['dark', 'light'] as const).map((m) => (
+        <View style={{ flexDirection: "row", gap: spacing.sm }}>
+          {(["dark", "light"] as const).map((m) => (
             <Text
               key={m}
               onPress={() => setMode(m)}
@@ -35,15 +38,15 @@ export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
                 paddingVertical: 8,
                 paddingHorizontal: 16,
                 borderRadius: 999,
-                overflow: 'hidden',
+                overflow: "hidden",
                 borderWidth: 1,
                 borderColor: colors.border,
-                backgroundColor: mode === m ? colors.primary : 'transparent',
+                backgroundColor: mode === m ? colors.primary : "transparent",
                 color: mode === m ? colors.background : colors.textPrimary,
-                fontWeight: '600',
+                fontWeight: "600",
               }}
             >
-              {m === 'dark' ? 'Dark' : 'Light'}
+              {m === "dark" ? "Dark" : "Light"}
             </Text>
           ))}
         </View>
@@ -51,22 +54,41 @@ export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
 
       {sections.map((section) => (
         <Card key={section.title}>
-          <Text variant="h3" style={{ marginBottom: spacing.sm }}>{section.title}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm }}>
+            <section.icon size={16} color={colors.textSecondary} />
+            <Text variant="h3">{section.title}</Text>
+          </View>
           {section.items.map((item) => (
-            <Text key={item} variant="body" secondary style={{ marginBottom: spacing.sm }}>
-              {item}
-            </Text>
+            <View
+              key={item}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingVertical: 10,
+                borderTopWidth: 1,
+                borderTopColor: colors.border,
+              }}
+            >
+              <Text variant="body" secondary>
+                {item}
+              </Text>
+              <ChevronRight size={16} color={colors.textSecondary} />
+            </View>
           ))}
         </Card>
       ))}
 
       {onSignOut && (
         <Card>
-          <Text variant="body" onPress={onSignOut} style={{ fontWeight: '600' }}>
-            Sign Out
-          </Text>
+          <Pressable onPress={onSignOut} style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+            <LogOut size={16} color={colors.textPrimary} />
+            <Text variant="body" style={{ fontWeight: "600" }}>
+              Sign Out
+            </Text>
+          </Pressable>
         </Card>
       )}
-    </ScreenContainer>
+    </ScreenGrid>
   );
 }

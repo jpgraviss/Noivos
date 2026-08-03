@@ -26,7 +26,7 @@ export const goals = [
     target: 35000,
     shared: true,
     contributors: [
-      { name: 'Ava', amount: 9800, color: '#C6FF00' },
+      { name: 'Ava', amount: 9800, color: '#638C00' },
       { name: 'Marcus', amount: 7200, color: '#FF2D8E' },
       { name: 'Family', amount: 5000, color: '#8A2BE2' },
     ],
@@ -38,7 +38,7 @@ export const goals = [
     target: 15000,
     shared: true,
     contributors: [
-      { name: 'Ava', amount: 4200, color: '#C6FF00' },
+      { name: 'Ava', amount: 4200, color: '#638C00' },
       { name: 'Marcus', amount: 3900, color: '#FF2D8E' },
     ],
   },
@@ -48,7 +48,7 @@ export const goals = [
     type: 'custom',
     target: 1200,
     shared: false,
-    contributors: [{ name: 'Ava', amount: 480, color: '#C6FF00' }],
+    contributors: [{ name: 'Ava', amount: 480, color: '#638C00' }],
   },
 ];
 

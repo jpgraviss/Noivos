@@ -11,9 +11,11 @@
   "dependencies": {
     "@clerk/nextjs": "^7.6.4",
     "@noivos/ui": "*",
+    "lucide-react-native": "^1.28.0",
     "next": "16.2.12",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-native-svg": "^15.15.5",
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {

@@ -40,3 +40,133 @@ a {
 html {
   color-scheme: dark;
 }
+
+/* ---------------------------------------------------------------------
+   App shell layout (apps/web only — apps/mobile has no equivalent, it
+   uses React Navigation's native tab bar). Bottom tabs below 960px,
+   a persistent sidebar + topbar above it, matching the desktop-dashboard
+   pattern every competitor (Monarch/Origin/EveryDollar) uses instead of
+   a phone layout stretched to fill a browser window.
+   --------------------------------------------------------------------- */
+
+.noivos-sidebar {
+  display: none;
+}
+
+.noivos-topbar {
+  display: none;
+}
+
+.noivos-bottomnav {
+  display: flex;
+}
+
+.noivos-content {
+  min-height: 100vh;
+}
+
+.noivos-page-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  padding-bottom: 84px;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.noivos-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (min-width: 960px) {
+  .noivos-sidebar {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 248px;
+  }
+
+  .noivos-topbar {
+    display: flex;
+  }
+
+  .noivos-bottomnav {
+    display: none;
+  }
+
+  .noivos-content {
+    padding-left: 248px;
+  }
+
+  .noivos-page-inner {
+    padding: 32px 40px 56px;
+    max-width: 1160px;
+  }
+
+  .noivos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    align-items: start;
+  }
+
+  .noivos-grid--wide {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Interactive affordances — a mouse-driven surface needs hover feedback
+   that a touch-only mobile screen doesn't. */
+.noivos-hoverable {
+  cursor: pointer;
+  transition: background-color 130ms ease, opacity 130ms ease, transform 130ms ease;
+}
+
+.noivos-hoverable:hover {
+  background-color: rgba(245, 245, 247, 0.06);
+}
+
+.noivos-sidebar-item:hover {
+  background-color: rgba(245, 245, 247, 0.06);
+}
+
+.noivos-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 245, 247, 0.12);
+  background: transparent;
+  color: #F5F5F7;
+  cursor: pointer;
+  transition: background-color 130ms ease, border-color 130ms ease;
+}
+
+.noivos-icon-btn:hover {
+  background-color: rgba(245, 245, 247, 0.08);
+  border-color: rgba(245, 245, 247, 0.24);
+}
+
+.noivos-scrollarea {
+  overflow-y: auto;
+  height: 100vh;
+}
+
+.noivos-scrollarea::-webkit-scrollbar {
+  width: 8px;
+}
+
+.noivos-scrollarea::-webkit-scrollbar-thumb {
+  background: rgba(245, 245, 247, 0.14);
+  border-radius: 999px;
+}
+
+.noivos-scrollarea::-webkit-scrollbar-track {
+  background: transparent;
+}
