@@ -18,27 +18,37 @@ export const metadata: Metadata = {
   description: "Better money. Together.",
 };
 
+// Same fallback pattern as apps/mobile/src/auth/ClerkAuthProvider.tsx: if the
+// Vercel project doesn't have Clerk env vars configured yet (there's no
+// remote tool to set them; they're added via the Vercel dashboard after the
+// project exists), render straight through instead of crashing the deploy.
+const clerkConfigured = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const body = clerkConfigured ? (
+    <ClerkProvider>
+      <header style={{ display: "flex", justifyContent: "flex-end", gap: 12, padding: 16 }}>
+        <Show when="signed-out">
+          <SignInButton />
+          <SignUpButton />
+        </Show>
+        <Show when="signed-in">
+          <UserButton />
+        </Show>
+      </header>
+      {children}
+    </ClerkProvider>
+  ) : (
+    children
+  );
+
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body>
-        <ClerkProvider>
-          <header style={{ display: "flex", justifyContent: "flex-end", gap: 12, padding: 16 }}>
-            <Show when="signed-out">
-              <SignInButton />
-              <SignUpButton />
-            </Show>
-            <Show when="signed-in">
-              <UserButton />
-            </Show>
-          </header>
-          {children}
-        </ClerkProvider>
-      </body>
+      <body>{body}</body>
     </html>
   );
 }
