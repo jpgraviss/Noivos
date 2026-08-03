@@ -1,8 +1,13 @@
-// Placeholder home page — apps/web is brand new (Phase: post-fast-track).
-// The real marketing site and app.yourdomain.com experience are separate,
-// not-yet-scoped work (docs/README.md's deferred Phase 12). This page exists
-// only to prove Clerk works end-to-end on the web.
-export default function Home() {
+import { Show } from "@clerk/nextjs";
+import { AppShell } from "@/components/AppShell";
+import { AuthenticatedAppShell } from "@/components/AuthenticatedAppShell";
+
+// Same fallback pattern as layout.tsx/proxy.ts: without Clerk env vars there's
+// no ClerkProvider ancestor, so <Show> would throw — render the app straight
+// through instead.
+const clerkConfigured = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+
+function MarketingPlaceholder() {
   return (
     <main
       style={{
@@ -19,5 +24,22 @@ export default function Home() {
       <h1 style={{ fontSize: 40, margin: 0 }}>Noivos</h1>
       <p style={{ color: "rgba(245,245,247,0.64)", margin: 0 }}>Better money. Together.</p>
     </main>
+  );
+}
+
+export default function Home() {
+  if (!clerkConfigured) {
+    return <AppShell />;
+  }
+
+  return (
+    <>
+      <Show when="signed-in">
+        <AuthenticatedAppShell />
+      </Show>
+      <Show when="signed-out">
+        <MarketingPlaceholder />
+      </Show>
+    </>
   );
 }
