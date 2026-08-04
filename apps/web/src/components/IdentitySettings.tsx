@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Card, Text, useTheme, spacing, radius, palette, getTextColorFor } from "@noivos/ui";
 
 interface Identity {
@@ -22,23 +22,107 @@ function inputStyle(borderColor: string, textColor: string, locked: boolean): CS
   };
 }
 
-// Not persisted anywhere yet — there's no database connected (mock-data
-// phase, see PROJECT_MEMORY.md §8). This is deliberately built as a working
-// UI ahead of that: local component state only, so it resets on reload.
+// Persists via /api/profile (Neon, behind Clerk auth + RLS — see
+// src/lib/db.ts) as of 2026-08-03. Falls back to local-component-state-only
+// behavior if that route isn't reachable (Clerk not configured, signed out,
+// or any other failure) — same graceful-passthrough posture used everywhere
+// else in this app, so the dev/no-backend path never breaks.
 // Once set, name + birthdate lock (both are used for identity verification
-// ahead of Plaid integration); changing either after that is meant to
-// require admin approval — there's no admin system built yet either, so
-// "Request a change" only shows an explanatory note rather than sending
-// anything real anywhere.
+// ahead of Plaid integration) — enforced server-side in the route itself,
+// not just by disabling this input. Changing either after that is meant to
+// require admin approval; there's no admin system built yet, so "Request a
+// change" only shows an explanatory note rather than sending anything real.
 export function IdentitySettings({ defaultName }: { defaultName?: string }) {
   const { colors } = useTheme();
+  const [backendAvailable, setBackendAvailable] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [saved, setSaved] = useState<Identity | null>(null);
   const [nameDraft, setNameDraft] = useState(defaultName ?? "");
   const [birthdateDraft, setBirthdateDraft] = useState("");
   const [requestNoteVisible, setRequestNoteVisible] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/profile")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("profile fetch failed");
+        return res.json() as Promise<{ name: string | null; birthdate: string | null }>;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setBackendAvailable(true);
+        if (data.name && data.birthdate) {
+          setSaved({ name: data.name, birthdate: data.birthdate });
+        } else if (data.name) {
+          setNameDraft(data.name);
+        }
+      })
+      .catch(() => {
+        // No database/Clerk/route available — fall back to local-only.
+      })
+      .finally(() => {
+        if (!cancelled) setLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const locked = saved !== null;
-  const canSave = nameDraft.trim().length > 0 && birthdateDraft.length > 0;
+  const canSave = nameDraft.trim().length > 0 && birthdateDraft.length > 0 && !saving;
+
+  async function handleSave() {
+    if (!canSave) return;
+    setError(null);
+
+    if (!backendAvailable) {
+      setSaved({ name: nameDraft.trim(), birthdate: birthdateDraft });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: nameDraft.trim(), birthdate: birthdateDraft }),
+      });
+      const data = await res.json();
+      if (res.status === 409) {
+        // Already set (e.g. saved from another tab) — reload the real value.
+        const refetch = await fetch("/api/profile").then((r) => r.json());
+        if (refetch.name && refetch.birthdate) {
+          setSaved({ name: refetch.name, birthdate: refetch.birthdate });
+        }
+        setError("This was already saved — showing what's on file.");
+        return;
+      }
+      if (!res.ok) {
+        setError(data.error ?? "Something went wrong saving this.");
+        return;
+      }
+      setSaved({ name: data.name, birthdate: data.birthdate });
+    } catch {
+      setError("Couldn't reach the server — check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!loaded) {
+    return (
+      <Card>
+        <Text variant="h3" style={{ marginBottom: 4 }}>
+          Name &amp; Birthdate
+        </Text>
+        <Text variant="bodySmall" secondary>
+          Loading…
+        </Text>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -78,6 +162,12 @@ export function IdentitySettings({ defaultName }: { defaultName?: string }) {
         />
       </div>
 
+      {error && (
+        <Text variant="bodySmall" style={{ color: palette.sourPunch, marginBottom: spacing.sm }}>
+          {error}
+        </Text>
+      )}
+
       {locked ? (
         <>
           <button
@@ -105,7 +195,7 @@ export function IdentitySettings({ defaultName }: { defaultName?: string }) {
         </>
       ) : (
         <button
-          onClick={() => canSave && setSaved({ name: nameDraft.trim(), birthdate: birthdateDraft })}
+          onClick={handleSave}
           disabled={!canSave}
           style={{
             padding: "10px 16px",
@@ -119,7 +209,7 @@ export function IdentitySettings({ defaultName }: { defaultName?: string }) {
             cursor: canSave ? "pointer" : "not-allowed",
           }}
         >
-          Save (one-time)
+          {saving ? "Saving…" : "Save (one-time)"}
         </button>
       )}
     </Card>

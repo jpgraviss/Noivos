@@ -6,6 +6,7 @@ Schema and RLS policies for the Noivos Postgres database, hosted on **Neon** (se
 
 - `migrations/0001_init.sql` — full schema: identity/Partnership, financial accounts and transactions, budgets and goals, Wedding Mode, AI conversations, engagement (Money Meetings, activity feed, notifications, challenges), billing, attachments.
 - `migrations/0002_rls.sql` — Row-Level Security policies, the actual privacy enforcement layer (Database Architecture §1/§10). Every policy reads a `current_user_id()` helper backed by a Postgres session variable, **not** Supabase's `auth.uid()`.
+- `migrations/0003_add_birthdate.sql` — adds `users.birthdate`, not in the original Database Architecture doc; added for `apps/web`'s locked Name & Birthdate identity-verification setting.
 
 ## The auth handoff (read before touching this)
 
@@ -22,14 +23,17 @@ Supabase gave RLS policies a free, built-in `auth.uid()`. Clerk (the new auth pr
 
 ## Status
 
-**Not yet connected to a live database.** No Neon project exists yet — the founder needs to create one at neon.tech and provide a connection string. Once that exists:
+**Connected as of 2026-08-03** — the founder created a Neon project and ran `0001_init.sql`/`0002_rls.sql` via Neon's web SQL Editor (this repo's sandbox can't make raw-TCP database connections at all, so migrations can't be applied from here — same class of restriction as the Clerk network block noted elsewhere). `0003_add_birthdate.sql` still needs to be run the same way before the Name & Birthdate setting's real persistence (`apps/web/src/app/api/profile/route.ts`) will work.
+
+If a fresh database is ever needed:
 
 ```bash
 psql "$DATABASE_URL" -f migrations/0001_init.sql
 psql "$DATABASE_URL" -f migrations/0002_rls.sql
+psql "$DATABASE_URL" -f migrations/0003_add_birthdate.sql
 ```
 
-Until then, `apps/mobile` runs entirely on mock data (`apps/mobile/src/data/mockData.ts`), shaped to match this schema so swapping in real queries later is a plumbing change, not a redesign.
+`apps/mobile` still runs entirely on mock data (`apps/mobile/src/data/mockData.ts`) — only `apps/web`'s identity settings are wired to real queries so far; everything else across both apps is still mock data, shaped to match this schema so swapping in real queries later is a plumbing change, not a redesign.
 
 ## Open items
 
