@@ -1,12 +1,11 @@
 import { View, Pressable } from "react-native";
-import { ChevronRight, LogOut, Settings, Sparkles, Users } from "lucide-react-native";
+import { ChevronRight, LogOut, Settings, Sparkles } from "lucide-react-native";
 import { Card, Text, useTheme, spacing } from "@noivos/ui";
-import { currentUser } from "../data/mockData";
 import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
 import { IdentitySettings } from "../components/IdentitySettings";
+import { PartnershipSettings } from "../components/PartnershipSettings";
 
-const sections: { title: string; icon: typeof Users; items: string[] }[] = [
-  { title: "Partnership", icon: Users, items: [`You & ${currentUser.partnerName}`, "Invite settings", "Disconnect Partnership"] },
+const sections: { title: string; icon: typeof Settings; items: string[] }[] = [
   { title: "Community", icon: Sparkles, items: ["Challenges", "Milestones shared"] },
   { title: "Account", icon: Settings, items: ["Notifications", "Subscription", "Support"] },
 ];
@@ -26,6 +25,8 @@ export function MoreScreen({ onSignOut, userName }: MoreScreenProps = {}) {
       </ScreenGridWide>
 
       <IdentitySettings defaultName={userName} />
+
+      <PartnershipSettings />
 
       <Card>
         <Text variant="h3">Appearance</Text>
