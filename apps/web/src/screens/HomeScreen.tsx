@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View } from "react-native";
+import { View, Pressable } from "react-native";
 import { CreditCard, Lightbulb, Users } from "lucide-react-native";
 import { Card, Text, useTheme, spacing, palette, getTextColorFor } from "@noivos/ui";
 import { budgetSnapshot, goals as mockGoals, activityFeed, insights, upcomingBills, moneyMeeting, currentUser } from "../data/mockData";
@@ -42,9 +42,13 @@ export interface HomeScreenProps {
 // from /api/partnership the same way, instead of the mock "Marcus". Upcoming
 // Bills pulls from /api/bills (2026-08-05), which reads the same real
 // wedding_vendors balances Wedding Mode already wired — not a separate mock
-// "bills" concept. Falls back to the mock goals/partner/bills data
-// independently if a given backend isn't reachable. Budget/AI Insights/
-// Activity stay mock — no shared-transactions feed or AI backend exists yet.
+// "bills" concept. The Money Meeting card pulls from /api/money-meeting
+// (2026-08-05) once a real Partnership exists — its agenda is derived from
+// real Budget/Wedding data via plain rule-based checks (lib/moneyMeeting.ts),
+// not an AI call, and "Mark as done" persists to the real money_meetings
+// row. Falls back to the mock goals/partner/bills/agenda data independently
+// if a given backend isn't reachable. Budget card/AI Insights/Activity stay
+// mock — no shared-transactions feed or AI backend exists yet.
 export function HomeScreen({ userName }: HomeScreenProps = {}) {
   const { colors } = useTheme();
   const displayName = userName || currentUser.name;
@@ -54,6 +58,13 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
   const [apiGoals, setApiGoals] = useState<ApiGoal[]>([]);
   const [partnerName, setPartnerName] = useState<string | null>(null);
   const [apiBills, setApiBills] = useState<{ id: string; name: string; amount: number; due: string }[] | null>(null);
+  const [apiMeeting, setApiMeeting] = useState<{
+    id: string;
+    weekOf: string;
+    topics: string[];
+    status: string;
+  } | null>(null);
+  const [completingMeeting, setCompletingMeeting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -119,6 +130,46 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/money-meeting")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("money-meeting fetch failed");
+        return res.json() as Promise<
+          { hasPartnership: false } | { hasPartnership: true; id: string; weekOf: string; topics: string[]; status: string }
+        >;
+      })
+      .then((data) => {
+        if (cancelled || !data.hasPartnership) return;
+        setApiMeeting({ id: data.id, weekOf: data.weekOf, topics: data.topics, status: data.status });
+      })
+      .catch(() => {
+        // No database/Clerk reachable (or no Partnership yet) — fall back to the mock below.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleCompleteMeeting() {
+    if (!apiMeeting) return;
+    setCompletingMeeting(true);
+    try {
+      const res = await fetch("/api/money-meeting/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: apiMeeting.id }),
+      });
+      if (res.ok) {
+        setApiMeeting((prev) => (prev ? { ...prev, status: "completed" } : prev));
+      }
+    } catch {
+      // Best-effort — the button just won't visually update.
+    } finally {
+      setCompletingMeeting(false);
+    }
+  }
+
   const savingsTotal = backendAvailable
     ? apiGoals.reduce((sum, g) => sum + g.contributions.reduce((s, c) => s + c.amount, 0), 0)
     : mockGoals.reduce((sum, g) => sum + g.contributors.reduce((s, c) => s + c.amount, 0), 0);
@@ -181,22 +232,43 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
         />
       )}
 
-      {/* Money Meeting ritual card — a distinct treatment, UX Blueprint §3.3 */}
+      {/* Money Meeting ritual card — a distinct treatment, UX Blueprint §3.3.
+          Real as of 2026-08-05 once a Partnership exists: the agenda is
+          derived from real Budget/Wedding data (see lib/moneyMeeting.ts),
+          not an AI call. Falls back to the mock agenda otherwise. */}
       <ScreenGridWide>
         <Card glow={palette.grape}>
           <Text variant="caption" color={palette.grape}>
-            WEEK OF {moneyMeeting.weekOf.toUpperCase()}
+            WEEK OF {(apiMeeting?.weekOf ?? moneyMeeting.weekOf).toUpperCase()}
           </Text>
           <Text variant="h3" style={{ marginTop: spacing.xs }}>
-            Your Money Meeting is ready
+            {apiMeeting?.status === "completed" ? "Money Meeting complete" : "Your Money Meeting is ready"}
           </Text>
           <View style={{ marginTop: spacing.sm, gap: 4 }}>
-            {moneyMeeting.topics.map((t, i) => (
+            {(apiMeeting?.topics ?? moneyMeeting.topics).map((t, i) => (
               <Text key={i} variant="bodySmall" secondary>
                 • {t}
               </Text>
             ))}
           </View>
+          {apiMeeting && apiMeeting.status !== "completed" && (
+            <Pressable
+              onPress={handleCompleteMeeting}
+              disabled={completingMeeting}
+              style={{
+                alignSelf: "flex-start",
+                marginTop: spacing.sm,
+                paddingVertical: 8,
+                paddingHorizontal: 14,
+                borderRadius: 999,
+                backgroundColor: palette.grape,
+              }}
+            >
+              <Text variant="bodySmall" color={getTextColorFor(palette.grape)} style={{ fontWeight: "600" }}>
+                {completingMeeting ? "Saving…" : "Mark as done"}
+              </Text>
+            </Pressable>
+          )}
         </Card>
       </ScreenGridWide>
 

@@ -52,6 +52,10 @@ psql "$DATABASE_URL" -f migrations/0004_tighten_goal_contributions_rls.sql
 
 **Wedding Family Contributions (2026-08-05) also needed no new migration.** `wedding_family_contributions` and its RLS were already part of `0001_init.sql`/`0002_rls.sql`; wired via `apps/web/src/app/api/wedding/family-contributions/route.ts` (POST) and an extended `GET /api/wedding`. Kept as a plain free-text ledger (`contributor_name`, no `user_id`) exactly as the schema intended — per PROJECT_MEMORY.md's 2026-08-02 decision (PRD §12.8), family members who gift money never get real account access.
 
+**Upcoming Bills (2026-08-05) reuses `wedding_vendors` — no new table, no new migration.** `apps/web/src/app/api/bills/route.ts` reads the same `balance_due`/`balance_due_date` columns Wedding Mode already wired; the old mock bills were always just vendor balances under a different label.
+
+**Money Meeting (2026-08-05) also needed no new migration.** `money_meetings` and its RLS were already part of `0001_init.sql`/`0002_rls.sql` — and unlike Budget's `budget_categories_write`, `money_meetings_all`'s policy lets **any** active member of the Partnership update the row, not just its creator, so this one is genuinely co-editable. Wired via `apps/web/src/app/api/money-meeting/route.ts` (GET, auto-creates the current week's row) and `.../complete/route.ts` (POST). The agenda is derived from real Budget/Wedding data with plain rule-based checks (`apps/web/src/lib/moneyMeeting.ts`) — explicitly not an AI call, since AI is out of scope until the provider decision is made.
+
 ## Open items
 
 - **Plaid access-token encryption** (`plaid_items.access_token_encrypted`): Supabase Vault is gone; no replacement chosen yet (`pgcrypto` + app-managed key vs. a dedicated secrets manager). See `PROJECT_MEMORY.md` §6.4/§8.
