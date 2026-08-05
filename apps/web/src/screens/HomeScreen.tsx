@@ -39,10 +39,12 @@ export interface HomeScreenProps {
 // same reason: those two screens showing different numbers for the same
 // underlying goals would be a real, confusing bug once goals are real.
 // The avatar chip's second name pulls the real connected partner's name
-// from /api/partnership the same way, instead of the mock "Marcus".
-// Falls back to the mock goals/partner name if the backend isn't reachable.
-// Budget/AI Insights/Upcoming Bills/Activity stay mock — no transactions
-// system or AI backend exists yet.
+// from /api/partnership the same way, instead of the mock "Marcus". Upcoming
+// Bills pulls from /api/bills (2026-08-05), which reads the same real
+// wedding_vendors balances Wedding Mode already wired — not a separate mock
+// "bills" concept. Falls back to the mock goals/partner/bills data
+// independently if a given backend isn't reachable. Budget/AI Insights/
+// Activity stay mock — no shared-transactions feed or AI backend exists yet.
 export function HomeScreen({ userName }: HomeScreenProps = {}) {
   const { colors } = useTheme();
   const displayName = userName || currentUser.name;
@@ -51,6 +53,7 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
   const [backendAvailable, setBackendAvailable] = useState(false);
   const [apiGoals, setApiGoals] = useState<ApiGoal[]>([]);
   const [partnerName, setPartnerName] = useState<string | null>(null);
+  const [apiBills, setApiBills] = useState<{ id: string; name: string; amount: number; due: string }[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,6 +94,25 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
       })
       .catch(() => {
         // No database/Clerk reachable — fall back to the mock partner name.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/bills")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("bills fetch failed");
+        return res.json() as Promise<{ bills: { id: string; name: string; amount: number; due: string }[] }>;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setApiBills(data.bills);
+      })
+      .catch(() => {
+        // No database/Clerk reachable — fall back to the mock bills below.
       });
     return () => {
       cancelled = true;
@@ -233,7 +255,12 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
           <CreditCard size={16} color={colors.textSecondary} />
           <Text variant="h3">Upcoming Bills</Text>
         </View>
-        {upcomingBills.map((b) => (
+        {(apiBills ?? upcomingBills).length === 0 && (
+          <Text variant="bodySmall" secondary>
+            No upcoming bills.
+          </Text>
+        )}
+        {(apiBills ?? upcomingBills).map((b) => (
           <View key={b.id} style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
             <Text variant="body">{b.name}</Text>
             <Text variant="body" secondary>
