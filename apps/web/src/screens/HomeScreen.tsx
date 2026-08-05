@@ -7,6 +7,7 @@ import { AvatarStack } from "../components/AvatarStack";
 import { StatTile } from "../components/StatTile";
 import { TrendChart } from "../components/TrendChart";
 import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
+import { formatRelativeTime } from "../lib/formatRelativeTime";
 
 interface ApiGoal {
   id: string;
@@ -21,22 +22,6 @@ interface ApiGoal {
 // goals — there's no real time-series backend yet (no daily balance
 // snapshots wired), so this is shaped to land on today's real total (mock
 // or live) rather than an arbitrary number.
-// Matches the mock's "2h ago" / "1d ago" / "3mo ago" style from a real ISO
-// timestamp — there's no library for this in the shared @noivos/ui package,
-// and the need is narrow enough not to justify adding one.
-function formatRelativeTime(iso: string): string {
-  const then = new Date(iso).getTime();
-  const now = Date.now();
-  const diffMs = Math.max(0, now - then);
-  const hours = diffMs / 3_600_000;
-  if (hours < 1) return "just now";
-  if (hours < 24) return `${Math.round(hours)}h ago`;
-  const days = hours / 24;
-  if (days < 30) return `${Math.round(days)}d ago`;
-  const months = days / 30;
-  return `${Math.round(months)}mo ago`;
-}
-
 function useSavingsTrend(total: number) {
   const weeks = ["7wk ago", "6wk ago", "5wk ago", "4wk ago", "3wk ago", "2wk ago", "Last wk", "This wk"];
   const shape = [0.78, 0.8, 0.83, 0.85, 0.89, 0.93, 0.97, 1];

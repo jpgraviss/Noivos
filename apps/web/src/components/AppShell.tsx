@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import { Bell, Heart, House, LogOut, Search, Settings, Sparkles, Wallet, Ellipsis } from "lucide-react-native";
-import { ThemeProvider, useTheme, palette, getTextColorFor } from "@noivos/ui";
+import { Card, ThemeProvider, useTheme, palette, getTextColorFor, spacing } from "@noivos/ui";
 import { HomeScreen } from "../screens/HomeScreen";
 import { BudgetScreen } from "../screens/BudgetScreen";
 import { GoalsScreen } from "../screens/GoalsScreen";
 import { AICoachScreen } from "../screens/AICoachScreen";
 import { MoreScreen } from "../screens/MoreScreen";
-import { weddingDetails, currentUser } from "../data/mockData";
+import { weddingDetails, currentUser, activityFeed as mockActivityFeed } from "../data/mockData";
+import { formatRelativeTime } from "../lib/formatRelativeTime";
+
+interface ActivityEvent {
+  id: string;
+  text: string;
+  time: string; // ISO timestamp for real events; already a display string ("2h ago") for the mock fallback
+}
 
 const TABS = ["Home", "Budget", "Goals", "AI Coach", "More"] as const;
 type Tab = (typeof TABS)[number];
@@ -33,6 +40,38 @@ const SCREENS: Record<Tab, ComponentType<any>> = {
 function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: string }) {
   const [tab, setTab] = useState<Tab>("Home");
   const { colors, setMode } = useTheme();
+
+  // Notifications bell: a real recent-activity dropdown (reuses the same
+  // /api/activity endpoint HomeScreen's Activity card already wired
+  // 2026-08-05), not a fake unread-count badge — there's no read/unread
+  // tracking anywhere yet, so this deliberately doesn't claim one.
+  const [showActivity, setShowActivity] = useState(false);
+  const [activityEvents, setActivityEvents] = useState<ActivityEvent[] | null>(null);
+  const [activityIsReal, setActivityIsReal] = useState(false);
+  const activityFetched = useRef(false);
+
+  function toggleActivity() {
+    setShowActivity((prev) => !prev);
+    if (!activityFetched.current) {
+      activityFetched.current = true;
+      fetch("/api/activity")
+        .then(async (res) => {
+          if (!res.ok) throw new Error("activity fetch failed");
+          return res.json() as Promise<{ hasPartnership: boolean; events: ActivityEvent[] }>;
+        })
+        .then((data) => {
+          if (data.hasPartnership) {
+            setActivityIsReal(true);
+            setActivityEvents(data.events);
+          } else {
+            setActivityEvents(mockActivityFeed);
+          }
+        })
+        .catch(() => {
+          setActivityEvents(mockActivityFeed);
+        });
+    }
+  }
 
   // Sync the theme to whatever's actually saved in the database (if
   // reachable) once on mount — ThemeProvider always starts at its 'dark'
@@ -188,16 +227,55 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
           }}
         >
           <span style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: 24, color: colors.textPrimary }}>{pageTitle}</span>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="noivos-icon-btn" aria-label="Search" title="Search">
+          <div style={{ display: "flex", gap: 8, position: "relative" }}>
+            {/* Not yet wired to anything — there's no cross-screen search
+                index to query yet. Left visible rather than removed so the
+                affordance isn't silently missing, but it's a known,
+                deliberately-deferred gap, not a hidden dead end. */}
+            <button className="noivos-icon-btn" aria-label="Search" title="Search — coming soon">
               <Search size={16} color={colors.textSecondary} />
             </button>
-            <button className="noivos-icon-btn" aria-label="Notifications" title="Notifications">
+            <button className="noivos-icon-btn" aria-label="Recent activity" title="Recent activity" onClick={toggleActivity}>
               <Bell size={16} color={colors.textSecondary} />
             </button>
-            <button className="noivos-icon-btn" aria-label="Settings" title="Settings">
+            <button className="noivos-icon-btn" aria-label="Settings" title="Settings" onClick={() => setTab("More")}>
               <Settings size={16} color={colors.textSecondary} />
             </button>
+
+            {showActivity && (
+              <div style={{ position: "absolute", top: 44, right: 0, width: 320, zIndex: 20 }}>
+                <Card style={{ padding: spacing.md }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.sm }}>
+                    <span style={{ fontFamily: "var(--font-inter)", fontSize: 13, fontWeight: 600, color: colors.textPrimary }}>
+                      Recent activity
+                    </span>
+                    <button
+                      onClick={() => setShowActivity(false)}
+                      aria-label="Close"
+                      style={{ background: "none", border: "none", color: colors.textSecondary, cursor: "pointer", fontSize: 16, lineHeight: 1 }}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                  {activityEvents === null && (
+                    <span style={{ fontFamily: "var(--font-inter)", fontSize: 13, color: colors.textSecondary }}>Loading…</span>
+                  )}
+                  {activityEvents?.length === 0 && (
+                    <span style={{ fontFamily: "var(--font-inter)", fontSize: 13, color: colors.textSecondary }}>
+                      No activity yet.
+                    </span>
+                  )}
+                  {activityEvents?.slice(0, 5).map((a) => (
+                    <div key={a.id} style={{ marginBottom: spacing.sm }}>
+                      <div style={{ fontFamily: "var(--font-inter)", fontSize: 13, color: colors.textPrimary }}>{a.text}</div>
+                      <div style={{ fontFamily: "var(--font-inter)", fontSize: 11, color: colors.textSecondary }}>
+                        {activityIsReal ? formatRelativeTime(a.time) : a.time}
+                      </div>
+                    </div>
+                  ))}
+                </Card>
+              </div>
+            )}
           </div>
         </header>
 

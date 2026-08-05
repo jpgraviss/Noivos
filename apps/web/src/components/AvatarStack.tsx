@@ -12,11 +12,7 @@ function initials(name: string) {
 export function AvatarStack({ names, colors }: { names: [string, string]; colors?: [string, string] }) {
   const { colors: theme } = useTheme();
   const [nameA, nameB] = names;
-  // "#638C00" is a chart-validated darker step of Sour Lime — the raw brand
-  // hex is too light for a categorical identity color (dataviz skill's
-  // lightness-band check), so a dedicated shade is used here and for the
-  // matching goal-contributor color in data/mockData.ts.
-  const [colorA, colorB] = colors ?? ["#638C00", palette.sourPunch];
+  const [colorA, colorB] = colors ?? [palette.sourLime, palette.sourPunch];
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>

@@ -5,10 +5,17 @@ import { Card, OwnershipBadge, StackedProgressBar, Text, useTheme, spacing, radi
 import { goals as mockGoals, weddingDetails } from "../data/mockData";
 import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
 
-// Validated chart-safe categorical colors (see PROJECT_MEMORY.md's dashboard-
-// redesign entry — raw Sour Lime fails the dataviz skill's lightness-band
-// check for a categorical mark). Rotated per distinct contributor.
-const CONTRIBUTOR_COLORS = ["#638C00", palette.sourPunch, palette.grape, palette.electricBlue];
+// Rotated per distinct contributor. Originally a hardcoded darker green
+// (#638C00) stood in for palette.sourLime here specifically because the old
+// neon Sour Lime (#C6FF00) failed the dataviz skill's OKLCH lightness-band
+// check for a categorical chart mark (see PROJECT_MEMORY.md's dashboard-
+// redesign entry) — the 2026-08-05 Origin-direction repaint made
+// palette.sourLime itself a muted, much darker green, so that workaround is
+// very likely unnecessary now. Using the token directly rather than keep a
+// second hardcoded hex to independently maintain; worth re-running
+// scripts/validate_palette.js to confirm before this is treated as
+// re-validated.
+const CONTRIBUTOR_COLORS = [palette.sourLime, palette.sourPunch, palette.grape, palette.electricBlue];
 
 interface ApiContribution {
   id: string;

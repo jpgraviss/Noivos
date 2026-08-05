@@ -3,6 +3,8 @@
 // match that schema so swapping in real queries later is a plumbing change,
 // not a redesign.
 
+import { palette } from '@noivos/ui';
+
 export const currentUser = { id: 'u1', name: 'Ava', partnerName: 'Marcus' };
 
 export const budgetSnapshot = {
@@ -26,9 +28,9 @@ export const goals = [
     target: 35000,
     shared: true,
     contributors: [
-      { name: 'Ava', amount: 9800, color: '#638C00' },
-      { name: 'Marcus', amount: 7200, color: '#FF2D8E' },
-      { name: 'Family', amount: 5000, color: '#8A2BE2' },
+      { name: 'Ava', amount: 9800, color: palette.sourLime },
+      { name: 'Marcus', amount: 7200, color: palette.sourPunch },
+      { name: 'Family', amount: 5000, color: palette.grape },
     ],
   },
   {
@@ -38,8 +40,8 @@ export const goals = [
     target: 15000,
     shared: true,
     contributors: [
-      { name: 'Ava', amount: 4200, color: '#638C00' },
-      { name: 'Marcus', amount: 3900, color: '#FF2D8E' },
+      { name: 'Ava', amount: 4200, color: palette.sourLime },
+      { name: 'Marcus', amount: 3900, color: palette.sourPunch },
     ],
   },
   {
@@ -48,7 +50,7 @@ export const goals = [
     type: 'custom',
     target: 1200,
     shared: false,
-    contributors: [{ name: 'Ava', amount: 480, color: '#638C00' }],
+    contributors: [{ name: 'Ava', amount: 480, color: palette.sourLime }],
   },
 ];
 
