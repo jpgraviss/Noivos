@@ -36,6 +36,37 @@ interface DisplayGoal {
   contributors: { name: string; amount: number; color: string }[];
 }
 
+interface ApiVendor {
+  id: string;
+  name: string;
+  balanceDue: number | null;
+  balanceDueDate: string | null;
+  status: string | null;
+}
+
+interface ApiChecklistItem {
+  id: string;
+  title: string;
+  dueDate: string | null;
+  isComplete: boolean;
+}
+
+interface ApiWeddingDetails {
+  id: string;
+  weddingDate: string | null;
+  guestCountEstimate: number | null;
+  status: string;
+  vendors: ApiVendor[];
+  checklist: ApiChecklistItem[];
+}
+
+function daysUntil(dateStr: string | null): number | null {
+  if (!dateStr) return null;
+  const target = new Date(`${dateStr}T00:00:00`);
+  const now = new Date();
+  return Math.ceil((target.getTime() - now.getTime()) / 86400000);
+}
+
 function toDisplayGoal(g: ApiGoal): DisplayGoal {
   const contributorIds = Array.from(new Set(g.contributions.map((c) => c.contributorId)));
   const contributors = contributorIds.map((id, idx) => {
@@ -75,6 +106,160 @@ export function GoalsScreen() {
   const [contributionDrafts, setContributionDrafts] = useState<Record<string, string>>({});
   const [contributingGoalId, setContributingGoalId] = useState<string | null>(null);
   const [contributionErrors, setContributionErrors] = useState<Record<string, string>>({});
+
+  // Wedding segment real-data state — separate from the "All Goals" fetch
+  // above since /api/wedding and /api/goals are independent resources.
+  const [weddingLoaded, setWeddingLoaded] = useState(false);
+  const [weddingBackendAvailable, setWeddingBackendAvailable] = useState(false);
+  const [hasPartnership, setHasPartnership] = useState(false);
+  const [apiWedding, setApiWedding] = useState<ApiWeddingDetails | null>(null);
+
+  const [startDate, setStartDate] = useState("");
+  const [startGuestCount, setStartGuestCount] = useState("");
+  const [startingWedding, setStartingWedding] = useState(false);
+  const [startWeddingError, setStartWeddingError] = useState<string | null>(null);
+
+  const [showAddVendor, setShowAddVendor] = useState(false);
+  const [vendorName, setVendorName] = useState("");
+  const [vendorBalance, setVendorBalance] = useState("");
+  const [vendorDueDate, setVendorDueDate] = useState("");
+  const [addingVendor, setAddingVendor] = useState(false);
+  const [addVendorError, setAddVendorError] = useState<string | null>(null);
+
+  const [newChecklistTitle, setNewChecklistTitle] = useState("");
+  const [addingChecklistItem, setAddingChecklistItem] = useState(false);
+  const [addChecklistError, setAddChecklistError] = useState<string | null>(null);
+  const [togglingItemId, setTogglingItemId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/wedding")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("wedding fetch failed");
+        return res.json() as Promise<{ hasPartnership: boolean; weddingDetails: ApiWeddingDetails | null }>;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setWeddingBackendAvailable(true);
+        setHasPartnership(data.hasPartnership);
+        setApiWedding(data.weddingDetails);
+      })
+      .catch(() => {
+        // No database/Clerk/route available — fall back to the mock.
+      })
+      .finally(() => {
+        if (!cancelled) setWeddingLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleStartWedding() {
+    setStartingWedding(true);
+    setStartWeddingError(null);
+    try {
+      const res = await fetch("/api/wedding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          weddingDate: startDate.trim() || undefined,
+          guestCountEstimate: startGuestCount.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStartWeddingError(data.error ?? "Couldn't start Wedding Mode.");
+        return;
+      }
+      setApiWedding(data);
+    } catch {
+      setStartWeddingError("Couldn't reach the server — try again.");
+    } finally {
+      setStartingWedding(false);
+    }
+  }
+
+  async function handleAddVendor() {
+    const name = vendorName.trim();
+    if (!name) {
+      setAddVendorError("Vendor name is required.");
+      return;
+    }
+    setAddingVendor(true);
+    setAddVendorError(null);
+    try {
+      const res = await fetch("/api/wedding/vendors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          balanceDue: vendorBalance.trim() || undefined,
+          balanceDueDate: vendorDueDate.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAddVendorError(data.error ?? "Couldn't add that vendor.");
+        return;
+      }
+      setApiWedding((prev) => (prev ? { ...prev, vendors: [...prev.vendors, data] } : prev));
+      setVendorName("");
+      setVendorBalance("");
+      setVendorDueDate("");
+      setShowAddVendor(false);
+    } catch {
+      setAddVendorError("Couldn't reach the server — try again.");
+    } finally {
+      setAddingVendor(false);
+    }
+  }
+
+  async function handleAddChecklistItem() {
+    const title = newChecklistTitle.trim();
+    if (!title) return;
+    setAddingChecklistItem(true);
+    setAddChecklistError(null);
+    try {
+      const res = await fetch("/api/wedding/checklist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAddChecklistError(data.error ?? "Couldn't add that item.");
+        return;
+      }
+      setApiWedding((prev) => (prev ? { ...prev, checklist: [...prev.checklist, data] } : prev));
+      setNewChecklistTitle("");
+    } catch {
+      setAddChecklistError("Couldn't reach the server — try again.");
+    } finally {
+      setAddingChecklistItem(false);
+    }
+  }
+
+  async function handleToggleChecklistItem(itemId: string, isComplete: boolean) {
+    setTogglingItemId(itemId);
+    try {
+      const res = await fetch(`/api/wedding/checklist/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isComplete }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setApiWedding((prev) =>
+          prev ? { ...prev, checklist: prev.checklist.map((c) => (c.id === itemId ? { ...c, isComplete: data.isComplete } : c)) } : prev
+        );
+      }
+    } catch {
+      // Best-effort — the checkbox just won't visually update.
+    } finally {
+      setTogglingItemId(null);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -207,52 +392,252 @@ export function GoalsScreen() {
       </ScreenGridWide>
 
       {segment === "wedding" && weddingDetails.active ? (
-        <>
-          <Card glow={palette.sourPunch}>
-            <Text variant="display" color={palette.sourPunch}>
-              {weddingDetails.daysLeft}
-            </Text>
-            <Text variant="body" secondary>
-              days until {weddingDetails.date}
-            </Text>
-            <Text variant="bodySmall" secondary style={{ marginTop: spacing.xs }}>
-              ~{weddingDetails.guestEstimate} guests
+        !weddingLoaded ? (
+          <Card>
+            <Text variant="bodySmall" secondary>
+              Loading…
             </Text>
           </Card>
+        ) : !weddingBackendAvailable ? (
+          <>
+            <Card glow={palette.sourPunch}>
+              <Text variant="display" color={palette.sourPunch}>
+                {weddingDetails.daysLeft}
+              </Text>
+              <Text variant="body" secondary>
+                days until {weddingDetails.date}
+              </Text>
+              <Text variant="bodySmall" secondary style={{ marginTop: spacing.xs }}>
+                ~{weddingDetails.guestEstimate} guests
+              </Text>
+            </Card>
 
-          <Card>
-            <Text variant="h3" style={{ marginBottom: spacing.sm }}>
-              Vendors
-            </Text>
-            {weddingDetails.vendors.map((v) => (
-              <View key={v.name} style={{ marginBottom: spacing.md }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                  <Text variant="body">{v.name}</Text>
-                  <Text variant="bodySmall" secondary>
-                    ${v.balanceDue} due {v.dueDate}
+            <Card>
+              <Text variant="h3" style={{ marginBottom: spacing.sm }}>
+                Vendors
+              </Text>
+              {weddingDetails.vendors.map((v) => (
+                <View key={v.name} style={{ marginBottom: spacing.md }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                    <Text variant="body">{v.name}</Text>
+                    <Text variant="bodySmall" secondary>
+                      ${v.balanceDue} due {v.dueDate}
+                    </Text>
+                  </View>
+                  <Text variant="caption" color={palette.sourLime}>
+                    {v.status}
                   </Text>
                 </View>
-                <Text variant="caption" color={palette.sourLime}>
-                  {v.status}
-                </Text>
-              </View>
-            ))}
-          </Card>
+              ))}
+            </Card>
 
+            <Card>
+              <Text variant="h3" style={{ marginBottom: spacing.sm }}>
+                Checklist
+              </Text>
+              {weddingDetails.checklist.map((item) => (
+                <View key={item.title} style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.xs }}>
+                  {item.done ? <CircleCheck size={18} color={palette.sourLime} /> : <Circle size={18} color={colors.textSecondary} />}
+                  <Text variant="body" secondary={item.done}>
+                    {item.title}
+                  </Text>
+                </View>
+              ))}
+            </Card>
+          </>
+        ) : !hasPartnership ? (
           <Card>
             <Text variant="h3" style={{ marginBottom: spacing.sm }}>
-              Checklist
+              Set up your Partnership first
             </Text>
-            {weddingDetails.checklist.map((item) => (
-              <View key={item.title} style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.xs }}>
-                {item.done ? <CircleCheck size={18} color={palette.sourLime} /> : <Circle size={18} color={colors.textSecondary} />}
-                <Text variant="body" secondary={item.done}>
-                  {item.title}
-                </Text>
-              </View>
-            ))}
+            <Text variant="bodySmall" secondary>
+              Wedding Mode needs a Partnership to attach to — go to More → Partnership and invite your partner (or
+              start one solo) before setting up your wedding here.
+            </Text>
           </Card>
-        </>
+        ) : !apiWedding ? (
+          <Card>
+            <Text variant="h3" style={{ marginBottom: spacing.sm }}>
+              Start planning your wedding
+            </Text>
+            <Text variant="bodySmall" secondary style={{ marginBottom: spacing.md }}>
+              Add your date and estimated guest count to get started — both are optional, you can fill them in later.
+            </Text>
+            <View style={{ gap: spacing.sm }}>
+              <TextInput
+                value={startDate}
+                onChangeText={setStartDate}
+                placeholder="Wedding date (YYYY-MM-DD)"
+                placeholderTextColor={colors.textSecondary}
+                style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 10, color: colors.textPrimary }}
+              />
+              <TextInput
+                value={startGuestCount}
+                onChangeText={setStartGuestCount}
+                placeholder="Estimated guest count"
+                placeholderTextColor={colors.textSecondary}
+                keyboardType="numeric"
+                style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 10, color: colors.textPrimary }}
+              />
+              {startWeddingError && (
+                <Text variant="caption" style={{ color: palette.sourPunch }}>
+                  {startWeddingError}
+                </Text>
+              )}
+              <Pressable
+                onPress={handleStartWedding}
+                disabled={startingWedding}
+                style={{ alignSelf: "flex-start", paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, backgroundColor: palette.sourLime }}
+              >
+                <Text variant="bodySmall" color={palette.licorice} style={{ fontWeight: "600" }}>
+                  {startingWedding ? "Starting…" : "Start Wedding Mode"}
+                </Text>
+              </Pressable>
+            </View>
+          </Card>
+        ) : (
+          <>
+            <Card glow={palette.sourPunch}>
+              <Text variant="display" color={palette.sourPunch}>
+                {daysUntil(apiWedding.weddingDate) ?? "—"}
+              </Text>
+              <Text variant="body" secondary>
+                {apiWedding.weddingDate ? `days until ${apiWedding.weddingDate}` : "Set a wedding date to see your countdown"}
+              </Text>
+              {apiWedding.guestCountEstimate != null && (
+                <Text variant="bodySmall" secondary style={{ marginTop: spacing.xs }}>
+                  ~{apiWedding.guestCountEstimate} guests
+                </Text>
+              )}
+            </Card>
+
+            <Card>
+              <Text variant="h3" style={{ marginBottom: spacing.sm }}>
+                Vendors
+              </Text>
+              {apiWedding.vendors.length === 0 && (
+                <Text variant="bodySmall" secondary style={{ marginBottom: spacing.sm }}>
+                  No vendors added yet.
+                </Text>
+              )}
+              {apiWedding.vendors.map((v) => (
+                <View key={v.id} style={{ marginBottom: spacing.md }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                    <Text variant="body">{v.name}</Text>
+                    {v.balanceDue != null && (
+                      <Text variant="bodySmall" secondary>
+                        ${v.balanceDue}{v.balanceDueDate ? ` due ${v.balanceDueDate}` : ""}
+                      </Text>
+                    )}
+                  </View>
+                  {v.status && (
+                    <Text variant="caption" color={palette.sourLime}>
+                      {v.status}
+                    </Text>
+                  )}
+                </View>
+              ))}
+
+              {showAddVendor ? (
+                <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+                  <TextInput
+                    value={vendorName}
+                    onChangeText={setVendorName}
+                    placeholder="Vendor name"
+                    placeholderTextColor={colors.textSecondary}
+                    style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 10, color: colors.textPrimary }}
+                  />
+                  <TextInput
+                    value={vendorBalance}
+                    onChangeText={setVendorBalance}
+                    placeholder="Balance due"
+                    placeholderTextColor={colors.textSecondary}
+                    keyboardType="numeric"
+                    style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 10, color: colors.textPrimary }}
+                  />
+                  <TextInput
+                    value={vendorDueDate}
+                    onChangeText={setVendorDueDate}
+                    placeholder="Due date (YYYY-MM-DD)"
+                    placeholderTextColor={colors.textSecondary}
+                    style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 10, color: colors.textPrimary }}
+                  />
+                  {addVendorError && (
+                    <Text variant="caption" style={{ color: palette.sourPunch }}>
+                      {addVendorError}
+                    </Text>
+                  )}
+                  <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                    <Pressable
+                      onPress={handleAddVendor}
+                      disabled={addingVendor}
+                      style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, backgroundColor: palette.sourLime }}
+                    >
+                      <Text variant="bodySmall" color={palette.licorice} style={{ fontWeight: "600" }}>
+                        {addingVendor ? "Saving…" : "Add vendor"}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setShowAddVendor(false)}
+                      style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border }}
+                    >
+                      <Text variant="bodySmall">Cancel</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <Pressable onPress={() => setShowAddVendor(true)} style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs }}>
+                  <Plus size={16} color={palette.sourLime} />
+                  <Text variant="bodySmall" style={{ fontWeight: "600" }}>
+                    Add a vendor
+                  </Text>
+                </Pressable>
+              )}
+            </Card>
+
+            <Card>
+              <Text variant="h3" style={{ marginBottom: spacing.sm }}>
+                Checklist
+              </Text>
+              {apiWedding.checklist.map((item) => (
+                <Pressable
+                  key={item.id}
+                  onPress={() => handleToggleChecklistItem(item.id, !item.isComplete)}
+                  disabled={togglingItemId === item.id}
+                  style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.xs }}
+                >
+                  {item.isComplete ? <CircleCheck size={18} color={palette.sourLime} /> : <Circle size={18} color={colors.textSecondary} />}
+                  <Text variant="body" secondary={item.isComplete}>
+                    {item.title}
+                  </Text>
+                </Pressable>
+              ))}
+              <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm, alignItems: "center" }}>
+                <TextInput
+                  value={newChecklistTitle}
+                  onChangeText={setNewChecklistTitle}
+                  placeholder="Add a checklist item"
+                  placeholderTextColor={colors.textSecondary}
+                  style={{ flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 8, color: colors.textPrimary, fontSize: 13 }}
+                />
+                <Pressable
+                  onPress={handleAddChecklistItem}
+                  disabled={addingChecklistItem}
+                  style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: palette.sourLime }}
+                >
+                  <Text variant="bodySmall" color={palette.licorice} style={{ fontWeight: "600" }}>
+                    {addingChecklistItem ? "Adding…" : "Add"}
+                  </Text>
+                </Pressable>
+              </View>
+              {addChecklistError && (
+                <Text variant="caption" style={{ color: palette.sourPunch, marginTop: 4 }}>
+                  {addChecklistError}
+                </Text>
+              )}
+            </Card>
+          </>
+        )
       ) : !loaded ? (
         <Card>
           <Text variant="bodySmall" secondary>

@@ -16,6 +16,15 @@ function clerkConfigured() {
 // flagged rather than faked. Creating the Partnership now, even solo, is
 // what unblocks anything that requires partnership_id to exist (e.g.
 // wedding_details).
+//
+// Created as 'active' rather than 'invited', a fast-tracked call: the real
+// person planning a wedding solo before their partner joins needs to
+// actually use the workspace (Wedding Mode, shared goals) right away —
+// wedding_details_write and every other partnership_is_active() RLS check
+// requires status = 'active', so leaving new Partnerships at 'invited'
+// would make everything downstream of this unusable until a second person
+// accepts, which has no flow yet either. Flagged in PROJECT_MEMORY as a
+// judgment call worth revisiting once real invite-acceptance exists.
 export async function POST(request: Request) {
   if (!clerkConfigured()) {
     return NextResponse.json({ error: "Clerk isn't configured" }, { status: 503 });
@@ -46,7 +55,7 @@ export async function POST(request: Request) {
       }
 
       const partnershipResult = await client.query(
-        `insert into partnerships (status) values ('invited') returning id`
+        `insert into partnerships (status) values ('active') returning id`
       );
       const partnershipId = partnershipResult.rows[0].id;
 
