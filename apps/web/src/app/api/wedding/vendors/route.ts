@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { withUserContext } from "@/lib/db";
 import { findActiveMembership } from "@/lib/partnership";
 import { findWeddingDetails } from "@/lib/wedding";
+import { logActivityEvent } from "@/lib/activity";
 
 function clerkConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
                    balance_due_date::text as balance_due_date, status`,
         [details.id, name, balanceDue, balanceDueDate, status]
       );
-      return { vendor: insertResult.rows[0] };
+      return { vendor: insertResult.rows[0], partnershipId: membership.partnership_id };
     });
 
     if (result.noPartnership) {
@@ -64,6 +65,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Start Wedding Mode before adding vendors." }, { status: 400 });
     }
     const v = result.vendor;
+
+    // Best-effort, fire-and-forget — see lib/activity.ts. Vendors always
+    // belong to an active Partnership (wedding_details.partnership_id is
+    // NOT NULL), so no shared/personal branch is needed here.
+    void logActivityEvent(userId, result.partnershipId, "wedding_vendor_added", { vendorName: v.name });
+
     return NextResponse.json({
       id: v.id,
       name: v.name,

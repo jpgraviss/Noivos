@@ -21,6 +21,22 @@ interface ApiGoal {
 // goals — there's no real time-series backend yet (no daily balance
 // snapshots wired), so this is shaped to land on today's real total (mock
 // or live) rather than an arbitrary number.
+// Matches the mock's "2h ago" / "1d ago" / "3mo ago" style from a real ISO
+// timestamp — there's no library for this in the shared @noivos/ui package,
+// and the need is narrow enough not to justify adding one.
+function formatRelativeTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  const now = Date.now();
+  const diffMs = Math.max(0, now - then);
+  const hours = diffMs / 3_600_000;
+  if (hours < 1) return "just now";
+  if (hours < 24) return `${Math.round(hours)}h ago`;
+  const days = hours / 24;
+  if (days < 30) return `${Math.round(days)}d ago`;
+  const months = days / 30;
+  return `${Math.round(months)}mo ago`;
+}
+
 function useSavingsTrend(total: number) {
   const weeks = ["7wk ago", "6wk ago", "5wk ago", "4wk ago", "3wk ago", "2wk ago", "Last wk", "This wk"];
   const shape = [0.78, 0.8, 0.83, 0.85, 0.89, 0.93, 0.97, 1];
@@ -46,9 +62,14 @@ export interface HomeScreenProps {
 // (2026-08-05) once a real Partnership exists — its agenda is derived from
 // real Budget/Wedding data via plain rule-based checks (lib/moneyMeeting.ts),
 // not an AI call, and "Mark as done" persists to the real money_meetings
-// row. Falls back to the mock goals/partner/bills/agenda data independently
-// if a given backend isn't reachable. Budget card/AI Insights/Activity stay
-// mock — no shared-transactions feed or AI backend exists yet.
+// row. Activity pulls from /api/activity (2026-08-05), populated by
+// lib/activity.ts's logActivityEvent() calls scattered across the other
+// real-data routes — requires migration
+// 0005_add_activity_feed_insert_policy.sql to actually persist events; see
+// packages/database/README.md. Falls back to the mock goals/partner/bills/
+// agenda/activity data independently if a given backend isn't reachable.
+// Budget card/AI Insights stay mock — no shared-transactions feed or AI
+// backend exists yet.
 export function HomeScreen({ userName }: HomeScreenProps = {}) {
   const { colors } = useTheme();
   const displayName = userName || currentUser.name;
@@ -65,6 +86,7 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
     status: string;
   } | null>(null);
   const [completingMeeting, setCompletingMeeting] = useState(false);
+  const [apiActivity, setApiActivity] = useState<{ id: string; text: string; time: string }[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,6 +164,25 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
       .then((data) => {
         if (cancelled || !data.hasPartnership) return;
         setApiMeeting({ id: data.id, weekOf: data.weekOf, topics: data.topics, status: data.status });
+      })
+      .catch(() => {
+        // No database/Clerk reachable (or no Partnership yet) — fall back to the mock below.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/activity")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("activity fetch failed");
+        return res.json() as Promise<{ hasPartnership: boolean; events: { id: string; text: string; time: string }[] }>;
+      })
+      .then((data) => {
+        if (cancelled || !data.hasPartnership) return;
+        setApiActivity(data.events);
       })
       .catch(() => {
         // No database/Clerk reachable (or no Partnership yet) — fall back to the mock below.
@@ -347,7 +388,12 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
           <Users size={16} color={colors.textSecondary} />
           <Text variant="h3">Activity</Text>
         </View>
-        {activityFeed.map((a) => (
+        {apiActivity && apiActivity.length === 0 && (
+          <Text variant="bodySmall" secondary>
+            No activity yet — updates will show up here as you and your partner use Noivos.
+          </Text>
+        )}
+        {(apiActivity ?? activityFeed).map((a) => (
           <View key={a.id} style={{ flexDirection: "row", gap: spacing.sm, marginBottom: spacing.xs, alignItems: "flex-start" }}>
             <View
               style={{
@@ -367,7 +413,7 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
             <View style={{ flex: 1 }}>
               <Text variant="body">{a.text}</Text>
               <Text variant="caption" secondary>
-                {a.time}
+                {apiActivity ? formatRelativeTime(a.time) : a.time}
               </Text>
             </View>
           </View>

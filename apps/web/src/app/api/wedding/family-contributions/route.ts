@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { withUserContext } from "@/lib/db";
 import { findActiveMembership } from "@/lib/partnership";
 import { findWeddingDetails } from "@/lib/wedding";
+import { logActivityEvent } from "@/lib/activity";
 
 function clerkConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
          returning id, contributor_name, amount, note, created_at::text as created_at`,
         [details.id, contributorName, amount, note, userId]
       );
-      return { contribution: inserted.rows[0] };
+      return { contribution: inserted.rows[0], partnershipId: membership.partnership_id };
     });
 
     if (result.noPartnership) {
@@ -63,6 +64,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Start Wedding Mode before logging family contributions." }, { status: 400 });
     }
     const c = result.contribution;
+
+    // Best-effort, fire-and-forget — see lib/activity.ts.
+    void logActivityEvent(userId, result.partnershipId, "wedding_family_contribution", {
+      contributorName: c.contributor_name,
+      amount: Number(c.amount),
+    });
+
     return NextResponse.json({
       id: c.id,
       contributorName: c.contributor_name,

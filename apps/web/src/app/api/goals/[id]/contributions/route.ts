@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { withUserContext } from "@/lib/db";
+import { logActivityEvent } from "@/lib/activity";
 
 function clerkConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
@@ -35,15 +36,31 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   try {
-    const contribution = await withUserContext(userId, async (client) => {
+    const { contribution, activityInfo } = await withUserContext(userId, async (client) => {
       const result = await client.query(
         `insert into goal_contributions (goal_id, contributor_id, amount, note)
          values ($1, $2, $3, $4)
          returning id, contributor_id, amount::float8 as amount, contribution_date::text as contribution_date, note`,
         [goalId, userId, amount, note]
       );
-      return result.rows[0];
+      const goalInfo = await client.query(
+        `select name, is_shared, partnership_id from goals where id = $1`,
+        [goalId]
+      );
+      return { contribution: result.rows[0], activityInfo: goalInfo.rows[0] ?? null };
     });
+
+    // Best-effort, fire-and-forget — see lib/activity.ts for why this runs
+    // after the primary transaction has already committed rather than
+    // inside it. Only logged for shared goals; a personal goal's
+    // contributions stay off the shared Activity feed.
+    if (activityInfo?.is_shared && activityInfo.partnership_id) {
+      void logActivityEvent(userId, activityInfo.partnership_id, "goal_contribution", {
+        goalName: activityInfo.name,
+        amount: contribution.amount,
+      });
+    }
+
     return NextResponse.json({
       id: contribution.id,
       contributorId: contribution.contributor_id,

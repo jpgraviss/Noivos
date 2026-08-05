@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { withUserContext } from "@/lib/db";
 import { findOrCreateManualAccount } from "@/lib/budget";
+import { logActivityEvent } from "@/lib/activity";
 
 function clerkConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
       // owns or shares via an active Partnership — a zero-row result means
       // either it doesn't exist or isn't visible to this user, both of
       // which should read as "not found" rather than leaking which.
-      const category = await client.query(`select id, partnership_id from categories where id = $1`, [categoryId]);
+      const category = await client.query(`select id, name, partnership_id from categories where id = $1`, [categoryId]);
       if (!category.rows[0]) return { notFound: true as const };
 
       const accountId = await findOrCreateManualAccount(userId, client);
@@ -55,13 +56,29 @@ export async function POST(request: Request) {
          returning id, amount, merchant_name, category_id, transaction_date::text as transaction_date`,
         [accountId, userId, shared ? category.rows[0].partnership_id : null, shared, amount, merchantName, categoryId]
       );
-      return { transaction: inserted.rows[0] };
+      return {
+        transaction: inserted.rows[0],
+        shared,
+        categoryName: category.rows[0].name as string,
+        partnershipId: category.rows[0].partnership_id as string | null,
+      };
     });
 
     if (result.notFound) {
       return NextResponse.json({ error: "That category doesn't exist or isn't visible to you." }, { status: 404 });
     }
     const t = result.transaction;
+
+    // Best-effort, fire-and-forget — see lib/activity.ts. Only logged for
+    // shared categories; a personal expense stays off the shared feed.
+    if (result.shared && result.partnershipId) {
+      void logActivityEvent(userId, result.partnershipId, "budget_expense", {
+        categoryName: result.categoryName,
+        amount: Number(t.amount),
+        merchantName: t.merchant_name,
+      });
+    }
+
     return NextResponse.json({
       id: t.id,
       amount: Number(t.amount),

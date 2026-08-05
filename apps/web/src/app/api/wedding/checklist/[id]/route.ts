@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { withUserContext } from "@/lib/db";
+import { logActivityEvent } from "@/lib/activity";
 
 function clerkConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
@@ -32,19 +33,31 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   try {
-    const item = await withUserContext(userId, async (client) => {
-      const result = await client.query(
+    const result = await withUserContext(userId, async (client) => {
+      const updated = await client.query(
         `update wedding_checklist_items set is_complete = $2
          where id = $1
-         returning id, title, due_date::text as due_date, is_complete`,
+         returning id, title, due_date::text as due_date, is_complete, wedding_details_id`,
         [id, body.isComplete]
       );
-      return result.rows[0] ?? null;
+      const item = updated.rows[0] ?? null;
+      if (!item) return { item: null, partnershipId: null };
+
+      const details = await client.query(`select partnership_id from wedding_details where id = $1`, [item.wedding_details_id]);
+      return { item, partnershipId: (details.rows[0]?.partnership_id as string | undefined) ?? null };
     });
 
-    if (!item) {
+    if (!result.item) {
       return NextResponse.json({ error: "Checklist item not found." }, { status: 404 });
     }
+    const item = result.item;
+
+    // Best-effort, fire-and-forget — see lib/activity.ts. Only logged when
+    // an item is being marked complete, not when it's unchecked.
+    if (item.is_complete && result.partnershipId) {
+      void logActivityEvent(userId, result.partnershipId, "wedding_checklist_completed", { title: item.title });
+    }
+
     return NextResponse.json({ id: item.id, title: item.title, dueDate: item.due_date, isComplete: item.is_complete });
   } catch (err) {
     console.error(`PATCH /api/wedding/checklist/${id} failed`, err);
