@@ -1,10 +1,25 @@
 import { useEffect, useState } from "react";
 import { View, Pressable, TextInput } from "react-native";
 import { Plus } from "lucide-react-native";
-import { Card, OwnershipBadge, Text, useTheme, spacing, radius, palette } from "@noivos/ui";
+import { Card, OwnershipBadge, StackedProgressBar, Text, useTheme, spacing, radius, palette } from "@noivos/ui";
 import { budgetSnapshot } from "../data/mockData";
 import { ProgressRing } from "../components/ProgressRing";
 import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
+
+// A dedicated categorical set for the "Spending by category" chart below —
+// NOT the same as packages/ui's calm UI-accent palette (sourLime/sourPunch/
+// etc.), which fails the dataviz skill's categorical-chart validator badly
+// when checked directly (too desaturated/narrow a lightness range for a
+// chart mark — the opposite problem the *old* neon palette had, which is
+// why a dedicated chart-safe shade existed for the Goals contributor chart
+// too). Derived and validated specifically for this chart via
+// scripts/validate_palette.js against this app's actual dark (#221F17) and
+// light (#FFFFFF) card surfaces — all six categorical checks pass in both
+// modes, including the adjacent-pair CVD floor (a stacked bar only needs
+// adjacent pairs distinct, not all-pairs). Order is fixed and load-bearing:
+// re-running the validator on a 5-hue reorder is required before changing
+// it, not just picking colors that individually "look fine."
+const BUDGET_CATEGORY_COLORS = ["#C36E42", "#3D71AC", "#2F8F6C", "#B08A28", "#8A5FB0"];
 
 interface ApiCategory {
   id: string;
@@ -107,6 +122,19 @@ export function BudgetScreen() {
   const overallPercent = budget.planned > 0 ? (budget.spent / budget.planned) * 100 : 0;
   const overallOver = overallPercent > 100;
 
+  const categoryBreakdown = budget.categories.map((c, i) => ({
+    name: c.name,
+    amount: c.spent,
+    color: BUDGET_CATEGORY_COLORS[i % BUDGET_CATEGORY_COLORS.length],
+  }));
+  // Denominator is the sum of category spends, not budget.spent — the mock
+  // snapshot's top-level "spent" doesn't exactly equal the sum of its
+  // category spends (a pre-existing inconsistency in the mock data), which
+  // would make the stacked bar overflow past 100% width. The real /api/budget
+  // data doesn't have this problem (its "spent" IS that sum), but computing
+  // it locally keeps the chart correct either way.
+  const totalCategorySpend = categoryBreakdown.reduce((sum, c) => sum + c.amount, 0);
+
   if (!loaded) {
     return (
       <ScreenGrid>
@@ -145,6 +173,30 @@ export function BudgetScreen() {
           />
         </View>
       </ScreenGridWide>
+
+      {totalCategorySpend > 0 && (
+        <ScreenGridWide>
+          <Card>
+            <Text variant="h3" style={{ marginBottom: spacing.md }}>
+              Spending by category
+            </Text>
+            <StackedProgressBar contributors={categoryBreakdown} target={totalCategorySpend} height={14} />
+            {/* Direct labels + a legend, not color alone — the category
+                cards below already give a full accessible breakdown, this
+                is a compact visual summary of the same numbers. */}
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.md, marginTop: spacing.md }}>
+              {categoryBreakdown.map((c) => (
+                <View key={c.name} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <View style={{ width: 8, height: 8, borderRadius: 999, backgroundColor: c.color }} />
+                  <Text variant="bodySmall" secondary>
+                    {c.name} · ${c.amount.toLocaleString()}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </Card>
+        </ScreenGridWide>
+      )}
 
       {budget.categories.map((c) => {
         const over = c.spent > c.planned;
