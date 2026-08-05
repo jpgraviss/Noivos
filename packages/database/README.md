@@ -33,7 +33,7 @@ Supabase gave RLS policies a free, built-in `auth.uid()`. Clerk (the new auth pr
 | `0001_init.sql` | ✅ Applied 2026-08-03 |
 | `0002_rls.sql` | ✅ Applied 2026-08-03 |
 | `0003_add_birthdate.sql` | ✅ Applied 2026-08-03 |
-| `0004_tighten_goal_contributions_rls.sql` | ⬜ **Not yet applied** — founder holding off for now (2026-08-03). Until this runs, the `goal_contributions_write` gap it fixes is still live in the real database. |
+| `0004_tighten_goal_contributions_rls.sql` | ✅ Applied 2026-08-05 |
 
 When a new migration file is added here, add its row to this table as **Not yet applied** in the same commit — don't let a migration exist in the repo without a tracked status. When the founder confirms one has been run, flip it to Applied (with the date) in the same turn, not deferred to the next PROJECT_MEMORY pass.
 
