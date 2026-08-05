@@ -40,10 +40,12 @@ function pillButtonStyle(borderColor: string, textColor: string) {
 // graceful-passthrough posture as IdentitySettings/GoalsScreen.
 //
 // Inviting creates a genuinely real Partnership row (+ this user's
-// membership + a pending invite) — there's still no email-sending service,
-// so nothing is actually delivered to the invitee, and there's no real
-// accept-invite flow yet either for a second person to join. Both are
-// flagged honestly in the UI rather than faked.
+// membership + a pending invite) and now (2026-08-05) surfaces a real
+// shareable /invite/[token] link a second person can actually use to join
+// — see that page and /api/partnership/accept. There's still no email-
+// sending service, so the founder has to share the link manually rather
+// than it being delivered automatically; flagged honestly in the UI
+// rather than faked.
 export function PartnershipSettings() {
   const { colors } = useTheme();
 
@@ -53,6 +55,8 @@ export function PartnershipSettings() {
   const [invited, setInvited] = useState(false);
   const [partnerName, setPartnerName] = useState<string | null>(null);
   const [invitedEmail, setInvitedEmail] = useState<string | null>(null);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const [view, setView] = useState<View>("summary");
   const [inviteInput, setInviteInput] = useState("");
@@ -66,7 +70,13 @@ export function PartnershipSettings() {
     fetch("/api/partnership")
       .then(async (res) => {
         if (!res.ok) throw new Error("partnership fetch failed");
-        return res.json() as Promise<{ connected: boolean; invited: boolean; partnerName?: string; invitedEmail?: string }>;
+        return res.json() as Promise<{
+          connected: boolean;
+          invited: boolean;
+          partnerName?: string;
+          invitedEmail?: string;
+          inviteToken?: string | null;
+        }>;
       })
       .then((data) => {
         if (cancelled) return;
@@ -75,6 +85,7 @@ export function PartnershipSettings() {
         setInvited(data.invited);
         setPartnerName(data.partnerName ?? null);
         setInvitedEmail(data.invitedEmail ?? null);
+        setInviteToken(data.inviteToken ?? null);
       })
       .catch(() => {
         if (cancelled) return;
@@ -117,6 +128,7 @@ export function PartnershipSettings() {
       }
       setInvited(true);
       setInvitedEmail(data.invitedEmail);
+      setInviteToken(data.inviteToken ?? null);
     } catch {
       setInviteError("Couldn't reach the server — try again.");
     } finally {
@@ -130,6 +142,7 @@ export function PartnershipSettings() {
       setInvited(false);
       setPartnerName(null);
       setInvitedEmail(null);
+      setInviteToken(null);
       setView("summary");
       return;
     }
@@ -147,11 +160,27 @@ export function PartnershipSettings() {
       setInvited(false);
       setPartnerName(null);
       setInvitedEmail(null);
+      setInviteToken(null);
       setView("summary");
     } catch {
       setDisconnectError("Couldn't reach the server — try again.");
     } finally {
       setDisconnecting(false);
+    }
+  }
+
+  const inviteUrl =
+    inviteToken && typeof window !== "undefined" ? `${window.location.origin}/invite/${inviteToken}` : null;
+
+  async function handleCopyLink() {
+    if (!inviteUrl) return;
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      // Clipboard access can be denied by the browser — the link is still
+      // shown as selectable text, so this is a soft failure, not fatal.
     }
   }
 
@@ -197,11 +226,28 @@ export function PartnershipSettings() {
               : "Invite your partner by email — they'll get their own account, connected to yours."}
           </Text>
           {invited && invitedEmail ? (
-            <Text variant="bodySmall" style={{ color: palette.sourLime, marginBottom: spacing.sm }}>
-              {backendAvailable
-                ? `A Partnership was created and an invite is waiting for ${invitedEmail} to accept — but no email was actually sent (there's no email service wired up yet), so you'll need another way to let them know for now.`
-                : `Would send an invite to ${invitedEmail} — no invite-email service is wired up yet, so nothing was actually sent.`}
-            </Text>
+            <div style={{ marginBottom: spacing.sm }}>
+              <Text variant="bodySmall" style={{ color: palette.sourLime, marginBottom: spacing.sm }}>
+                {backendAvailable && inviteUrl
+                  ? `A Partnership was created and an invite is waiting for ${invitedEmail} to accept. There's no email service wired up yet, so share this link with them yourself:`
+                  : backendAvailable
+                    ? `A Partnership was created and an invite is waiting for ${invitedEmail} to accept — but no email was actually sent (there's no email service wired up yet), so you'll need another way to let them know for now.`
+                    : `Would send an invite to ${invitedEmail} — no invite-email service is wired up yet, so nothing was actually sent.`}
+              </Text>
+              {inviteUrl && (
+                <div style={{ display: "flex", gap: spacing.sm, alignItems: "center" }}>
+                  <input
+                    readOnly
+                    value={inviteUrl}
+                    onFocus={(e) => e.currentTarget.select()}
+                    style={{ ...inputStyle(colors.border, colors.textSecondary), flex: 1, fontSize: 12 }}
+                  />
+                  <button onClick={handleCopyLink} style={pillButtonStyle(colors.border, colors.textPrimary)}>
+                    {linkCopied ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <input
               type="email"

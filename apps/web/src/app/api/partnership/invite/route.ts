@@ -8,12 +8,12 @@ function clerkConfigured() {
 }
 
 // Creates a real Partnership + this user's membership + a pending invite
-// row. There is deliberately no email-sending here — no email service is
-// wired up yet (see PROJECT_MEMORY.md) — so this creates a genuinely real,
-// solo Partnership (one member: the inviter) with a pending invite sitting
-// in the database. The other person joining requires a real accept-invite
-// flow that doesn't exist yet either; that's the next gap after this,
-// flagged rather than faked. Creating the Partnership now, even solo, is
+// row, and returns the invite_token so the client can build a shareable
+// link (/invite/[token], see that page and /api/partnership/accept — added
+// 2026-08-05). There is deliberately no email-sending here — no email
+// service is wired up yet (see PROJECT_MEMORY.md) — so the founder shares
+// the link manually (text, email client, whatever) rather than it being
+// delivered automatically. Creating the Partnership now, even solo, is
 // what unblocks anything that requires partnership_id to exist (e.g.
 // wedding_details).
 //
@@ -23,8 +23,7 @@ function clerkConfigured() {
 // wedding_details_write and every other partnership_is_active() RLS check
 // requires status = 'active', so leaving new Partnerships at 'invited'
 // would make everything downstream of this unusable until a second person
-// accepts, which has no flow yet either. Flagged in PROJECT_MEMORY as a
-// judgment call worth revisiting once real invite-acceptance exists.
+// accepts. Flagged in PROJECT_MEMORY as a judgment call worth revisiting.
 export async function POST(request: Request) {
   if (!clerkConfigured()) {
     return NextResponse.json({ error: "Clerk isn't configured" }, { status: 503 });
@@ -64,19 +63,20 @@ export async function POST(request: Request) {
         [partnershipId, userId]
       );
 
-      await client.query(
+      const inviteResult = await client.query(
         `insert into partnership_invites (partnership_id, inviter_id, invitee_contact, invite_token)
-         values ($1, $2, $3, gen_random_uuid()::text)`,
+         values ($1, $2, $3, gen_random_uuid()::text)
+         returning invite_token`,
         [partnershipId, userId, email]
       );
 
-      return { alreadyConnected: false as const, partnershipId, invitedEmail: email };
+      return { alreadyConnected: false as const, partnershipId, invitedEmail: email, inviteToken: inviteResult.rows[0].invite_token as string };
     });
 
     if (result.alreadyConnected) {
       return NextResponse.json({ error: "You're already in a Partnership." }, { status: 409 });
     }
-    return NextResponse.json({ invitedEmail: result.invitedEmail });
+    return NextResponse.json({ invitedEmail: result.invitedEmail, inviteToken: result.inviteToken });
   } catch (err) {
     // The one_active_partnership_per_user unique index is the real backstop
     // against a race (two rapid invite calls) — this surfaces as a generic

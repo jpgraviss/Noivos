@@ -35,12 +35,17 @@ export async function GET() {
       }
 
       const inviteResult = await client.query(
-        `select invitee_contact from partnership_invites
+        `select invitee_contact, invite_token from partnership_invites
          where partnership_id = $1 and status = 'pending'
          order by created_at desc limit 1`,
         [membership.partnership_id]
       );
-      return { connected: false, invited: true, invitedEmail: inviteResult.rows[0]?.invitee_contact ?? null };
+      return {
+        connected: false,
+        invited: true,
+        invitedEmail: inviteResult.rows[0]?.invitee_contact ?? null,
+        inviteToken: inviteResult.rows[0]?.invite_token ?? null,
+      };
     });
     return NextResponse.json(status);
   } catch (err) {
