@@ -6,6 +6,8 @@
 **Source of truth precedence:** Downstream of `PROJECT_MEMORY.md` §5 (Brand Decisions), which is the permanent record of what's approved. If this document and that file ever disagree, `PROJECT_MEMORY.md` wins until reconciled.
 
 > **Reversal note (2026-08-02).** v1.0 of this document treated the founder's text Brand Statement as superseding the Phase 1 moodboard's palette and typography. The founder has since confirmed the opposite: **the original moodboard (`docs/assets/brand/brand-moodboard-v1.png`) is the default brand system** — its color palette, typography, logo mark, and illustration energy govern wherever it and the text Brand Statement disagree. The text Brand Statement's *non-visual* content — personality, brand keywords, tone of voice, AI personality, motion philosophy, photography direction, design principles, website direction, brand promise, and north star — does not conflict with the moodboard and remains in force, folded in below. Nothing from either round is deleted; both are preserved in `PROJECT_MEMORY.md` §5.
+>
+> **Reversal note 2 (2026-08-05).** Founder directed a visual pivot away from the moodboard's neon palette and Bebas Neue: "Make it a closer look to Origin... our UI and UX is ugly." §5 (Color System) and §6 (Typography) below now describe the **as-shipped `apps/web` values as of 2026-08-05** (see `packages/ui/src/tokens.ts` and `PROJECT_MEMORY.md`'s 2026-08-05 decision-log entry), not the original moodboard's hex values — the moodboard's neon-on-black direction is superseded for visual execution, though it remains preserved below and in `docs/assets/brand/brand-moodboard-v1.png` for history. The WCAG contrast table in §5.1 was computed against the *old* palette and has not been recomputed against the new one — treat it as stale until that happens.
 
 ---
 
@@ -38,19 +40,21 @@ The moodboard is the reference: bold, high-contrast neon color on dark and light
 
 ## 5. Color System
 
-Colors, names, and roles as defined in the Phase 1 moodboard — this is the default palette.
+**As-shipped in `apps/web` as of 2026-08-05** (see Reversal note 2 above and `packages/ui/src/tokens.ts`) — repainted toward Origin's calmer, muted palette. Token *names* kept identical to the original moodboard names even though the hex values no longer literally match those names (e.g. "Sour Lime" is now a muted forest green, not neon lime) — that's deliberate, so every screen referencing a token by name repainted without code changes elsewhere.
 
 | Role | Name | Hex | Use |
 |---|---|---|---|
-| Primary | Sour Lime | `#C6FF00` | Signature color; primary buttons, key emphasis |
-| Secondary | Sour Punch | `#FF2D8E` | Celebrations, highlights, secondary buttons |
-| Accent | Electric Blue | `#0066FF` | Links, informational accents |
-| Highlight | Citrus | `#FFE600` | Momentum, attention-getting moments |
-| Info | Grape | `#8A2BE2` | Informational UI, AI Coach touches |
-| Surface (light) | Sour Cloud | `#F5F5F7` | Light-mode background/surface |
-| Background (dark) | Licorice | `#0D0D0F` | Dark-mode background |
-| Text (light mode) | Licorice | `#0D0D0F` | **Added 2026-08-02** — the moodboard didn't label a dedicated text swatch; reusing the darkest palette color for maximum readability on Sour Cloud, mirroring how Licorice already anchors the dark-mode background. |
-| Text (dark mode) | Sour Cloud | `#F5F5F7` | **Added 2026-08-02** — same logic in reverse: reusing the lightest palette color rather than introducing a new one. |
+| Primary | Sour Lime | `#4F7A5B` | Signature color; primary buttons, key emphasis — was `#C6FF00` neon lime |
+| Secondary | Sour Punch | `#B0684B` | Celebrations, highlights, secondary buttons — was `#FF2D8E` hot pink |
+| Accent | Electric Blue | `#4C6B8A` | Links, informational accents — was `#0066FF` |
+| Highlight | Citrus | `#C9A227` | Momentum, attention-getting moments — was `#FFE600` bright yellow |
+| Info | Grape | `#6B5B95` | Informational UI, AI Coach touches — was `#8A2BE2` vivid purple |
+| Surface (light) | Sour Cloud | `#F5F1E6` | Light-mode background/surface — was `#F5F5F7` cool white, now warm ivory |
+| Background (dark) | Licorice | `#18160F` | Dark-mode background — was `#0D0D0F` near-pure-black, now warm near-black |
+| Text (light mode) | (dark neutral) | `#221F17` | Light-mode text — darkened slightly from Licorice's old value to pair better with the new warm cream background |
+| Text (dark mode) | Sour Cloud | `#F5F1E6` | Dark-mode text — same warm-ivory value as the new Surface (light) swatch |
+
+**Original moodboard values, preserved for history** (Phase 1 default, in force 2026-08-02 through 2026-08-05): Sour Lime `#C6FF00`, Sour Punch `#FF2D8E`, Electric Blue `#0066FF`, Citrus `#FFE600`, Grape `#8A2BE2`, Sour Cloud `#F5F5F7`, Licorice `#0D0D0F`.
 
 **Also added 2026-08-02 — Success/Warning roles.** The moodboard didn't define these (it has Primary/Secondary/Accent/Highlight/Info/Surface/Dark BG, not Success/Warning), but the PRD's AI Insights and notification requirements (goal reached, savings streak, bill due) need them. Recommendation, not yet confirmed: reuse **Sour Lime** for Success (it already reads as energetic/positive) and **Citrus** for Warning (yellow conventionally reads as caution). This avoids adding new hex values to an already-locked palette, but should be confirmed before Phase 4 (Design System) locks color tokens.
 
@@ -72,8 +76,8 @@ Contrast ratios computed against WCAG 2.1 AA thresholds (4.5:1 normal text, 3:1 
 
 ## 6. Typography
 
-- **Headlines:** Bebas Neue Bold — condensed, high-energy, matches the moodboard exactly.
-- **Body:** Inter — readable, modern, excellent on every platform. (Both brand inputs agreed on this one.)
+- **Headlines:** Fraunces (soft editorial serif) as of 2026-08-05, `apps/web` only — was Bebas Neue Bold. Bebas Neue is a caps-only condensed poster font (its lowercase glyphs are visually indistinguishable from uppercase), which made every headline read as shouting; Fraunces has real lowercase letterforms and reads calmer/more premium, closer to Origin. `apps/mobile` has not been switched over yet (its native font registration in `useAppFonts.ts` still loads Bebas Neue) — a known, flagged gap, not yet done.
+- **Body:** Inter — readable, modern, excellent on every platform. (Both brand inputs agreed on this one.) Unchanged.
 - **Numbers:** tabular figures throughout the app, so balances, budgets, and transactions align cleanly and feel polished. Carried forward from the text Brand Statement — a typographic detail, not a visual-identity conflict, so it stands.
 
 ## 7. Iconography
@@ -153,6 +157,7 @@ Build a brand people wear on a hoodie — not just an app they download.
 - ~~Primary appearance mode~~ — **confirmed 2026-08-02** in the UX/UI Blueprint (`docs/03 UX/UX-UI Blueprint.md` §2): dark mode primary, light mode a toggle.
 - **Logo production** (final vector, monochrome variant, app-icon crop) — design execution, not specification (§16). Still outstanding.
 - **Tagline continuity** — "Better Money. Together." (from the moodboard) has not been contradicted by anything since and remains the working tagline.
+- **New from the 2026-08-05 Origin-direction repaint:** `apps/mobile` still loads the old Bebas Neue/moodboard-neon values — needs its own pass to load Fraunces (via `@expo-google-fonts`) and pick up the new palette, once there's a way to verify it visually (this sandbox can't run a device/simulator). The §5.1 WCAG contrast table is stale against the new palette values and needs recomputing before this is treated as accessibility-verified.
 
 ---
 
