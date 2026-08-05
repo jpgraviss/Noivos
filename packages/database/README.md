@@ -7,6 +7,7 @@ Schema and RLS policies for the Noivos Postgres database, hosted on **Neon** (se
 - `migrations/0001_init.sql` — full schema: identity/Partnership, financial accounts and transactions, budgets and goals, Wedding Mode, AI conversations, engagement (Money Meetings, activity feed, notifications, challenges), billing, attachments.
 - `migrations/0002_rls.sql` — Row-Level Security policies, the actual privacy enforcement layer (Database Architecture §1/§10). Every policy reads a `current_user_id()` helper backed by a Postgres session variable, **not** Supabase's `auth.uid()`.
 - `migrations/0003_add_birthdate.sql` — adds `users.birthdate`, not in the original Database Architecture doc; added for `apps/web`'s locked Name & Birthdate identity-verification setting.
+- `migrations/0004_tighten_goal_contributions_rls.sql` — closes a real gap in `goal_contributions_write`: it only checked the inserting user named themselves as contributor, never that the goal itself was theirs to write to.
 
 ## The auth handoff (read before touching this)
 
@@ -23,17 +24,29 @@ Supabase gave RLS policies a free, built-in `auth.uid()`. Clerk (the new auth pr
 
 ## Status
 
-**Connected as of 2026-08-03** — the founder created a Neon project and ran `0001_init.sql`/`0002_rls.sql` via Neon's web SQL Editor (this repo's sandbox can't make raw-TCP database connections at all, so migrations can't be applied from here — same class of restriction as the Clerk network block noted elsewhere). `0003_add_birthdate.sql` still needs to be run the same way before the Name & Birthdate setting's real persistence (`apps/web/src/app/api/profile/route.ts`) will work.
+**Connected as of 2026-08-03.** This repo's sandbox can't make raw-TCP database connections at all (same class of restriction as the Clerk network block noted elsewhere), so migrations can't be applied from here — the founder runs each one via Neon's web SQL Editor, which is unaffected by that restriction.
 
-If a fresh database is ever needed:
+### Migration checklist — keep this updated, it's the one source of truth for what's actually live in the database
+
+| Migration | Applied? |
+|---|---|
+| `0001_init.sql` | ✅ Applied 2026-08-03 |
+| `0002_rls.sql` | ✅ Applied 2026-08-03 |
+| `0003_add_birthdate.sql` | ✅ Applied 2026-08-03 |
+| `0004_tighten_goal_contributions_rls.sql` | ⬜ **Not yet applied** — founder holding off for now (2026-08-03). Until this runs, the `goal_contributions_write` gap it fixes is still live in the real database. |
+
+When a new migration file is added here, add its row to this table as **Not yet applied** in the same commit — don't let a migration exist in the repo without a tracked status. When the founder confirms one has been run, flip it to Applied (with the date) in the same turn, not deferred to the next PROJECT_MEMORY pass.
+
+If a fresh database is ever needed, run them in order:
 
 ```bash
 psql "$DATABASE_URL" -f migrations/0001_init.sql
 psql "$DATABASE_URL" -f migrations/0002_rls.sql
 psql "$DATABASE_URL" -f migrations/0003_add_birthdate.sql
+psql "$DATABASE_URL" -f migrations/0004_tighten_goal_contributions_rls.sql
 ```
 
-`apps/mobile` still runs entirely on mock data (`apps/mobile/src/data/mockData.ts`) — only `apps/web`'s identity settings are wired to real queries so far; everything else across both apps is still mock data, shaped to match this schema so swapping in real queries later is a plumbing change, not a redesign.
+`apps/mobile` still runs entirely on mock data (`apps/mobile/src/data/mockData.ts`) — only `apps/web`'s identity settings and "All Goals" are wired to real queries so far; everything else across both apps is still mock data, shaped to match this schema so swapping in real queries later is a plumbing change, not a redesign.
 
 ## Open items
 
