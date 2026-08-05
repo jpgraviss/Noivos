@@ -38,7 +38,9 @@ export interface HomeScreenProps {
 // data as of 2026-08-03 — same posture as GoalsScreen itself, and for the
 // same reason: those two screens showing different numbers for the same
 // underlying goals would be a real, confusing bug once goals are real.
-// Falls back to the mock goals list if the backend isn't reachable.
+// The avatar chip's second name pulls the real connected partner's name
+// from /api/partnership the same way, instead of the mock "Marcus".
+// Falls back to the mock goals/partner name if the backend isn't reachable.
 // Budget/AI Insights/Upcoming Bills/Activity stay mock — no transactions
 // system or AI backend exists yet.
 export function HomeScreen({ userName }: HomeScreenProps = {}) {
@@ -48,6 +50,7 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
 
   const [backendAvailable, setBackendAvailable] = useState(false);
   const [apiGoals, setApiGoals] = useState<ApiGoal[]>([]);
+  const [partnerName, setPartnerName] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,6 +66,31 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
       })
       .catch(() => {
         // No database/Clerk reachable — fall back to the mock goals below.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // The avatar chip showed the mock "Marcus" persona even once a real
+  // Partnership was connected (PartnershipSettings already pulls the real
+  // name from this same endpoint) — same class of stale-mock-data bug as
+  // the goals numbers above, so it gets the same fetch-then-fallback fix.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/partnership")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("partnership fetch failed");
+        return res.json() as Promise<{ connected: boolean; partnerName?: string }>;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        if (data.connected && data.partnerName) {
+          setPartnerName(data.partnerName);
+        }
+      })
+      .catch(() => {
+        // No database/Clerk reachable — fall back to the mock partner name.
       });
     return () => {
       cancelled = true;
@@ -104,7 +132,7 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
             </Text>
             <Text variant="display">Hey, {displayName}</Text>
           </View>
-          <AvatarStack names={[displayName, currentUser.partnerName]} />
+          <AvatarStack names={[displayName, partnerName || currentUser.partnerName]} />
         </View>
       </ScreenGridWide>
 
