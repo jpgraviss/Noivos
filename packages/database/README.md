@@ -50,6 +50,8 @@ psql "$DATABASE_URL" -f migrations/0004_tighten_goal_contributions_rls.sql
 
 **Budget (2026-08-05) needed no new migration.** `accounts`, `transactions`, `categories`, `budgets`, and `budget_categories` — plus their RLS policies — were already part of `0001_init.sql`/`0002_rls.sql`; they were just unused until `apps/web/src/app/api/budget/route.ts` and `.../transactions/route.ts` started querying them. One new-for-this-slice behavior worth knowing about since it isn't a schema change: a Partnership's shared Budget is a single `budgets` row (`partnership_id` set, `is_shared = true`) created by whichever partner loads Budget first in a given month — `budget_categories_write`'s existing RLS still only lets that row's `owner_id` edit it, so the other partner gets a correct read-only view, not a co-editable one. Flagged as a fast-tracked judgment call in `PROJECT_MEMORY.md`, same posture as the Partnership `status='active'` fix.
 
+**Wedding Family Contributions (2026-08-05) also needed no new migration.** `wedding_family_contributions` and its RLS were already part of `0001_init.sql`/`0002_rls.sql`; wired via `apps/web/src/app/api/wedding/family-contributions/route.ts` (POST) and an extended `GET /api/wedding`. Kept as a plain free-text ledger (`contributor_name`, no `user_id`) exactly as the schema intended — per PROJECT_MEMORY.md's 2026-08-02 decision (PRD §12.8), family members who gift money never get real account access.
+
 ## Open items
 
 - **Plaid access-token encryption** (`plaid_items.access_token_encrypted`): Supabase Vault is gone; no replacement chosen yet (`pgcrypto` + app-managed key vs. a dedicated secrets manager). See `PROJECT_MEMORY.md` §6.4/§8.

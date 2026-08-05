@@ -51,6 +51,14 @@ interface ApiChecklistItem {
   isComplete: boolean;
 }
 
+interface ApiFamilyContribution {
+  id: string;
+  contributorName: string;
+  amount: number;
+  note: string | null;
+  createdAt: string;
+}
+
 interface ApiWeddingDetails {
   id: string;
   weddingDate: string | null;
@@ -58,6 +66,7 @@ interface ApiWeddingDetails {
   status: string;
   vendors: ApiVendor[];
   checklist: ApiChecklistItem[];
+  familyContributions: ApiFamilyContribution[];
 }
 
 function daysUntil(dateStr: string | null): number | null {
@@ -84,11 +93,12 @@ function toDisplayGoal(g: ApiGoal): DisplayGoal {
 // tab relabels to "Wedding" and leads with the vendor tracker/countdown;
 // standard goals live in a secondary segment within the same screen.
 //
-// The "All Goals" segment is wired to real Neon data (/api/goals) as of
-// 2026-08-03 — the Wedding segment's countdown/vendors/checklist stay mock
-// for now, that's a separate wiring pass (wedding_details/wedding_vendors
-// tables exist but aren't connected yet). Falls back to the mock goals list
-// if the backend isn't reachable, same posture as IdentitySettings.
+// Both segments are wired to real Neon data: "All Goals" via /api/goals
+// (2026-08-03), Wedding via /api/wedding — countdown, vendors, checklist
+// (2026-08-03), and Family Contributions (2026-08-05, wedding_family_
+// contributions — a plain gift ledger, no real account access per PRD
+// §12.8). Each segment falls back to its own mock data independently if its
+// backend isn't reachable, same posture as IdentitySettings.
 export function GoalsScreen() {
   const { colors } = useTheme();
   const [segment, setSegment] = useState<"wedding" | "goals">(weddingDetails.active ? "wedding" : "goals");
@@ -130,6 +140,12 @@ export function GoalsScreen() {
   const [addingChecklistItem, setAddingChecklistItem] = useState(false);
   const [addChecklistError, setAddChecklistError] = useState<string | null>(null);
   const [togglingItemId, setTogglingItemId] = useState<string | null>(null);
+
+  const [showAddFamilyContribution, setShowAddFamilyContribution] = useState(false);
+  const [familyContributorName, setFamilyContributorName] = useState("");
+  const [familyContributionAmount, setFamilyContributionAmount] = useState("");
+  const [addingFamilyContribution, setAddingFamilyContribution] = useState(false);
+  const [addFamilyContributionError, setAddFamilyContributionError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -258,6 +274,41 @@ export function GoalsScreen() {
       // Best-effort — the checkbox just won't visually update.
     } finally {
       setTogglingItemId(null);
+    }
+  }
+
+  async function handleAddFamilyContribution() {
+    const contributorName = familyContributorName.trim();
+    const amount = Number(familyContributionAmount);
+    if (!contributorName) {
+      setAddFamilyContributionError("Enter who this gift is from.");
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setAddFamilyContributionError("Enter an amount greater than $0.");
+      return;
+    }
+    setAddingFamilyContribution(true);
+    setAddFamilyContributionError(null);
+    try {
+      const res = await fetch("/api/wedding/family-contributions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contributorName, amount }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAddFamilyContributionError(data.error ?? "Couldn't log that contribution.");
+        return;
+      }
+      setApiWedding((prev) => (prev ? { ...prev, familyContributions: [...prev.familyContributions, data] } : prev));
+      setFamilyContributorName("");
+      setFamilyContributionAmount("");
+      setShowAddFamilyContribution(false);
+    } catch {
+      setAddFamilyContributionError("Couldn't reach the server — try again.");
+    } finally {
+      setAddingFamilyContribution(false);
     }
   }
 
@@ -634,6 +685,80 @@ export function GoalsScreen() {
                 <Text variant="caption" style={{ color: palette.sourPunch, marginTop: 4 }}>
                   {addChecklistError}
                 </Text>
+              )}
+            </Card>
+
+            <Card>
+              <Text variant="h3" style={{ marginBottom: spacing.sm }}>
+                Family Contributions
+              </Text>
+              <Text variant="caption" secondary style={{ marginBottom: spacing.sm }}>
+                A plain gift ledger — family members never get real account access, just a name and amount.
+              </Text>
+              {apiWedding.familyContributions.length === 0 && (
+                <Text variant="bodySmall" secondary style={{ marginBottom: spacing.sm }}>
+                  No family contributions logged yet.
+                </Text>
+              )}
+              {apiWedding.familyContributions.map((f) => (
+                <View key={f.id} style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: spacing.xs }}>
+                  <Text variant="body">{f.contributorName}</Text>
+                  <Text variant="bodySmall" secondary>
+                    ${f.amount.toLocaleString()}
+                  </Text>
+                </View>
+              ))}
+
+              {showAddFamilyContribution ? (
+                <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+                  <TextInput
+                    value={familyContributorName}
+                    onChangeText={setFamilyContributorName}
+                    placeholder="Who's it from? (e.g. Mom & Dad)"
+                    placeholderTextColor={colors.textSecondary}
+                    style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 10, color: colors.textPrimary }}
+                  />
+                  <TextInput
+                    value={familyContributionAmount}
+                    onChangeText={setFamilyContributionAmount}
+                    placeholder="Amount"
+                    placeholderTextColor={colors.textSecondary}
+                    keyboardType="numeric"
+                    style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 10, color: colors.textPrimary }}
+                  />
+                  {addFamilyContributionError && (
+                    <Text variant="caption" style={{ color: palette.sourPunch }}>
+                      {addFamilyContributionError}
+                    </Text>
+                  )}
+                  <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                    <Pressable
+                      onPress={handleAddFamilyContribution}
+                      disabled={addingFamilyContribution}
+                      style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, backgroundColor: palette.sourLime }}
+                    >
+                      <Text variant="bodySmall" color={palette.licorice} style={{ fontWeight: "600" }}>
+                        {addingFamilyContribution ? "Saving…" : "Log contribution"}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setShowAddFamilyContribution(false)}
+                      style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border }}
+                    >
+                      <Text variant="bodySmall">Cancel</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={() => setShowAddFamilyContribution(true)}
+                  style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs }}
+                >
+                  <Plus size={16} color={palette.sourLime} />
+                  <Text variant="bodySmall" style={{ fontWeight: "600" }}>
+                    Log a family contribution
+                  </Text>
+                </Pressable>
               )}
             </Card>
           </>

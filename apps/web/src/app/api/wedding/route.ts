@@ -47,6 +47,12 @@ export async function GET() {
          order by due_date asc nulls last, title asc`,
         [details.id]
       );
+      const familyContributionsResult = await client.query(
+        `select id, contributor_name, amount::float8 as amount, note, created_at::text as created_at
+         from wedding_family_contributions where wedding_details_id = $1
+         order by created_at asc`,
+        [details.id]
+      );
 
       return {
         hasPartnership: true as const,
@@ -70,6 +76,13 @@ export async function GET() {
             title: c.title,
             dueDate: c.due_date,
             isComplete: c.is_complete,
+          })),
+          familyContributions: familyContributionsResult.rows.map((f) => ({
+            id: f.id,
+            contributorName: f.contributor_name,
+            amount: f.amount,
+            note: f.note,
+            createdAt: f.created_at,
           })),
         },
       };
@@ -140,6 +153,7 @@ export async function POST(request: Request) {
       status: result.details.status,
       vendors: [],
       checklist: [],
+      familyContributions: [],
     });
   } catch (err) {
     console.error("POST /api/wedding failed", err);
