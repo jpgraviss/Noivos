@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { Bell, Heart, House, LogOut, Search, Settings, Sparkles, Wallet, Ellipsis } from "lucide-react-native";
 import { ThemeProvider, useTheme, palette, getTextColorFor } from "@noivos/ui";
 import { HomeScreen } from "../screens/HomeScreen";
@@ -32,7 +32,25 @@ const SCREENS: Record<Tab, ComponentType<any>> = {
 
 function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: string }) {
   const [tab, setTab] = useState<Tab>("Home");
-  const { colors } = useTheme();
+  const { colors, setMode } = useTheme();
+
+  // Sync the theme to whatever's actually saved in the database (if
+  // reachable) once on mount — ThemeProvider always starts at its 'dark'
+  // default, so this is what makes a saved 'light' preference survive a
+  // reload instead of silently reverting every time.
+  useEffect(() => {
+    fetch("/api/profile")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { appearanceMode?: string } | null) => {
+        if (data?.appearanceMode === "dark" || data?.appearanceMode === "light") {
+          setMode(data.appearanceMode);
+        }
+      })
+      .catch(() => {
+        // No database/Clerk reachable — stay on ThemeProvider's default.
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Real signed-in name when Clerk is configured (see AuthenticatedAppShell);
   // falls back to the mock persona otherwise, same as everywhere else in
   // this dev-mode app.

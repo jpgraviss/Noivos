@@ -25,11 +25,15 @@ export async function GET() {
       // users_insert_self RLS policy (id = current_user_id()).
       await client.query(`insert into users (id) values ($1) on conflict (id) do nothing`, [userId]);
       const result = await client.query(
-        `select display_name, birthdate::text from users where id = $1`,
+        `select display_name, birthdate::text, appearance_mode_preference from users where id = $1`,
         [userId]
       );
       const row = result.rows[0];
-      return { name: row?.display_name ?? null, birthdate: row?.birthdate ?? null };
+      return {
+        name: row?.display_name ?? null,
+        birthdate: row?.birthdate ?? null,
+        appearanceMode: row?.appearance_mode_preference ?? "dark",
+      };
     });
     return NextResponse.json(profile);
   } catch (err) {

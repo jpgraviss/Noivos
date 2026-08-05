@@ -18,6 +18,18 @@ export interface MoreScreenProps {
 export function MoreScreen({ onSignOut, userName }: MoreScreenProps = {}) {
   const { colors, mode, setMode } = useTheme();
 
+  // Best-effort persistence — if there's no database/Clerk reachable, the
+  // mode still changes locally via setMode below, it just won't survive a
+  // reload. Same graceful-passthrough posture as everywhere else.
+  function selectMode(m: "dark" | "light") {
+    setMode(m);
+    fetch("/api/profile/appearance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: m }),
+    }).catch(() => {});
+  }
+
   return (
     <ScreenGrid>
       <ScreenGridWide>
@@ -37,7 +49,7 @@ export function MoreScreen({ onSignOut, userName }: MoreScreenProps = {}) {
           {(["dark", "light"] as const).map((m) => (
             <Text
               key={m}
-              onPress={() => setMode(m)}
+              onPress={() => selectMode(m)}
               variant="bodySmall"
               style={{
                 paddingVertical: 8,
