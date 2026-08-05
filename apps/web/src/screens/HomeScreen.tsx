@@ -1,18 +1,27 @@
+import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { CreditCard, Lightbulb, Users } from "lucide-react-native";
 import { Card, Text, useTheme, spacing, palette, getTextColorFor } from "@noivos/ui";
-import { budgetSnapshot, goals, activityFeed, insights, upcomingBills, moneyMeeting, currentUser } from "../data/mockData";
+import { budgetSnapshot, goals as mockGoals, activityFeed, insights, upcomingBills, moneyMeeting, currentUser } from "../data/mockData";
 import { AvatarStack } from "../components/AvatarStack";
 import { StatTile } from "../components/StatTile";
 import { TrendChart } from "../components/TrendChart";
 import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
 
+interface ApiGoal {
+  id: string;
+  name: string;
+  goalType: string;
+  targetAmount: number;
+  targetDate: string | null;
+  contributions: { amount: number }[];
+}
+
 // Mock 8-week combined-savings trend, ending at the current total across all
-// goals — there's no real time-series backend yet (no Neon connection),
-// so this is shaped to land on today's real mock total rather than an
-// arbitrary number.
-function useSavingsTrend() {
-  const total = goals.reduce((sum, g) => sum + g.contributors.reduce((s, c) => s + c.amount, 0), 0);
+// goals — there's no real time-series backend yet (no daily balance
+// snapshots wired), so this is shaped to land on today's real total (mock
+// or live) rather than an arbitrary number.
+function useSavingsTrend(total: number) {
   const weeks = ["7wk ago", "6wk ago", "5wk ago", "4wk ago", "3wk ago", "2wk ago", "Last wk", "This wk"];
   const shape = [0.78, 0.8, 0.83, 0.85, 0.89, 0.93, 0.97, 1];
   return weeks.map((label, i) => ({ label, value: Math.round(total * shape[i]) }));
@@ -24,18 +33,58 @@ export interface HomeScreenProps {
 
 // userName is the real signed-in person's name (see AppShell/
 // AuthenticatedAppShell) — the greeting and avatar chip use it instead of
-// the mock persona's name, since the mock financial data (contributor
-// amounts, activity feed) stays tied to the illustrative "Ava & Marcus"
-// scenario regardless of who's actually signed in.
+// the mock persona's name. Goals-derived numbers (Total saved, Wedding
+// progress, the trend chart, the wedding card) pull from real /api/goals
+// data as of 2026-08-03 — same posture as GoalsScreen itself, and for the
+// same reason: those two screens showing different numbers for the same
+// underlying goals would be a real, confusing bug once goals are real.
+// Falls back to the mock goals list if the backend isn't reachable.
+// Budget/AI Insights/Upcoming Bills/Activity stay mock — no transactions
+// system or AI backend exists yet.
 export function HomeScreen({ userName }: HomeScreenProps = {}) {
   const { colors } = useTheme();
   const displayName = userName || currentUser.name;
-  const weddingGoal = goals[0];
-  const weddingTotal = weddingGoal.contributors.reduce((s, c) => s + c.amount, 0);
-  const weddingPercent = Math.round((weddingTotal / weddingGoal.target) * 100);
-  const savingsTotal = goals.reduce((sum, g) => sum + g.contributors.reduce((s, c) => s + c.amount, 0), 0);
   const overBudget = budgetSnapshot.spent > budgetSnapshot.planned * 0.9;
-  const trend = useSavingsTrend();
+
+  const [backendAvailable, setBackendAvailable] = useState(false);
+  const [apiGoals, setApiGoals] = useState<ApiGoal[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/goals")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("goals fetch failed");
+        return res.json() as Promise<{ goals: ApiGoal[] }>;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setBackendAvailable(true);
+        setApiGoals(data.goals);
+      })
+      .catch(() => {
+        // No database/Clerk reachable — fall back to the mock goals below.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const savingsTotal = backendAvailable
+    ? apiGoals.reduce((sum, g) => sum + g.contributions.reduce((s, c) => s + c.amount, 0), 0)
+    : mockGoals.reduce((sum, g) => sum + g.contributors.reduce((s, c) => s + c.amount, 0), 0);
+
+  const weddingGoal = backendAvailable
+    ? apiGoals.find((g) => g.goalType === "wedding")
+    : mockGoals.find((g) => g.type === "wedding");
+  const weddingTotal = backendAvailable
+    ? (weddingGoal as ApiGoal | undefined)?.contributions.reduce((s, c) => s + c.amount, 0) ?? 0
+    : (weddingGoal as (typeof mockGoals)[number] | undefined)?.contributors.reduce((s, c) => s + c.amount, 0) ?? 0;
+  const weddingTarget = backendAvailable
+    ? (weddingGoal as ApiGoal | undefined)?.targetAmount
+    : (weddingGoal as (typeof mockGoals)[number] | undefined)?.target;
+  const weddingPercent = weddingTarget ? Math.round((weddingTotal / weddingTarget) * 100) : null;
+
+  const trend = useSavingsTrend(savingsTotal);
 
   return (
     <ScreenGrid>
@@ -74,11 +123,13 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
         deltaDirection={overBudget ? "up" : "down"}
         deltaIsGood={!overBudget}
       />
-      <StatTile
-        label="Wedding progress"
-        value={`${weddingPercent}%`}
-        deltaLabel={`$${weddingTotal.toLocaleString()} of $${weddingGoal.target.toLocaleString()}`}
-      />
+      {weddingGoal && weddingPercent !== null && (
+        <StatTile
+          label="Wedding progress"
+          value={`${weddingPercent}%`}
+          deltaLabel={`$${weddingTotal.toLocaleString()} of $${weddingTarget?.toLocaleString()}`}
+        />
+      )}
 
       {/* Money Meeting ritual card — a distinct treatment, UX Blueprint §3.3 */}
       <ScreenGridWide>
@@ -126,12 +177,14 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
         </View>
       </Card>
 
-      <Card glow={palette.sourLime}>
-        <Text variant="h3">{weddingGoal.name}</Text>
-        <Text variant="bodySmall" secondary style={{ marginTop: 2 }}>
-          ${weddingTotal.toLocaleString()} of ${weddingGoal.target.toLocaleString()} · {weddingPercent}%
-        </Text>
-      </Card>
+      {weddingGoal && weddingPercent !== null && (
+        <Card glow={palette.sourLime}>
+          <Text variant="h3">{weddingGoal.name}</Text>
+          <Text variant="bodySmall" secondary style={{ marginTop: 2 }}>
+            ${weddingTotal.toLocaleString()} of ${weddingTarget?.toLocaleString()} · {weddingPercent}%
+          </Text>
+        </Card>
+      )}
 
       <Card>
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm }}>
