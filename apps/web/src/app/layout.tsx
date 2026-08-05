@@ -1,16 +1,20 @@
 import type { Metadata } from "next";
-import { Bebas_Neue, Inter } from "next/font/google";
+import { Fraunces, Inter } from "next/font/google";
 import { ClerkProvider, SignInButton, SignUpButton, Show, UserButton } from "@clerk/nextjs";
 import "./globals.css";
 
-// Brand typography (Design System §3): Bebas Neue Bold headings, Inter body.
-// packages/ui's typography tokens reference these as `var(--font-bebas)` /
-// `var(--font-inter)` on web (see packages/ui/src/tokens.ts) — the weights
-// loaded here (400/500/600/700) match what apps/mobile loads via
-// @expo-google-fonts so both platforms render the same type scale.
-const bebasNeue = Bebas_Neue({
-  weight: "400",
-  variable: "--font-bebas",
+// Brand typography, repainted 2026-08-05 (founder: "make it a closer look
+// to Origin"): Fraunces (a soft editorial serif with real lowercase
+// letterforms) replaces Bebas Neue for headings — the old all-caps
+// condensed poster font read as loud/shouting rather than premium. Inter
+// stays for body copy. packages/ui's typography tokens reference these as
+// `var(--font-serif)` / `var(--font-inter)` on web (see
+// packages/ui/src/tokens.ts). apps/mobile's native registration
+// (useAppFonts.ts) has NOT been updated to match yet — flagged as a known
+// gap, this pass was scoped to apps/web per the founder's ask.
+const fraunces = Fraunces({
+  weight: ["500", "600"],
+  variable: "--font-serif",
   subsets: ["latin"],
 });
 
@@ -54,7 +58,7 @@ export default function RootLayout({
   );
 
   return (
-    <html lang="en" className={`${bebasNeue.variable} ${inter.variable}`}>
+    <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
       <body>{body}</body>
     </html>
   );

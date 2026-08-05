@@ -82,8 +82,8 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
                 background: `linear-gradient(135deg, ${palette.sourLime}, ${palette.electricBlue})`,
               }}
             />
-            <span style={{ fontFamily: "var(--font-bebas)", fontSize: 22, color: colors.textPrimary, letterSpacing: 0.5 }}>
-              NOIVOS
+            <span style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: 20, color: colors.textPrimary, letterSpacing: 0.2 }}>
+              Noivos
             </span>
           </div>
 
@@ -102,16 +102,18 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
                     alignItems: "center",
                     gap: 12,
                     padding: "10px 12px",
-                    borderRadius: 999,
+                    borderRadius: 10,
                     border: "none",
-                    background: active ? colors.primary : "transparent",
-                    color: active ? getTextColorFor(colors.primary) : colors.textSecondary,
+                    // A soft tint instead of a solid filled pill — Origin's
+                    // selected nav state reads as "highlighted," not "badge."
+                    background: active ? `${colors.primary}1F` : "transparent",
+                    color: active ? colors.primary : colors.textSecondary,
                     cursor: "pointer",
                     font: "inherit",
                     textAlign: "left",
                   }}
                 >
-                  <IconCmp size={18} color={active ? getTextColorFor(colors.primary) : colors.textSecondary} />
+                  <IconCmp size={18} color={active ? colors.primary : colors.textSecondary} />
                   <span style={{ fontFamily: "var(--font-inter)", fontSize: 14, fontWeight: 600 }}>{label}</span>
                 </button>
               );
@@ -185,7 +187,7 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
             borderBottom: `1px solid ${colors.border}`,
           }}
         >
-          <span style={{ fontFamily: "var(--font-bebas)", fontSize: 28, color: colors.textPrimary }}>{pageTitle}</span>
+          <span style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: 24, color: colors.textPrimary }}>{pageTitle}</span>
           <div style={{ display: "flex", gap: 8 }}>
             <button className="noivos-icon-btn" aria-label="Search" title="Search">
               <Search size={16} color={colors.textSecondary} />

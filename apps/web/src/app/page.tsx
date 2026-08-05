@@ -17,12 +17,12 @@ function MarketingPlaceholder() {
         alignItems: "center",
         justifyContent: "center",
         gap: 12,
-        backgroundColor: "#0D0D0F",
-        color: "#F5F5F7",
+        backgroundColor: "#18160F",
+        color: "#F5F1E6",
       }}
     >
-      <h1 style={{ fontFamily: "var(--font-bebas)", fontSize: 40, margin: 0 }}>Noivos</h1>
-      <p style={{ fontFamily: "var(--font-inter)", color: "rgba(245,245,247,0.64)", margin: 0 }}>
+      <h1 style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: 40, margin: 0 }}>Noivos</h1>
+      <p style={{ fontFamily: "var(--font-inter)", color: "rgba(245,241,230,0.62)", margin: 0 }}>
         Better money. Together.
       </p>
     </main>
