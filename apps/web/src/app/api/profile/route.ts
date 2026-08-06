@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { withUserContext } from "@/lib/db";
+import { tooLong, MAX_NAME_LENGTH } from "@/lib/validate";
 
 // Same fallback posture as the rest of the app: if Clerk isn't configured
 // (no ClerkProvider/clerkMiddleware running at all — see proxy.ts), there's
@@ -62,6 +63,9 @@ export async function POST(request: Request) {
   const birthdate = typeof body.birthdate === "string" ? body.birthdate.trim() : "";
   if (!name || !birthdate) {
     return NextResponse.json({ error: "Name and birthdate are both required" }, { status: 400 });
+  }
+  if (tooLong(name, MAX_NAME_LENGTH)) {
+    return NextResponse.json({ error: `Name must be ${MAX_NAME_LENGTH} characters or fewer` }, { status: 400 });
   }
   // The client sends this from a native <input type="date">, but a
   // client-supplied string is never trusted blindly before it reaches a

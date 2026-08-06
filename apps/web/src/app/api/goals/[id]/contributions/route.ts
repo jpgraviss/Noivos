@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { withUserContext } from "@/lib/db";
 import { logActivityEvent } from "@/lib/activity";
+import { tooLong, MAX_NOTE_LENGTH } from "@/lib/validate";
 
 function clerkConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
@@ -33,6 +34,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const note = typeof body.note === "string" && body.note.trim() ? body.note.trim() : null;
   if (!Number.isFinite(amount) || amount <= 0) {
     return NextResponse.json({ error: "Amount must be a positive number" }, { status: 400 });
+  }
+  if (note && tooLong(note, MAX_NOTE_LENGTH)) {
+    return NextResponse.json({ error: `Note must be ${MAX_NOTE_LENGTH} characters or fewer` }, { status: 400 });
   }
 
   try {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { withUserContext } from "@/lib/db";
+import { tooLong, MAX_NAME_LENGTH } from "@/lib/validate";
 
 const GOAL_TYPES = [
   "wedding",
@@ -102,6 +103,9 @@ export async function POST(request: Request) {
 
   if (!name) {
     return NextResponse.json({ error: "Goal name is required" }, { status: 400 });
+  }
+  if (tooLong(name, MAX_NAME_LENGTH)) {
+    return NextResponse.json({ error: `Goal name must be ${MAX_NAME_LENGTH} characters or fewer` }, { status: 400 });
   }
   if (!Number.isFinite(targetAmount) || targetAmount <= 0) {
     return NextResponse.json({ error: "Target amount must be a positive number" }, { status: 400 });

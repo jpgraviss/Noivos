@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { withUserContext } from "@/lib/db";
 import { findOrCreateManualAccount } from "@/lib/budget";
 import { logActivityEvent } from "@/lib/activity";
+import { tooLong, MAX_NAME_LENGTH } from "@/lib/validate";
 
 function clerkConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
@@ -36,6 +37,9 @@ export async function POST(request: Request) {
   }
   if (!Number.isFinite(amount) || amount <= 0) {
     return NextResponse.json({ error: "amount must be a positive number" }, { status: 400 });
+  }
+  if (merchantName && tooLong(merchantName, MAX_NAME_LENGTH)) {
+    return NextResponse.json({ error: `merchantName must be ${MAX_NAME_LENGTH} characters or fewer` }, { status: 400 });
   }
 
   try {

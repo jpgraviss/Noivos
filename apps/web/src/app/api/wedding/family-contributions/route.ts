@@ -4,6 +4,7 @@ import { withUserContext } from "@/lib/db";
 import { findActiveMembership } from "@/lib/partnership";
 import { findWeddingDetails } from "@/lib/wedding";
 import { logActivityEvent } from "@/lib/activity";
+import { tooLong, MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from "@/lib/validate";
 
 function clerkConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
@@ -37,8 +38,14 @@ export async function POST(request: Request) {
   if (!contributorName) {
     return NextResponse.json({ error: "contributorName is required" }, { status: 400 });
   }
+  if (tooLong(contributorName, MAX_NAME_LENGTH)) {
+    return NextResponse.json({ error: `contributorName must be ${MAX_NAME_LENGTH} characters or fewer` }, { status: 400 });
+  }
   if (!Number.isFinite(amount) || amount <= 0) {
     return NextResponse.json({ error: "amount must be a positive number" }, { status: 400 });
+  }
+  if (note && tooLong(note, MAX_NOTE_LENGTH)) {
+    return NextResponse.json({ error: `Note must be ${MAX_NOTE_LENGTH} characters or fewer` }, { status: 400 });
   }
 
   try {

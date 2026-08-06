@@ -4,6 +4,7 @@ import { withUserContext } from "@/lib/db";
 import { findActiveMembership } from "@/lib/partnership";
 import { findWeddingDetails } from "@/lib/wedding";
 import { logActivityEvent } from "@/lib/activity";
+import { tooLong, MAX_NAME_LENGTH } from "@/lib/validate";
 
 function clerkConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
@@ -32,6 +33,12 @@ export async function POST(request: Request) {
 
   if (!name) {
     return NextResponse.json({ error: "Vendor name is required" }, { status: 400 });
+  }
+  if (tooLong(name, MAX_NAME_LENGTH)) {
+    return NextResponse.json({ error: `Vendor name must be ${MAX_NAME_LENGTH} characters or fewer` }, { status: 400 });
+  }
+  if (tooLong(status, MAX_NAME_LENGTH)) {
+    return NextResponse.json({ error: `Status must be ${MAX_NAME_LENGTH} characters or fewer` }, { status: 400 });
   }
   if (balanceDue !== null && (!Number.isFinite(balanceDue) || balanceDue < 0)) {
     return NextResponse.json({ error: "Balance due must be a non-negative number" }, { status: 400 });

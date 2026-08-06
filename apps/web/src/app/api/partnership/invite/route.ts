@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { withUserContext } from "@/lib/db";
 import { findActiveMembership } from "@/lib/partnership";
+import { tooLong, MAX_EMAIL_LENGTH } from "@/lib/validate";
 
 function clerkConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
@@ -42,6 +43,9 @@ export async function POST(request: Request) {
   const email = typeof body.email === "string" ? body.email.trim() : "";
   if (!email || !email.includes("@")) {
     return NextResponse.json({ error: "Enter a valid email address" }, { status: 400 });
+  }
+  if (tooLong(email, MAX_EMAIL_LENGTH)) {
+    return NextResponse.json({ error: `Email must be ${MAX_EMAIL_LENGTH} characters or fewer` }, { status: 400 });
   }
 
   try {
