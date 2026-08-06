@@ -89,7 +89,16 @@ export function AICoachScreen() {
         <Text variant="caption" secondary>
           SHARE WITH {currentUser.partnerName.toUpperCase()}
         </Text>
+        {/* Not wired to anything — there's no "share an AI conversation to
+            Activity" event type yet. Disabled with honest copy rather than
+            a silently dead tap target, same posture as the icons below and
+            AppShell's Search icon. Found during the 2026-08-06 accessibility
+            pass; not present in the 2026-08-05 dead-button audit, which
+            didn't cover this screen. */}
         <Pressable
+          disabled
+          role="button"
+          aria-label="Share this conversation to Activity — coming soon"
           style={{
             marginTop: spacing.sm,
             paddingVertical: spacing.sm,
@@ -97,10 +106,11 @@ export function AICoachScreen() {
             borderWidth: 1,
             borderColor: colors.border,
             alignItems: "center",
+            opacity: 0.5,
           }}
         >
-          <Text variant="bodySmall" style={{ fontWeight: "600" }}>
-            Share this conversation to Activity
+          <Text variant="bodySmall" secondary style={{ fontWeight: "600" }}>
+            Share this conversation to Activity (coming soon)
           </Text>
         </Pressable>
       </Card>
@@ -124,15 +134,25 @@ export function AICoachScreen() {
           onSubmitEditing={() => send(draft)}
           placeholder="Can we afford..."
           placeholderTextColor={colors.textSecondary}
+          aria-label="Ask the Money Coach a question"
           style={{ flex: 1, color: colors.textPrimary, fontSize: 15 }}
         />
-        <Pressable hitSlop={8}>
+        {/* Not wired to anything — no voice/photo capture backend exists.
+            Left visible with an honest label rather than a silently dead
+            icon, same posture as AppShell's Search icon. */}
+        <Pressable hitSlop={8} role="button" aria-label="Voice input — coming soon">
           <Mic size={18} color={colors.textSecondary} />
         </Pressable>
-        <Pressable hitSlop={8}>
+        <Pressable hitSlop={8} role="button" aria-label="Attach a photo — coming soon">
           <Camera size={18} color={colors.textSecondary} />
         </Pressable>
-        <Pressable onPress={() => send(draft)} hitSlop={8} disabled={!draft.trim()}>
+        <Pressable
+          onPress={() => send(draft)}
+          hitSlop={8}
+          disabled={!draft.trim()}
+          role="button"
+          aria-label="Send message"
+        >
           <Send size={18} color={draft.trim() ? palette.sourLime : colors.textSecondary} />
         </Pressable>
       </View>

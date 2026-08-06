@@ -522,6 +522,7 @@ export function GoalsScreen() {
                 onChangeText={setStartDate}
                 placeholder="Wedding date (YYYY-MM-DD)"
                 placeholderTextColor={colors.textSecondary}
+                aria-label="Wedding date"
                 style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 10, color: colors.textPrimary }}
               />
               <TextInput
@@ -530,6 +531,7 @@ export function GoalsScreen() {
                 placeholder="Estimated guest count"
                 placeholderTextColor={colors.textSecondary}
                 keyboardType="numeric"
+                aria-label="Estimated guest count"
                 style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 10, color: colors.textPrimary }}
               />
               {startWeddingError && (
@@ -599,6 +601,7 @@ export function GoalsScreen() {
                     onChangeText={setVendorName}
                     placeholder="Vendor name"
                     placeholderTextColor={colors.textSecondary}
+                    aria-label="Vendor name"
                     style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 10, color: colors.textPrimary }}
                   />
                   <TextInput
@@ -607,6 +610,7 @@ export function GoalsScreen() {
                     placeholder="Balance due"
                     placeholderTextColor={colors.textSecondary}
                     keyboardType="numeric"
+                    aria-label="Balance due"
                     style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 10, color: colors.textPrimary }}
                   />
                   <TextInput
@@ -614,6 +618,7 @@ export function GoalsScreen() {
                     onChangeText={setVendorDueDate}
                     placeholder="Due date (YYYY-MM-DD)"
                     placeholderTextColor={colors.textSecondary}
+                    aria-label="Balance due date"
                     style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 10, color: colors.textPrimary }}
                   />
                   {addVendorError && (
@@ -672,6 +677,7 @@ export function GoalsScreen() {
                   onChangeText={setNewChecklistTitle}
                   placeholder="Add a checklist item"
                   placeholderTextColor={colors.textSecondary}
+                  aria-label="New checklist item"
                   style={{ flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 8, color: colors.textPrimary, fontSize: 13 }}
                 />
                 <Pressable
@@ -727,6 +733,7 @@ export function GoalsScreen() {
                     onChangeText={setFamilyContributorName}
                     placeholder="Who's it from? (e.g. Mom & Dad)"
                     placeholderTextColor={colors.textSecondary}
+                    aria-label="Who this gift is from"
                     style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 10, color: colors.textPrimary }}
                   />
                   <TextInput
@@ -735,6 +742,7 @@ export function GoalsScreen() {
                     placeholder="Amount"
                     placeholderTextColor={colors.textSecondary}
                     keyboardType="numeric"
+                    aria-label="Gift amount"
                     style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 10, color: colors.textPrimary }}
                   />
                   {addFamilyContributionError && (
@@ -814,6 +822,7 @@ export function GoalsScreen() {
                       onChangeText={(v) => setContributionDrafts((prev) => ({ ...prev, [g.id]: v }))}
                       placeholder="Add $ amount"
                       placeholderTextColor={colors.textSecondary}
+                      aria-label={`Contribution amount for ${g.name}`}
                       keyboardType="numeric"
                       style={{
                         flex: 1,
@@ -860,6 +869,7 @@ export function GoalsScreen() {
                     onChangeText={setNewGoalName}
                     placeholder="Goal name"
                     placeholderTextColor={colors.textSecondary}
+                    aria-label="New goal name"
                     style={{
                       borderWidth: 1,
                       borderColor: colors.border,
@@ -873,6 +883,7 @@ export function GoalsScreen() {
                     onChangeText={setNewGoalTarget}
                     placeholder="Target amount"
                     placeholderTextColor={colors.textSecondary}
+                    aria-label="New goal target amount"
                     keyboardType="numeric"
                     style={{
                       borderWidth: 1,

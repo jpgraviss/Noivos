@@ -38,7 +38,7 @@ export function StackedProgressBar({ contributors, target, height = 12 }: Stacke
       {contributors.map((c, i) => (
         <View
           key={c.name}
-          accessibilityLabel={`${c.name} contributed $${c.amount.toLocaleString()}`}
+          aria-label={`${c.name} contributed $${c.amount.toLocaleString()}`}
           style={{
             width: `${widths[i]}%`,
             backgroundColor: c.color,

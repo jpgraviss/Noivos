@@ -17,7 +17,7 @@ export function OwnershipBadge({ shared, partnerName }: OwnershipBadgeProps) {
 
   return (
     <View
-      accessibilityLabel={label}
+      aria-label={label}
       style={{
         flexDirection: 'row',
         alignItems: 'center',

@@ -69,25 +69,37 @@ export function MoreScreen({ onSignOut, userName }: MoreScreenProps = {}) {
           Dark is Noivos&apos; default look — light mode is available too.
         </Text>
         <View style={{ flexDirection: "row", gap: spacing.sm }}>
+          {/* A Pressable, not a Text with onPress — react-native-web's Text
+              only attaches an onClick handler for onPress, with no role,
+              tabIndex, or keyboard handling added, so this theme toggle was
+              completely unreachable by keyboard/screen reader on web
+              (found during the 2026-08-06 accessibility pass). role="button"
+              is what RNW actually maps to Space-key activation (Enter works
+              regardless of role; Space only fires for role="button"/a real
+              <button>, confirmed against react-native-web's own
+              PressResponder source) and to a real screen-reader "button"
+              announcement — Pressable sets neither by default. aria-pressed
+              is the correct pairing for a role="button" toggle (aria-selected
+              is for role="tab"/"option"/"row", not "button"). */}
           {(["dark", "light"] as const).map((m) => (
-            <Text
-              key={m}
-              onPress={() => selectMode(m)}
-              variant="bodySmall"
-              style={{
-                paddingVertical: 8,
-                paddingHorizontal: 16,
-                borderRadius: 999,
-                overflow: "hidden",
-                borderWidth: 1,
-                borderColor: colors.border,
-                backgroundColor: mode === m ? colors.primary : "transparent",
-                color: mode === m ? colors.background : colors.textPrimary,
-                fontWeight: "600",
-              }}
-            >
-              {m === "dark" ? "Dark" : "Light"}
-            </Text>
+            <Pressable key={m} onPress={() => selectMode(m)} role="button" aria-pressed={mode === m}>
+              <Text
+                variant="bodySmall"
+                style={{
+                  paddingVertical: 8,
+                  paddingHorizontal: 16,
+                  borderRadius: 999,
+                  overflow: "hidden",
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: mode === m ? colors.primary : "transparent",
+                  color: mode === m ? colors.background : colors.textPrimary,
+                  fontWeight: "600",
+                }}
+              >
+                {m === "dark" ? "Dark" : "Light"}
+              </Text>
+            </Pressable>
           ))}
         </View>
       </Card>
@@ -104,6 +116,8 @@ export function MoreScreen({ onSignOut, userName }: MoreScreenProps = {}) {
               <View key={item.label}>
                 <Pressable
                   onPress={() => setExpandedItem(expanded ? null : item.label)}
+                  role="button"
+                  aria-expanded={expanded}
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
@@ -135,7 +149,7 @@ export function MoreScreen({ onSignOut, userName }: MoreScreenProps = {}) {
 
       {onSignOut && (
         <Card>
-          <Pressable onPress={onSignOut} style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+          <Pressable onPress={onSignOut} role="button" style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
             <LogOut size={16} color={colors.textPrimary} />
             <Text variant="body" style={{ fontWeight: "600" }}>
               Sign Out

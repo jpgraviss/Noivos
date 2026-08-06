@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput } from 'react-native';
+import { View, TextInput, Pressable } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { useSignIn, useSignUp, useSSO } from '@clerk/expo';
 import { Button, Card, ScreenContainer, Text, useTheme, spacing, radius, palette } from '@noivos/ui';
@@ -96,6 +96,7 @@ export function SignInScreen() {
             onChangeText={setCode}
             placeholder="123456"
             placeholderTextColor={colors.textSecondary}
+            aria-label="Verification code"
             keyboardType="number-pad"
             style={{
               borderWidth: 1,
@@ -116,6 +117,7 @@ export function SignInScreen() {
               onChangeText={setEmail}
               placeholder="Email"
               placeholderTextColor={colors.textSecondary}
+              aria-label="Email address"
               autoCapitalize="none"
               keyboardType="email-address"
               style={{
@@ -132,6 +134,7 @@ export function SignInScreen() {
               onChangeText={setPassword}
               placeholder="Password"
               placeholderTextColor={colors.textSecondary}
+              aria-label="Password"
               secureTextEntry
               style={{
                 borderWidth: 1,
@@ -147,14 +150,24 @@ export function SignInScreen() {
               onPress={onEmailPress}
               disabled={pending || !email || !password}
             />
-            <Text
-              variant="bodySmall"
-              secondary
-              style={{ textAlign: 'center', marginTop: spacing.md }}
+            {/* A Pressable, not a Text with onPress — react-native-web's Text
+                only attaches an onClick handler for onPress, with no role,
+                tabIndex, or keyboard handling added, so this control was
+                completely unreachable by keyboard/screen reader on web
+                (found during the 2026-08-06 accessibility pass). Pressable
+                adds real keyboard focus/Enter-activation on its own, but not
+                a "button" role — role="button" is what actually gets this a
+                Space-key activation and a proper screen-reader announcement
+                (confirmed against react-native-web's PressResponder source). */}
+            <Pressable
               onPress={() => setMode(mode === 'signIn' ? 'signUp' : 'signIn')}
+              role="button"
+              style={{ marginTop: spacing.md }}
             >
-              {mode === 'signIn' ? "New to Noivos? Create an account" : 'Already have an account? Sign in'}
-            </Text>
+              <Text variant="bodySmall" secondary style={{ textAlign: 'center' }}>
+                {mode === 'signIn' ? "New to Noivos? Create an account" : 'Already have an account? Sign in'}
+              </Text>
+            </Pressable>
           </Card>
 
           <View style={{ gap: spacing.sm }}>

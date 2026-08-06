@@ -240,6 +240,7 @@ export function PartnershipSettings() {
                     readOnly
                     value={inviteUrl}
                     onFocus={(e) => e.currentTarget.select()}
+                    aria-label="Shareable invite link"
                     style={{ ...inputStyle(colors.border, colors.textSecondary), flex: 1, fontSize: 12 }}
                   />
                   <button onClick={handleCopyLink} style={pillButtonStyle(colors.border, colors.textPrimary)}>
@@ -254,6 +255,7 @@ export function PartnershipSettings() {
               value={inviteInput}
               onChange={(e) => setInviteInput(e.target.value)}
               placeholder="partner@email.com"
+              aria-label="Partner's email address"
               style={{ ...inputStyle(colors.border, colors.textPrimary), marginBottom: spacing.sm }}
             />
           )}

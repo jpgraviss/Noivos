@@ -145,6 +145,7 @@ export function IdentitySettings({ defaultName }: { defaultName?: string }) {
           onChange={(e) => setNameDraft(e.target.value)}
           disabled={locked}
           placeholder="Your full legal name"
+          aria-label="Full name"
           style={inputStyle(colors.border, colors.textPrimary, locked)}
         />
       </div>
@@ -158,6 +159,7 @@ export function IdentitySettings({ defaultName }: { defaultName?: string }) {
           value={locked ? saved.birthdate : birthdateDraft}
           onChange={(e) => setBirthdateDraft(e.target.value)}
           disabled={locked}
+          aria-label="Birthdate"
           style={inputStyle(colors.border, colors.textPrimary, locked)}
         />
       </div>

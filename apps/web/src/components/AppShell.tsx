@@ -239,7 +239,13 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
             <button className="noivos-icon-btn" aria-label="Search" title="Search — coming soon">
               <Search size={16} color={colors.textSecondary} />
             </button>
-            <button className="noivos-icon-btn" aria-label="Recent activity" title="Recent activity" onClick={toggleActivity}>
+            <button
+              className="noivos-icon-btn"
+              aria-label="Recent activity"
+              aria-expanded={showActivity}
+              title="Recent activity"
+              onClick={toggleActivity}
+            >
               <Bell size={16} color={colors.textSecondary} />
             </button>
             <button className="noivos-icon-btn" aria-label="Settings" title="Settings" onClick={() => setTab("More")}>

@@ -250,6 +250,7 @@ export function BudgetScreen() {
                         onChangeText={(v) => setAmountDrafts((prev) => ({ ...prev, [c.id]: v }))}
                         placeholder="Amount"
                         placeholderTextColor={colors.textSecondary}
+                        aria-label={`Expense amount for ${c.name}`}
                         keyboardType="numeric"
                         style={{
                           flex: 1,
@@ -266,6 +267,7 @@ export function BudgetScreen() {
                         onChangeText={(v) => setMerchantDrafts((prev) => ({ ...prev, [c.id]: v }))}
                         placeholder="Merchant (optional)"
                         placeholderTextColor={colors.textSecondary}
+                        aria-label={`Merchant name for this ${c.name} expense (optional)`}
                         style={{
                           flex: 1,
                           borderWidth: 1,
