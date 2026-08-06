@@ -697,6 +697,14 @@ export function GoalsScreen() {
               )}
             </Card>
 
+            {/* Full-width rather than another 340px grid cell — with exactly
+                4 cards in this segment (Countdown/Vendors/Checklist/Family
+                Contributions), a 3-column desktop grid leaves this one
+                orphaned alone in a mostly-empty row (flagged in the
+                2026-08-05 UI audit, not fixed until now). Reads as "3 summary
+                cards, then a full-width detail list" — a standard dashboard
+                pattern, not just a patch for the leftover space. */}
+            <ScreenGridWide>
             <Card>
               <Text variant="h3" style={{ marginBottom: spacing.sm }}>
                 Family Contributions
@@ -770,6 +778,7 @@ export function GoalsScreen() {
                 </Pressable>
               )}
             </Card>
+            </ScreenGridWide>
           </>
         )
       ) : !loaded ? (
