@@ -4,6 +4,7 @@ import { Circle, CircleCheck, Flag, Plus } from "lucide-react-native";
 import { Card, OwnershipBadge, StackedProgressBar, Text, useTheme, spacing, radius, palette } from "@noivos/ui";
 import { goals as mockGoals, weddingDetails } from "../data/mockData";
 import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
+import { daysUntil } from "../lib/date";
 
 // Rotated per distinct contributor. Originally a hardcoded darker green
 // (#638C00) stood in for palette.sourLime here specifically because the old
@@ -74,13 +75,6 @@ interface ApiWeddingDetails {
   vendors: ApiVendor[];
   checklist: ApiChecklistItem[];
   familyContributions: ApiFamilyContribution[];
-}
-
-function daysUntil(dateStr: string | null): number | null {
-  if (!dateStr) return null;
-  const target = new Date(`${dateStr}T00:00:00`);
-  const now = new Date();
-  return Math.ceil((target.getTime() - now.getTime()) / 86400000);
 }
 
 function toDisplayGoal(g: ApiGoal): DisplayGoal {
