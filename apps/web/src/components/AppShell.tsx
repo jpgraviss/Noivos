@@ -149,7 +149,7 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
                     border: "none",
                     // A soft tint instead of a solid filled pill — Origin's
                     // selected nav state reads as "highlighted," not "badge."
-                    background: active ? `${colors.primary}1F` : "transparent",
+                    background: active ? `${colors.primary}2E` : "transparent",
                     color: active ? colors.primary : colors.textSecondary,
                     cursor: "pointer",
                     font: "inherit",

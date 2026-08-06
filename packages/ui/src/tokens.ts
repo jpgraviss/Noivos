@@ -1,25 +1,36 @@
 // Design tokens per docs/03 UX/Design System.md — originally generated from
 // the approved brand moodboard's vivid palette (neon lime/hot pink/electric
-// blue/Bebas Neue). Repainted 2026-08-05 per founder direction ("make it a
-// closer look to Origin... our UI and UX is ugly") toward Origin's calmer,
-// editorial aesthetic: warm neutrals, muted sophisticated accent colors,
-// and a serif/sans type pairing instead of a shouting all-caps poster font.
-// Deliberately keeping every token *name* identical to before (sourLime,
-// sourPunch, etc.) even though the hex values no longer read as those
-// names literally describe — every screen references these by name, so
-// repainting the values here repaints the whole app without touching each
-// screen file. Dark mode stays primary (confirmed in UX/UI Blueprint §2).
+// blue/Bebas Neue). Repainted 2026-08-05 toward Origin's calmer, editorial
+// aesthetic (muted accents, warm neutrals, Fraunces serif) per founder
+// direction — then repainted again the same day ("Merge the brands
+// together. Need the colors to be more fun") to bring real vibrancy back:
+// this is the merge — Origin's disciplined layout/typography (Fraunces,
+// grounded radius, restrained card borders, a near-black rather than
+// stark-black background) carries the accent colors from the *original*
+// moodboard (close derivatives, not muted-down versions), instead of
+// either extreme. Token *names* stay identical (sourLime, sourPunch, etc.)
+// regardless of which round's hex value they hold — every screen
+// references these by name, so repainting the values here repaints the
+// whole app without touching each screen file. Dark mode stays primary
+// (confirmed in UX/UI Blueprint §2).
+//
+// Note: the dedicated categorical chart palette in apps/web's/apps/mobile's
+// BudgetScreen.tsx (BUDGET_CATEGORY_COLORS) is intentionally NOT tied to
+// these tokens — reusing vivid UI-accent colors directly as chart marks
+// fails the dataviz skill's categorical validator (lightness band/chroma/
+// CVD checks), same as it did for the muted round. That dedicated,
+// validated set is unaffected by this change and stays as-is.
 
 import { Platform } from 'react-native';
 
 export const palette = {
-  sourLime: '#4F7A5B', // was neon lime #C6FF00 — now a muted forest green
-  sourPunch: '#B0684B', // was hot pink #FF2D8E — now a muted terracotta/clay
-  electricBlue: '#4C6B8A', // was electric blue #0066FF — now a soft slate blue
-  citrus: '#C9A227', // was bright yellow #FFE600 — now a muted warm gold
-  grape: '#6B5B95', // was vivid purple #8A2BE2 — now a dusty plum
-  sourCloud: '#F5F1E6', // was cool white #F5F5F7 — now a warm ivory
-  licorice: '#18160F', // was pure black #0D0D0F — now a warm near-black
+  sourLime: '#B8F000', // vivid lime — close to the original moodboard's #C6FF00, very slightly tempered
+  sourPunch: '#FF2D8E', // the original moodboard's hot pink, unchanged — it was never the "ugly" complaint
+  electricBlue: '#1E7FFF', // close to the original #0066FF, a touch brighter/friendlier
+  citrus: '#FFD500', // close to the original #FFE600, slightly warmer gold-yellow
+  grape: '#9B4DFF', // brighter/more energetic than the original #8A2BE2
+  sourCloud: '#F5F3F0', // soft warm white — kept from the Origin pass, wasn't the complaint either
+  licorice: '#141316', // near-black with the faintest cool-neutral tone — dark enough for vivid accents to pop, warmer than the original's stark #0D0D0F
 } as const;
 
 export interface ColorTokens {
@@ -40,9 +51,9 @@ export interface ColorTokens {
 export const colorTokens: Record<'dark' | 'light', ColorTokens> = {
   dark: {
     background: palette.licorice,
-    surface: '#221F17', // a touch lighter/warmer than background so cards read as raised, not just outlined
+    surface: '#1E1D21', // a touch lighter than background so cards read as raised, not just outlined
     textPrimary: palette.sourCloud,
-    textSecondary: 'rgba(245, 241, 230, 0.62)',
+    textSecondary: 'rgba(245, 243, 240, 0.64)',
     primary: palette.sourLime,
     secondary: palette.sourPunch,
     accent: palette.electricBlue,
@@ -50,13 +61,13 @@ export const colorTokens: Record<'dark' | 'light', ColorTokens> = {
     info: palette.grape,
     success: palette.sourLime,
     warning: palette.citrus,
-    border: 'rgba(245, 241, 230, 0.10)',
+    border: 'rgba(245, 243, 240, 0.12)',
   },
   light: {
-    background: '#FAF7F0',
+    background: '#FAFAF8',
     surface: '#FFFFFF',
-    textPrimary: '#221F17',
-    textSecondary: 'rgba(34, 31, 23, 0.62)',
+    textPrimary: '#18171A',
+    textSecondary: 'rgba(24, 23, 26, 0.64)',
     primary: palette.sourLime,
     secondary: palette.sourPunch,
     accent: palette.electricBlue,
@@ -64,7 +75,7 @@ export const colorTokens: Record<'dark' | 'light', ColorTokens> = {
     info: palette.grape,
     success: palette.sourLime,
     warning: palette.citrus,
-    border: 'rgba(34, 31, 23, 0.10)',
+    border: 'rgba(24, 23, 26, 0.10)',
   },
 } as const;
 
