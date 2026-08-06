@@ -1,7 +1,8 @@
 import React from 'react';
-import { Text } from 'react-native';
+import type { ComponentType } from 'react';
 import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { House, PieChart, Target, Sparkles, Ellipsis } from 'lucide-react-native';
 import { useTheme, palette } from '@noivos/ui';
 import { HomeScreen } from '../screens/HomeScreen';
 import { BudgetScreen } from '../screens/BudgetScreen';
@@ -12,13 +13,21 @@ import { weddingDetails } from '../data/mockData';
 
 const Tab = createBottomTabNavigator();
 
-const ICONS: Record<string, string> = {
-  Home: '🏠',
-  Budget: '📊',
-  Goals: '🎯',
-  Wedding: '💍',
-  'AI Coach': '✨',
-  More: '⋯',
+// Same moodboard iconography as apps/web's AppShell.tsx (House/PieChart/
+// Target/Sparkles/Ellipsis), added 2026-08-06 — the raw-emoji tab bar was a
+// known, flagged gap since the 2026-08-05 icon audit ("apps/mobile's tab
+// bar uses raw emoji, not lucide-react-native, not even installed there").
+// Keyed by both possible Goals-tab labels since Tab.Screen's `name` below is
+// the display label itself (unlike web's ICONS, which is keyed by a fixed
+// tab identity separate from its label) — the icon stays Target either way,
+// only the label swaps per the Wedding Mode relabel rule.
+const ICONS: Record<string, ComponentType<{ size?: number; color?: string }>> = {
+  Home: House,
+  Budget: PieChart,
+  Goals: Target,
+  Wedding: Target,
+  'AI Coach': Sparkles,
+  More: Ellipsis,
 };
 
 export interface RootNavigatorProps {
@@ -49,7 +58,10 @@ export function RootNavigator({ onSignOut }: RootNavigatorProps = {}) {
           tabBarActiveTintColor: palette.sourLime,
           tabBarInactiveTintColor: colors.textSecondary,
           tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
-          tabBarIcon: () => <Text style={{ fontSize: 18 }}>{ICONS[route.name]}</Text>,
+          tabBarIcon: ({ color, size }) => {
+            const IconCmp = ICONS[route.name];
+            return <IconCmp size={size} color={color} />;
+          },
         })}
       >
         <Tab.Screen name="Home" component={HomeScreen} />
