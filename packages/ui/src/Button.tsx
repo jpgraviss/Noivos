@@ -27,6 +27,7 @@ export function Button({ label, onPress, variant = 'primary', disabled, style }:
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      role="button"
       style={({ pressed }) => [
         styles.base,
         {

@@ -20,6 +20,8 @@ export function GoalsScreen() {
             <Pressable
               key={s}
               onPress={() => setSegment(s)}
+              role="button"
+              aria-pressed={segment === s}
               style={{
                 paddingVertical: spacing.sm,
                 paddingHorizontal: spacing.lg,

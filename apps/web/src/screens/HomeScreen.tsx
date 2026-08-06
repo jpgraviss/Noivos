@@ -281,6 +281,7 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
             <Pressable
               onPress={handleCompleteMeeting}
               disabled={completingMeeting}
+              role="button"
               style={{
                 alignSelf: "flex-start",
                 marginTop: spacing.sm,

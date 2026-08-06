@@ -424,6 +424,8 @@ export function GoalsScreen() {
                 <Pressable
                   key={s}
                   onPress={() => setSegment(s)}
+                  role="button"
+                  aria-pressed={segment === s}
                   style={{
                     paddingVertical: spacing.sm,
                     paddingHorizontal: spacing.lg,
@@ -542,6 +544,7 @@ export function GoalsScreen() {
               <Pressable
                 onPress={handleStartWedding}
                 disabled={startingWedding}
+                role="button"
                 style={{ alignSelf: "flex-start", paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, backgroundColor: palette.sourLime }}
               >
                 <Text variant="bodySmall" color={palette.licorice} style={{ fontWeight: "600" }}>
@@ -630,6 +633,7 @@ export function GoalsScreen() {
                     <Pressable
                       onPress={handleAddVendor}
                       disabled={addingVendor}
+                      role="button"
                       style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, backgroundColor: palette.sourLime }}
                     >
                       <Text variant="bodySmall" color={palette.licorice} style={{ fontWeight: "600" }}>
@@ -638,6 +642,7 @@ export function GoalsScreen() {
                     </Pressable>
                     <Pressable
                       onPress={() => setShowAddVendor(false)}
+                      role="button"
                       style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border }}
                     >
                       <Text variant="bodySmall">Cancel</Text>
@@ -645,7 +650,7 @@ export function GoalsScreen() {
                   </View>
                 </View>
               ) : (
-                <Pressable onPress={() => setShowAddVendor(true)} style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs }}>
+                <Pressable onPress={() => setShowAddVendor(true)} role="button" style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs }}>
                   <Plus size={16} color={palette.sourLime} />
                   <Text variant="bodySmall" style={{ fontWeight: "600" }}>
                     Add a vendor
@@ -663,6 +668,8 @@ export function GoalsScreen() {
                   key={item.id}
                   onPress={() => handleToggleChecklistItem(item.id, !item.isComplete)}
                   disabled={togglingItemId === item.id}
+                  role="checkbox"
+                  aria-checked={item.isComplete}
                   style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.xs }}
                 >
                   {item.isComplete ? <CircleCheck size={18} color={palette.sourLime} /> : <Circle size={18} color={colors.textSecondary} />}
@@ -683,6 +690,7 @@ export function GoalsScreen() {
                 <Pressable
                   onPress={handleAddChecklistItem}
                   disabled={addingChecklistItem}
+                  role="button"
                   style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: palette.sourLime }}
                 >
                   <Text variant="bodySmall" color={palette.licorice} style={{ fontWeight: "600" }}>
@@ -754,6 +762,7 @@ export function GoalsScreen() {
                     <Pressable
                       onPress={handleAddFamilyContribution}
                       disabled={addingFamilyContribution}
+                      role="button"
                       style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, backgroundColor: palette.sourLime }}
                     >
                       <Text variant="bodySmall" color={palette.licorice} style={{ fontWeight: "600" }}>
@@ -762,6 +771,7 @@ export function GoalsScreen() {
                     </Pressable>
                     <Pressable
                       onPress={() => setShowAddFamilyContribution(false)}
+                      role="button"
                       style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border }}
                     >
                       <Text variant="bodySmall">Cancel</Text>
@@ -771,6 +781,7 @@ export function GoalsScreen() {
               ) : (
                 <Pressable
                   onPress={() => setShowAddFamilyContribution(true)}
+                  role="button"
                   style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs }}
                 >
                   <Plus size={16} color={palette.sourLime} />
@@ -837,6 +848,7 @@ export function GoalsScreen() {
                     <Pressable
                       onPress={() => handleAddContribution(g.id)}
                       disabled={contributingGoalId === g.id}
+                      role="button"
                       style={{
                         paddingVertical: 8,
                         paddingHorizontal: 14,
@@ -902,6 +914,7 @@ export function GoalsScreen() {
                     <Pressable
                       onPress={handleAddGoal}
                       disabled={addingGoal}
+                      role="button"
                       style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, backgroundColor: palette.sourLime }}
                     >
                       <Text variant="bodySmall" color={palette.licorice} style={{ fontWeight: "600" }}>
@@ -910,6 +923,7 @@ export function GoalsScreen() {
                     </Pressable>
                     <Pressable
                       onPress={() => setShowAddGoal(false)}
+                      role="button"
                       style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border }}
                     >
                       <Text variant="bodySmall">Cancel</Text>
@@ -917,7 +931,7 @@ export function GoalsScreen() {
                   </View>
                 </View>
               ) : (
-                <Pressable onPress={() => setShowAddGoal(true)} style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                <Pressable onPress={() => setShowAddGoal(true)} role="button" style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
                   <Plus size={18} color={palette.sourLime} />
                   <Text variant="body" style={{ fontWeight: "600" }}>
                     Add a goal

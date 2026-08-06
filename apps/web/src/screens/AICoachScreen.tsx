@@ -55,6 +55,7 @@ export function AICoachScreen() {
           <Pressable
             key={s}
             onPress={() => send(s)}
+            role="button"
             style={{
               paddingVertical: 8,
               paddingHorizontal: 14,

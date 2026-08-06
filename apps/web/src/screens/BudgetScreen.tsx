@@ -235,6 +235,7 @@ export function BudgetScreen() {
                 {!isAdding ? (
                   <Pressable
                     onPress={() => setAddingFor(c.id)}
+                    role="button"
                     style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: spacing.sm }}
                   >
                     <Plus size={14} color={palette.sourLime} />
@@ -288,6 +289,7 @@ export function BudgetScreen() {
                       <Pressable
                         onPress={() => handleAddExpense(c.id)}
                         disabled={submittingFor === c.id}
+                        role="button"
                         style={{
                           paddingVertical: 8,
                           paddingHorizontal: 14,
@@ -301,6 +303,7 @@ export function BudgetScreen() {
                       </Pressable>
                       <Pressable
                         onPress={() => setAddingFor(null)}
+                        role="button"
                         style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border }}
                       >
                         <Text variant="bodySmall">Cancel</Text>
