@@ -2,6 +2,9 @@ import React from 'react';
 import { View } from 'react-native';
 import { useTheme } from './ThemeProvider';
 import { radius } from './tokens';
+import { computeSegmentWidths } from './stackedProgressBarMath';
+
+export { computeSegmentWidths } from './stackedProgressBarMath';
 
 export interface Contributor {
   name: string;
@@ -20,8 +23,7 @@ export interface StackedProgressBarProps {
 // never read as a value judgment).
 export function StackedProgressBar({ contributors, target, height = 12 }: StackedProgressBarProps) {
   const { colors } = useTheme();
-  const total = contributors.reduce((sum, c) => sum + c.amount, 0);
-  const clampedTotal = Math.min(total, target);
+  const widths = computeSegmentWidths(contributors, target);
 
   return (
     <View
@@ -33,17 +35,16 @@ export function StackedProgressBar({ contributors, target, height = 12 }: Stacke
         backgroundColor: colors.border,
       }}
     >
-      {contributors.map((c) => (
+      {contributors.map((c, i) => (
         <View
           key={c.name}
           accessibilityLabel={`${c.name} contributed $${c.amount.toLocaleString()}`}
           style={{
-            width: `${Math.max((c.amount / target) * 100, 0)}%`,
+            width: `${widths[i]}%`,
             backgroundColor: c.color,
           }}
         />
       ))}
-      {clampedTotal < target ? null : null}
     </View>
   );
 }
