@@ -6,6 +6,7 @@
     "packages/*"
   ],
   "scripts": {
-    "mobile": "npm run start --workspace=@noivos/mobile"
+    "mobile": "npm run start --workspace=@noivos/mobile",
+    "test": "npm run test --workspace=@noivos/web"
   }
 }

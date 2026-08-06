@@ -1,5 +1,30 @@
 import { withUserContext } from "./db";
 
+// Turns a raw (event_type, payload) row into the human-readable sentence
+// HomeScreen's Activity card and AppShell's Recent Activity dropdown both
+// expect. Moved here from api/activity/route.ts (2026-08-06) so it's a
+// plain, importable, unit-testable function instead of a private helper
+// only reachable through a live request — a new event_type still only ever
+// needs a change in this one place, same intent as before the move.
+export function describeActivityEvent(actorName: string, eventType: string, payload: Record<string, unknown>): string {
+  switch (eventType) {
+    case "goal_contribution":
+      return `${actorName} added $${Number(payload.amount).toLocaleString()} to ${payload.goalName}`;
+    case "budget_expense":
+      return payload.merchantName
+        ? `${actorName} logged $${Number(payload.amount).toLocaleString()} at ${payload.merchantName} (${payload.categoryName})`
+        : `${actorName} logged $${Number(payload.amount).toLocaleString()} for ${payload.categoryName}`;
+    case "wedding_vendor_added":
+      return `${actorName} added ${payload.vendorName} to Vendors`;
+    case "wedding_checklist_completed":
+      return `${actorName} completed "${payload.title}"`;
+    case "wedding_family_contribution":
+      return `${actorName} logged a $${Number(payload.amount).toLocaleString()} gift from ${payload.contributorName}`;
+    default:
+      return `${actorName} made an update`;
+  }
+}
+
 // Deliberately its own transaction/connection, separate from whatever
 // primary write triggered it — Postgres aborts an entire transaction after
 // any statement error (a plain try/catch around one query inside the same
