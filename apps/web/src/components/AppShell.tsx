@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ComponentType } from "react";
-import { Bell, Heart, House, LogOut, Search, Settings, Sparkles, Wallet, Ellipsis } from "lucide-react-native";
+import { Bell, Target, House, LogOut, Search, Settings, Sparkles, PieChart, Ellipsis } from "lucide-react-native";
 import { Card, ThemeProvider, useTheme, palette, getTextColorFor, spacing } from "@noivos/ui";
 import { HomeScreen } from "../screens/HomeScreen";
 import { BudgetScreen } from "../screens/BudgetScreen";
@@ -20,10 +20,14 @@ interface ActivityEvent {
 const TABS = ["Home", "Budget", "Goals", "AI Coach", "More"] as const;
 type Tab = (typeof TABS)[number];
 
+// Matches the founder's original brand moodboard's iconography (Home/Goals/
+// Budget/AI Coach/More), per the 2026-08-02 decision that primary nav stays
+// bespoke to the moodboard rather than generic Lucide defaults — never
+// actually applied until now (2026-08-05).
 const ICONS: Record<Tab, ComponentType<{ size?: number; color?: string }>> = {
   Home: House,
-  Budget: Wallet,
-  Goals: Heart,
+  Budget: PieChart,
+  Goals: Target,
   "AI Coach": Sparkles,
   More: Ellipsis,
 };

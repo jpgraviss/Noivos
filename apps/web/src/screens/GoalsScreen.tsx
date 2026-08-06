@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { View, Pressable, TextInput } from "react-native";
-import { Circle, CircleCheck, Plus } from "lucide-react-native";
+import { Circle, CircleCheck, Flag, Plus } from "lucide-react-native";
 import { Card, OwnershipBadge, StackedProgressBar, Text, useTheme, spacing, radius, palette } from "@noivos/ui";
 import { goals as mockGoals, weddingDetails } from "../data/mockData";
 import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
@@ -459,6 +459,7 @@ export function GoalsScreen() {
         ) : !weddingBackendAvailable ? (
           <>
             <Card glow={palette.sourPunch}>
+              <Flag size={16} color={palette.sourPunch} style={{ marginBottom: spacing.xs }} />
               <Text variant="display" color={palette.sourPunch}>
                 {weddingDetails.daysLeft}
               </Text>
@@ -556,6 +557,7 @@ export function GoalsScreen() {
         ) : (
           <>
             <Card glow={palette.sourPunch}>
+              <Flag size={16} color={palette.sourPunch} style={{ marginBottom: spacing.xs }} />
               <Text variant="display" color={palette.sourPunch}>
                 {daysUntil(apiWedding.weddingDate) ?? "—"}
               </Text>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { View, Pressable } from "react-native";
-import { CreditCard, Lightbulb, Users } from "lucide-react-native";
+import { Activity as ActivityIcon, BarChart3, CreditCard } from "lucide-react-native";
 import { Card, Text, useTheme, spacing, palette, getTextColorFor } from "@noivos/ui";
 import { budgetSnapshot, goals as mockGoals, activityFeed, insights, upcomingBills, moneyMeeting, currentUser } from "../data/mockData";
 import { AvatarStack } from "../components/AvatarStack";
@@ -336,7 +336,7 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
 
       <Card>
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm }}>
-          <Lightbulb size={16} color={palette.citrus} />
+          <BarChart3 size={16} color={palette.citrus} />
           <Text variant="h3">AI Insights</Text>
         </View>
         <View style={{ gap: spacing.sm }}>
@@ -370,7 +370,7 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
 
       <Card>
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm }}>
-          <Users size={16} color={colors.textSecondary} />
+          <ActivityIcon size={16} color={colors.textSecondary} />
           <Text variant="h3">Activity</Text>
         </View>
         {apiActivity && apiActivity.length === 0 && (
