@@ -39,7 +39,7 @@ Supabase gave RLS policies a free, built-in `auth.uid()`. Clerk (the new auth pr
 | `0004_tighten_goal_contributions_rls.sql` | ✅ Applied 2026-08-05 |
 | `0005_add_activity_feed_insert_policy.sql` | ✅ Applied 2026-08-05 |
 | `0006_add_partnership_invite_accept_flow.sql` | ✅ Applied 2026-08-05 |
-| `0007_close_rls_audit_gaps.sql` | ⬜ **Not yet applied.** Until this runs: `plaid_items`/`account_balance_snapshots`/`challenges` have no RLS at all (dormant — nothing queries them yet), and receipt/avatar uploads, real AI Coach messages, and joining a Challenge would all fail RLS the moment those features are built. |
+| `0007_close_rls_audit_gaps.sql` | ✅ Applied 2026-08-05 |
 
 When a new migration file is added here, add its row to this table as **Not yet applied** in the same commit — don't let a migration exist in the repo without a tracked status. When the founder confirms one has been run, flip it to Applied (with the date) in the same turn, not deferred to the next PROJECT_MEMORY pass.
 
