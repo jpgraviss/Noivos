@@ -1,9 +1,11 @@
 /* Dark is Noivos' default look (UX/UI Blueprint §2), not tied to system
-   preference — matches apps/mobile's ThemeProvider default. Repainted
-   2026-08-05 toward Origin's warm-neutral palette (packages/ui/src/tokens.ts). */
+   preference — matches apps/mobile's ThemeProvider default. Values match
+   packages/ui/src/tokens.ts's colorTokens.dark (licorice/sourCloud) — the
+   "merge the brands" repaint of 2026-08-05, not the earlier muted-Origin
+   round's warmer, darker values this file held briefly. */
 :root {
-  --background: #18160F;
-  --foreground: #F5F1E6;
+  --background: #141316;
+  --foreground: #F5F3F0;
 }
 
 html {
@@ -128,11 +130,11 @@ html {
 }
 
 .noivos-hoverable:hover {
-  background-color: rgba(245, 241, 230, 0.05);
+  background-color: rgba(245, 243, 240, 0.05);
 }
 
 .noivos-sidebar-item:hover {
-  background-color: rgba(245, 241, 230, 0.05);
+  background-color: rgba(245, 243, 240, 0.05);
 }
 
 .noivos-icon-btn {
@@ -142,16 +144,16 @@ html {
   width: 36px;
   height: 36px;
   border-radius: 999px;
-  border: 1px solid rgba(245, 241, 230, 0.12);
+  border: 1px solid rgba(245, 243, 240, 0.12);
   background: transparent;
-  color: #F5F1E6;
+  color: #F5F3F0;
   cursor: pointer;
   transition: background-color 130ms ease, border-color 130ms ease;
 }
 
 .noivos-icon-btn:hover {
-  background-color: rgba(245, 241, 230, 0.08);
-  border-color: rgba(245, 241, 230, 0.24);
+  background-color: rgba(245, 243, 240, 0.08);
+  border-color: rgba(245, 243, 240, 0.24);
 }
 
 .noivos-scrollarea {
@@ -164,7 +166,7 @@ html {
 }
 
 .noivos-scrollarea::-webkit-scrollbar-thumb {
-  background: rgba(245, 241, 230, 0.14);
+  background: rgba(245, 243, 240, 0.14);
   border-radius: 999px;
 }
 

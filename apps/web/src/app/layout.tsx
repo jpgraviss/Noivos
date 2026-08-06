@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter } from "next/font/google";
-import { ClerkProvider, SignInButton, SignUpButton, Show, UserButton } from "@clerk/nextjs";
+import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 
 // Brand typography, repainted 2026-08-05 (founder: "make it a closer look
@@ -40,22 +40,13 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const body = clerkConfigured ? (
-    <ClerkProvider>
-      <header style={{ display: "flex", justifyContent: "flex-end", gap: 12, padding: 16 }}>
-        <Show when="signed-out">
-          <SignInButton />
-          <SignUpButton />
-        </Show>
-        <Show when="signed-in">
-          <UserButton />
-        </Show>
-      </header>
-      {children}
-    </ClerkProvider>
-  ) : (
-    children
-  );
+  // No generic sign-in/out header here (there was one through 2026-08-05) —
+  // it floated above every page including the dashboard (which already has
+  // its own sidebar + sign-out in AppShell.tsx) and the invite page (which
+  // already has its own sign-in/up buttons), so it was pure duplication
+  // everywhere it appeared. The signed-out marketing page now owns its own
+  // nav with its own Sign In / Get Started buttons instead.
+  const body = clerkConfigured ? <ClerkProvider>{children}</ClerkProvider> : children;
 
   return (
     <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>

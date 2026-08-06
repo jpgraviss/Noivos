@@ -19,7 +19,11 @@ import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
 // adjacent pairs distinct, not all-pairs). Order is fixed and load-bearing:
 // re-running the validator on a 5-hue reorder is required before changing
 // it, not just picking colors that individually "look fine."
-const BUDGET_CATEGORY_COLORS = ["#C36E42", "#3D71AC", "#2F8F6C", "#B08A28", "#8A5FB0"];
+// Exported so the marketing landing page's product-preview mockup
+// (components/marketing/ProductPreview.tsx) can reuse this exact validated
+// set for its own "spending by category" bar instead of inventing/
+// re-validating a second one.
+export const BUDGET_CATEGORY_COLORS = ["#C36E42", "#3D71AC", "#2F8F6C", "#B08A28", "#8A5FB0"];
 
 interface ApiCategory {
   id: string;

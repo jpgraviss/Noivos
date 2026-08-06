@@ -40,21 +40,23 @@ The moodboard is the reference: bold, high-contrast neon color on dark and light
 
 ## 5. Color System
 
-**As-shipped in `apps/web` as of 2026-08-05** (see Reversal note 2 above and `packages/ui/src/tokens.ts`) — repainted toward Origin's calmer, muted palette. Token *names* kept identical to the original moodboard names even though the hex values no longer literally match those names (e.g. "Sour Lime" is now a muted forest green, not neon lime) — that's deliberate, so every screen referencing a token by name repainted without code changes elsewhere.
+**As-shipped in `apps/web`/`apps/mobile` as of 2026-08-06** (see Reversal note 2 above and `packages/ui/src/tokens.ts`) — this table previously documented the muted-Origin round (2026-08-05, in force less than a day); it was repainted again the same day ("merge the brands together, need the colors to be more fun") and this table had gone stale until now. The merge keeps Origin's calmer layout/typography (Fraunces, grounded radius, near-black rather than stark-black background) but restores real vibrancy to the accent hues — close derivatives of the *original* moodboard colors, not the muted-down versions. Token *names* stay identical across all three rounds even where the hex values have swung wildly (e.g. "Sour Lime" went neon → muted forest green → vivid lime again) — deliberate, so every screen referencing a token by name repaints without code changes elsewhere.
 
 | Role | Name | Hex | Use |
 |---|---|---|---|
-| Primary | Sour Lime | `#4F7A5B` | Signature color; primary buttons, key emphasis — was `#C6FF00` neon lime |
-| Secondary | Sour Punch | `#B0684B` | Celebrations, highlights, secondary buttons — was `#FF2D8E` hot pink |
-| Accent | Electric Blue | `#4C6B8A` | Links, informational accents — was `#0066FF` |
-| Highlight | Citrus | `#C9A227` | Momentum, attention-getting moments — was `#FFE600` bright yellow |
-| Info | Grape | `#6B5B95` | Informational UI, AI Coach touches — was `#8A2BE2` vivid purple |
-| Surface (light) | Sour Cloud | `#F5F1E6` | Light-mode background/surface — was `#F5F5F7` cool white, now warm ivory |
-| Background (dark) | Licorice | `#18160F` | Dark-mode background — was `#0D0D0F` near-pure-black, now warm near-black |
-| Text (light mode) | (dark neutral) | `#221F17` | Light-mode text — darkened slightly from Licorice's old value to pair better with the new warm cream background |
-| Text (dark mode) | Sour Cloud | `#F5F1E6` | Dark-mode text — same warm-ivory value as the new Surface (light) swatch |
+| Primary | Sour Lime | `#B8F000` | Signature color; primary buttons, key emphasis — close to the original moodboard's `#C6FF00`, slightly tempered |
+| Secondary | Sour Punch | `#FF2D8E` | Celebrations, highlights, secondary buttons — identical to the original moodboard value; it was never the "ugly" complaint |
+| Accent | Electric Blue | `#1E7FFF` | Links, informational accents — close to the original `#0066FF`, a touch brighter/friendlier |
+| Highlight | Citrus | `#FFD500` | Momentum, attention-getting moments — close to the original `#FFE600`, slightly warmer gold-yellow |
+| Info | Grape | `#9B4DFF` | Informational UI, AI Coach touches — brighter/more energetic than the original `#8A2BE2` |
+| Surface (light) | Sour Cloud | `#F5F3F0` | Light-mode background/surface, dark-mode text — soft warm white, kept from the Origin round |
+| Background (dark) | Licorice | `#141316` | Dark-mode background — near-black with the faintest cool-neutral tone, warmer than the original's stark `#0D0D0F` but darker/less warm than the muted round's `#18160F` |
+| Text (light mode) | (dark neutral) | `#18171A` | Light-mode text |
+| Text (dark mode) | Sour Cloud | `#F5F3F0` | Dark-mode text — same value as the Surface (light) swatch |
 
-**Original moodboard values, preserved for history** (Phase 1 default, in force 2026-08-02 through 2026-08-05): Sour Lime `#C6FF00`, Sour Punch `#FF2D8E`, Electric Blue `#0066FF`, Citrus `#FFE600`, Grape `#8A2BE2`, Sour Cloud `#F5F5F7`, Licorice `#0D0D0F`.
+**Prior rounds, preserved for history:**
+- **Original moodboard** (Phase 1 default, in force 2026-08-02 through 2026-08-05): Sour Lime `#C6FF00`, Sour Punch `#FF2D8E`, Electric Blue `#0066FF`, Citrus `#FFE600`, Grape `#8A2BE2`, Sour Cloud `#F5F5F7`, Licorice `#0D0D0F`.
+- **Muted Origin round** (in force less than a day, 2026-08-05): Sour Lime `#4F7A5B`, Sour Punch `#B0684B`, Electric Blue `#4C6B8A`, Citrus `#C9A227`, Grape `#6B5B95`, Sour Cloud `#F5F1E6`, Licorice `#18160F`.
 
 **Also added 2026-08-02 — Success/Warning roles.** The moodboard didn't define these (it has Primary/Secondary/Accent/Highlight/Info/Surface/Dark BG, not Success/Warning), but the PRD's AI Insights and notification requirements (goal reached, savings streak, bill due) need them. Recommendation, not yet confirmed: reuse **Sour Lime** for Success (it already reads as energetic/positive) and **Citrus** for Warning (yellow conventionally reads as caution). This avoids adding new hex values to an already-locked palette, but should be confirmed before Phase 4 (Design System) locks color tokens.
 
@@ -74,9 +76,11 @@ Contrast ratios computed against WCAG 2.1 AA thresholds (4.5:1 normal text, 3:1 
 
 **Rule of thumb: Licorice is the reliable text color on Sour Lime, Sour Punch, and Citrus. Sour Cloud/white is the reliable text color on Electric Blue and Grape.** Neither light nor dark text is safe on every accent — this needs to be a hard constraint in the Phase 4 component library (e.g., a button/badge component's allowed color × text-color combinations should be an enforced enum, not left to per-screen judgment), the same way it would for any palette this saturated.
 
+*Note (2026-08-06):* these ratios were computed against the original moodboard hexes and went briefly stale during the muted-Origin round (2026-08-05), whose desaturated accents had very different contrast numbers. The current merge/vivid round's accents are close derivatives of the originals (see §5's table above), so this table is accurate again — `packages/ui/src/tokens.ts`'s `textOnColor` map already encodes the same Licorice-vs-Sour-Cloud rule of thumb described here.
+
 ## 6. Typography
 
-- **Headlines:** Fraunces (soft editorial serif) as of 2026-08-05, `apps/web` only — was Bebas Neue Bold. Bebas Neue is a caps-only condensed poster font (its lowercase glyphs are visually indistinguishable from uppercase), which made every headline read as shouting; Fraunces has real lowercase letterforms and reads calmer/more premium, closer to Origin. `apps/mobile` has not been switched over yet (its native font registration in `useAppFonts.ts` still loads Bebas Neue) — a known, flagged gap, not yet done.
+- **Headlines:** Fraunces (soft editorial serif) as of 2026-08-05 — was Bebas Neue Bold. Bebas Neue is a caps-only condensed poster font (its lowercase glyphs are visually indistinguishable from uppercase), which made every headline read as shouting; Fraunces has real lowercase letterforms and reads calmer/more premium, closer to Origin. `apps/mobile`'s native font registration (`useAppFonts.ts`) was switched to `@expo-google-fonts/fraunces` the same day — both platforms now load the same family, though this couldn't be visually confirmed on `apps/mobile` (no simulator/device in this sandbox).
 - **Body:** Inter — readable, modern, excellent on every platform. (Both brand inputs agreed on this one.) Unchanged.
 - **Numbers:** tabular figures throughout the app, so balances, budgets, and transactions align cleanly and feel polished. Carried forward from the text Brand Statement — a typographic detail, not a visual-identity conflict, so it stands.
 
