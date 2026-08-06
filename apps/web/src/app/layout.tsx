@@ -24,9 +24,29 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
+// The live URL (found via Vercel MCP tools 2026-08-05) — used only as a
+// base for resolving the relative OG/icon paths below, not as a claim
+// about a custom domain (there isn't one yet; see the Vercel SSO finding
+// in PROJECT_MEMORY.md's 2026-08-05 audit entry).
+const SITE_URL = "https://noivos-pb6p.vercel.app";
+const TAGLINE = "The shared money app for couples — budget, goals, and wedding planning, built for two.";
+
 export const metadata: Metadata = {
-  title: "Noivos",
-  description: "Better money. Together.",
+  metadataBase: new URL(SITE_URL),
+  title: { default: "Noivos — Better money. Together.", template: "%s · Noivos" },
+  description: TAGLINE,
+  openGraph: {
+    title: "Noivos — Better money. Together.",
+    description: TAGLINE,
+    url: SITE_URL,
+    siteName: "Noivos",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Noivos — Better money. Together.",
+    description: TAGLINE,
+  },
 };
 
 // Same fallback pattern as apps/mobile/src/auth/ClerkAuthProvider.tsx: if the

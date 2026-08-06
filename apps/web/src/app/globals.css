@@ -173,3 +173,32 @@ html {
 .noivos-scrollarea::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* Marketing landing page (components/marketing/LandingPage.tsx) — the nav's
+   padding/button sizing tightens below 420px so "Sign in" + "Get started"
+   never crowd the logo off a narrow phone screen (this couldn't be
+   confirmed with an actual screenshot this session — see PROJECT_MEMORY.md
+   — so it's a defensive, width-reasoned adjustment rather than a
+   pixel-verified one). */
+.noivos-marketing-header {
+  padding: 18px 24px;
+}
+
+.noivos-nav-cta {
+  gap: 10px;
+}
+
+@media (max-width: 420px) {
+  .noivos-marketing-header {
+    padding: 12px 14px;
+  }
+
+  .noivos-nav-cta {
+    gap: 6px;
+  }
+
+  .noivos-nav-cta button {
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+  }
+}

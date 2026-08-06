@@ -74,7 +74,7 @@ const STEPS = [
 
 function NavCta() {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <div className="noivos-nav-cta" style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <SignInButton mode="redirect">
         <button
           style={{
@@ -87,6 +87,7 @@ function NavCta() {
             fontWeight: 600,
             fontSize: 14,
             cursor: "pointer",
+            whiteSpace: "nowrap",
           }}
         >
           Sign in
@@ -104,6 +105,7 @@ function NavCta() {
             fontWeight: 700,
             fontSize: 14,
             cursor: "pointer",
+            whiteSpace: "nowrap",
           }}
         >
           Get started
@@ -122,6 +124,7 @@ export function LandingPage() {
     <ThemeProvider>
     <div style={{ backgroundColor: "#141316", color: palette.sourCloud, minHeight: "100vh" }}>
       <header
+        className="noivos-marketing-header"
         style={{
           position: "sticky",
           top: 0,
@@ -129,18 +132,18 @@ export function LandingPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "18px 24px",
           backdropFilter: "blur(10px)",
           background: "rgba(20,19,22,0.72)",
           borderBottom: `1px solid ${palette.sourCloud}14`,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flexShrink: 0 }}>
           <span
             style={{
               width: 26,
               height: 26,
               borderRadius: 999,
+              flexShrink: 0,
               background: `linear-gradient(135deg, ${palette.sourLime}, ${palette.electricBlue})`,
             }}
           />
