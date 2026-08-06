@@ -10,6 +10,7 @@ Schema and RLS policies for the Noivos Postgres database, hosted on **Neon** (se
 - `migrations/0004_tighten_goal_contributions_rls.sql` — closes a real gap in `goal_contributions_write`: it only checked the inserting user named themselves as contributor, never that the goal itself was theirs to write to.
 - `migrations/0005_add_activity_feed_insert_policy.sql` — adds the INSERT policy `activity_feed_events` never had; without it, no per-user connection can write an activity event at all (see `PROJECT_MEMORY.md` §6.0's no-service-role-for-live-requests rule).
 - `migrations/0006_add_partnership_invite_accept_flow.sql` — adds the two `partnership_invites` RLS policies a real accept-invite flow needs: any pending invite is selectable (the invite_token itself is the secret), and any signed-in user can transition a pending invite to accepted/declined. Without these, only the inviter could ever read or update an invite row — there was no way for the actual invitee to join.
+- `migrations/0007_close_rls_audit_gaps.sql` — closes six gaps found by a systematic audit (every table cross-referenced against every policy): `plaid_items` and `account_balance_snapshots` had **no RLS enabled at all**; `challenges` (the catalog table) also had none; `attachments`, `ai_messages`, and `challenge_participations` each had a SELECT policy but no INSERT policy. None were exploitable yet (nothing in the app queries these tables), but each would be a real hole the moment Plaid, receipts, AI Coach messages, or Challenges get built.
 
 ## The auth handoff (read before touching this)
 
@@ -38,6 +39,7 @@ Supabase gave RLS policies a free, built-in `auth.uid()`. Clerk (the new auth pr
 | `0004_tighten_goal_contributions_rls.sql` | ✅ Applied 2026-08-05 |
 | `0005_add_activity_feed_insert_policy.sql` | ✅ Applied 2026-08-05 |
 | `0006_add_partnership_invite_accept_flow.sql` | ✅ Applied 2026-08-05 |
+| `0007_close_rls_audit_gaps.sql` | ⬜ **Not yet applied.** Until this runs: `plaid_items`/`account_balance_snapshots`/`challenges` have no RLS at all (dormant — nothing queries them yet), and receipt/avatar uploads, real AI Coach messages, and joining a Challenge would all fail RLS the moment those features are built. |
 
 When a new migration file is added here, add its row to this table as **Not yet applied** in the same commit — don't let a migration exist in the repo without a tracked status. When the founder confirms one has been run, flip it to Applied (with the date) in the same turn, not deferred to the next PROJECT_MEMORY pass.
 
@@ -50,6 +52,7 @@ psql "$DATABASE_URL" -f migrations/0003_add_birthdate.sql
 psql "$DATABASE_URL" -f migrations/0004_tighten_goal_contributions_rls.sql
 psql "$DATABASE_URL" -f migrations/0005_add_activity_feed_insert_policy.sql
 psql "$DATABASE_URL" -f migrations/0006_add_partnership_invite_accept_flow.sql
+psql "$DATABASE_URL" -f migrations/0007_close_rls_audit_gaps.sql
 ```
 
 `apps/mobile` still runs entirely on mock data (`apps/mobile/src/data/mockData.ts`) — only `apps/web` is wired to real queries so far (identity settings, All Goals, Partnership, Wedding Mode, Budget); everything else across both apps is still mock data, shaped to match this schema so swapping in real queries later is a plumbing change, not a redesign.
