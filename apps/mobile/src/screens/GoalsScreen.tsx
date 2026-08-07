@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Pressable } from 'react-native';
+import { Circle, CircleCheck } from 'lucide-react-native';
 import { Card, OwnershipBadge, ScreenContainer, StackedProgressBar, Text, useTheme, spacing, radius, palette } from '@noivos/ui';
 import { currentUser, goals, weddingDetails } from '../data/mockData';
 
@@ -63,8 +64,23 @@ export function GoalsScreen() {
           <Card>
             <Text variant="h3" style={{ marginBottom: spacing.sm }}>Checklist</Text>
             {weddingDetails.checklist.map((item) => (
-              <View key={item.title} style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs }}>
-                <Text>{item.done ? '✅' : '⬜️'}</Text>
+              <View key={item.title} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs }}>
+                {/* A real lucide icon, not a raw emoji — this row is plain
+                    mock display (no Pressable/role="checkbox" the way web's
+                    real-data checklist has, see GoalsScreen.tsx there), so
+                    this icon is the *only* place done/not-done state is
+                    conveyed and is deliberately left without aria-hidden,
+                    same reasoning as web's mock-fallback checklist. Emoji
+                    render inconsistently across platforms/OS versions and
+                    get announced by screen readers as whatever Unicode name
+                    happens to map to them ("check mark button", "white
+                    large square button") — not a controlled accessible
+                    name — where every other checked/unchecked indicator in
+                    this app (web's GoalsScreen, mobile's MoreScreen) already
+                    uses these same two lucide icons. Found 2026-08-07 during
+                    a sweep for files this session's lucide-react-native
+                    audit had missed because this one didn't import it yet. */}
+                {item.done ? <CircleCheck size={18} color={palette.sourLime} /> : <Circle size={18} color={colors.textSecondary} />}
                 <Text variant="body" secondary={item.done}>{item.title}</Text>
               </View>
             ))}
