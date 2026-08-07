@@ -42,12 +42,27 @@ export async function GET() {
       );
       if (!meeting.rows[0]) {
         const topics = await buildAgenda(membership.partnership_id, client);
+        // ON CONFLICT DO NOTHING against money_meetings_partnership_week_unique
+        // (migration 0008) — two concurrent GETs (both partners loading Home
+        // at once, a rapid double-fetch) could otherwise both pass the
+        // !meeting.rows[0] check above and both insert, creating two rows for
+        // the same week. If this request loses that race, RETURNING comes
+        // back empty rather than erroring, and the fallback select below picks
+        // up whichever row actually won.
         meeting = await client.query(
           `insert into money_meetings (partnership_id, week_of, agenda)
            values ($1, $2::date, $3::jsonb)
+           on conflict (partnership_id, week_of) do nothing
            returning id, agenda, status, completed_at::text as completed_at`,
           [membership.partnership_id, weekOf, JSON.stringify({ topics })]
         );
+        if (!meeting.rows[0]) {
+          meeting = await client.query(
+            `select id, agenda, status, completed_at::text as completed_at
+             from money_meetings where partnership_id = $1 and week_of = $2::date`,
+            [membership.partnership_id, weekOf]
+          );
+        }
       }
 
       const row = meeting.rows[0];

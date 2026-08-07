@@ -32,6 +32,25 @@ describe("findOrCreateManualAccount", () => {
     // someone else's account.
     expect(query.mock.calls[1][1]).toEqual(["user-1"]);
   });
+
+  it("falls back to the winner's account when it loses the create race", async () => {
+    // Two concurrent requests can both pass the initial "does one exist?"
+    // check (migration 0008 adds a real unique index to make the INSERT
+    // itself race-safe, but the SELECT-then-INSERT shape here still means
+    // both can reach the insert). The losing request's ON CONFLICT DO
+    // NOTHING insert returns zero rows — not an error — so it must fall
+    // back to re-selecting the row the winner actually created.
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [] }) // initial select: nothing yet
+      .mockResolvedValueOnce({ rows: [] }) // insert loses the race: no row returned
+      .mockResolvedValueOnce({ rows: [{ id: "acct-winner" }] }); // fallback select finds it
+    const client = { query } as unknown as PoolClient;
+
+    const id = await findOrCreateManualAccount("user-1", client);
+    expect(id).toBe("acct-winner");
+    expect(query).toHaveBeenCalledTimes(3);
+  });
 });
 
 // DEFAULT_CATEGORIES is what a first-time user's Budget bootstraps from —

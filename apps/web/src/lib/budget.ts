@@ -30,11 +30,25 @@ export async function findOrCreateManualAccount(userId: string, client: PoolClie
   );
   if (existing.rows[0]) return existing.rows[0].id as string;
 
+  // ON CONFLICT DO NOTHING against accounts_one_manual_per_user (migration
+  // 0008) — two concurrent expense-logging requests could otherwise both
+  // pass the select above and both insert a "Manual Entries" account,
+  // fragmenting the user's spending across duplicates. If this request
+  // loses that race, RETURNING comes back empty and the fallback select
+  // picks up whichever account actually won.
   const created = await client.query(
     `insert into accounts (owner_id, account_type, display_name, is_manual)
      values ($1, 'manual', 'Manual Entries', true)
+     on conflict (owner_id) where account_type = 'manual'
+     do nothing
      returning id`,
     [userId]
   );
-  return created.rows[0].id as string;
+  if (created.rows[0]) return created.rows[0].id as string;
+
+  const winner = await client.query(
+    `select id from accounts where owner_id = $1 and account_type = 'manual' order by created_at asc limit 1`,
+    [userId]
+  );
+  return winner.rows[0].id as string;
 }

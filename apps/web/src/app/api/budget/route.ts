@@ -50,9 +50,23 @@ export async function GET() {
       if (existingCategories.rows[0].n === 0) {
         for (const def of DEFAULT_CATEGORIES) {
           const asShared = def.shared && Boolean(partnershipId);
+          // ON CONFLICT DO NOTHING against categories_{personal,shared}_name_unique
+          // (migration 0008) — the n === 0 check above isn't itself race-safe
+          // (two concurrent first-loads could both pass it), so the real
+          // protection is here: a losing insert just no-ops instead of
+          // creating a duplicate category. Nothing downstream needs this
+          // insert's id — the select a few lines down re-reads categories
+          // fresh regardless of who won.
           await client.query(
-            `insert into categories (owner_id, partnership_id, name, is_default)
-             values ($1, $2, $3, true)`,
+            asShared
+              ? `insert into categories (owner_id, partnership_id, name, is_default)
+                 values ($1, $2, $3, true)
+                 on conflict (partnership_id, name) where owner_id is null
+                 do nothing`
+              : `insert into categories (owner_id, partnership_id, name, is_default)
+                 values ($1, $2, $3, true)
+                 on conflict (owner_id, name) where partnership_id is null
+                 do nothing`,
             [asShared ? null : userId, asShared ? partnershipId : null, def.name]
           );
         }
@@ -78,13 +92,38 @@ export async function GET() {
           budgetId = own.rows[0].id;
         } else {
           const isShared = Boolean(partnershipId);
+          // ON CONFLICT DO NOTHING against budgets_shared_month_unique /
+          // budgets_personal_month_unique (migration 0008) — two concurrent
+          // GETs (both partners loading Budget at once) could otherwise both
+          // reach here and both insert, giving the Partnership two "the"
+          // shared budget rows for the same month. If this request loses
+          // that race, RETURNING comes back empty and the fallback select
+          // picks up whichever row actually won.
           const created = await client.query(
-            `insert into budgets (owner_id, partnership_id, is_shared, month)
-             values ($1, $2, $3, $4::date)
-             returning id`,
+            isShared
+              ? `insert into budgets (owner_id, partnership_id, is_shared, month)
+                 values ($1, $2, $3, $4::date)
+                 on conflict (partnership_id, month) where is_shared and partnership_id is not null
+                 do nothing
+                 returning id`
+              : `insert into budgets (owner_id, partnership_id, is_shared, month)
+                 values ($1, $2, $3, $4::date)
+                 on conflict (owner_id, month) where partnership_id is null
+                 do nothing
+                 returning id`,
             [userId, isShared ? partnershipId : null, isShared, month]
           );
-          budgetId = created.rows[0].id;
+          if (created.rows[0]) {
+            budgetId = created.rows[0].id;
+          } else {
+            const winner = await client.query(
+              isShared
+                ? `select id from budgets where partnership_id = $1 and is_shared = true and month = $2::date`
+                : `select id from budgets where owner_id = $1 and month = $2::date and partnership_id is null`,
+              isShared ? [partnershipId, month] : [userId, month]
+            );
+            budgetId = winner.rows[0].id;
+          }
         }
       }
 
@@ -105,9 +144,13 @@ export async function GET() {
         );
         if (!existingBc.rows[0]) {
           const seed = DEFAULT_CATEGORIES.find((d) => d.name === cat.name);
+          // ON CONFLICT DO NOTHING against budget_categories_unique (migration
+          // 0008) — same class of race as the categories bootstrap above; the
+          // select below re-reads everything fresh regardless of who won.
           await client.query(
             `insert into budget_categories (budget_id, category_id, planned_amount)
-             values ($1, $2, $3)`,
+             values ($1, $2, $3)
+             on conflict (budget_id, category_id) do nothing`,
             [budgetId, cat.id, seed?.plannedAmount ?? 0]
           );
         }
