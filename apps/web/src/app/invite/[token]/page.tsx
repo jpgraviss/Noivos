@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { SignInButton, SignUpButton, useAuth } from "@clerk/nextjs";
 import { Card, Text, ThemeProvider, useTheme, spacing, radius, palette, getTextColorFor } from "@noivos/ui";
@@ -178,7 +179,7 @@ function InvitePageInner() {
           ) : null}
 
           {accepted && (
-            <a
+            <Link
               href="/"
               style={{
                 display: "inline-block",
@@ -190,7 +191,7 @@ function InvitePageInner() {
               }}
             >
               Go to Noivos →
-            </a>
+            </Link>
           )}
         </Card>
       </div>
