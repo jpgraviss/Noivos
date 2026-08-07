@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Pressable } from 'react-native';
 import { Card, OwnershipBadge, ScreenContainer, StackedProgressBar, Text, useTheme, spacing, radius, palette } from '@noivos/ui';
-import { goals, weddingDetails } from '../data/mockData';
+import { currentUser, goals, weddingDetails } from '../data/mockData';
 
 // Per docs/03 UX/UX-UI Blueprint.md §3.2: while Wedding Mode is active this
 // tab relabels to "Wedding" and leads with the vendor tracker/countdown;
@@ -78,7 +78,8 @@ export function GoalsScreen() {
             <Card key={g.id}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text variant="h3">{g.name}</Text>
-                <OwnershipBadge shared={g.shared} partnerName="Marcus" />
+                {/* Was hardcoded "Marcus" — see BudgetScreen.tsx's identical fix. */}
+                <OwnershipBadge shared={g.shared} partnerName={currentUser.partnerName} />
               </View>
               <Text variant="bodySmall" secondary style={{ marginBottom: spacing.sm }}>
                 ${total.toLocaleString()} of ${g.target.toLocaleString()} · {pct}%

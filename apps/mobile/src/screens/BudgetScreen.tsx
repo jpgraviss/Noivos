@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { Card, OwnershipBadge, StackedProgressBar, ScreenContainer, Text, useTheme, spacing, palette } from '@noivos/ui';
-import { budgetSnapshot } from '../data/mockData';
+import { budgetSnapshot, currentUser } from '../data/mockData';
 
 // Same dedicated, validated categorical set as apps/web's BudgetScreen.tsx
 // (2026-08-05) — do not swap in packages/ui's UI-accent palette tokens here;
@@ -48,7 +48,12 @@ export function BudgetScreen() {
           <Card key={c.name}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text variant="h3">{c.name}</Text>
-              <OwnershipBadge shared={c.shared} partnerName="Marcus" />
+              {/* Was hardcoded "Marcus" — this app is 100% mock data
+                  currently, so that happened to be accurate, but it bypassed
+                  the actual data source (the same illustrative persona
+                  everywhere else references via currentUser.partnerName)
+                  for no reason. */}
+              <OwnershipBadge shared={c.shared} partnerName={currentUser.partnerName} />
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xs }}>
               <Text variant="bodySmall" secondary>${c.spent} spent</Text>

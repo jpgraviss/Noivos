@@ -210,7 +210,14 @@ export function BudgetScreen() {
           <Card key={c.id}>
             <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
               <Text variant="h3">{c.name}</Text>
-              <OwnershipBadge shared={c.shared} partnerName="Marcus" />
+              {/* No partnerName — this rendered "Shared with Marcus" for
+                  every real user regardless of who their actual partner is
+                  (this component's used for both the mock fallback and real
+                  /api/budget data, and there's no real-partner-name fetch
+                  here to plug in instead). Same convention as GoalsScreen's
+                  OwnershipBadge: falls back to a plain "Shared" label
+                  rather than showing a name that might be wrong. */}
+              <OwnershipBadge shared={c.shared} />
             </View>
             <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: spacing.xs }}>
               <Text variant="bodySmall" secondary>
