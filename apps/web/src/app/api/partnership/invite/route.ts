@@ -83,8 +83,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ invitedEmail: result.invitedEmail, inviteToken: result.inviteToken });
   } catch (err) {
     // The one_active_partnership_per_user unique index is the real backstop
-    // against a race (two rapid invite calls) — this surfaces as a generic
-    // constraint-violation error, treated the same as the checked case above.
+    // against a race (two rapid invite calls, or a double-click on "Invite")
+    // — Postgres surfaces that as error code 23505 (unique_violation), which
+    // used to fall through to a generic 500 here even though it's the exact
+    // same "you're already connected" case the checked branch above handles
+    // cleanly. Translated it to the same friendly 409 instead, now that
+    // 2026-08-07's race-condition pass established the @neondatabase/
+    // serverless error shape (DatabaseError/NeonDbError both expose a real
+    // `.code`) other routes can reuse for the same pattern.
+    if (err instanceof Error && "code" in err && err.code === "23505") {
+      return NextResponse.json({ error: "You're already in a Partnership." }, { status: 409 });
+    }
     console.error("POST /api/partnership/invite failed", err);
     return NextResponse.json({ error: "Couldn't create that invite. Try again." }, { status: 500 });
   }

@@ -83,9 +83,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ partnerName: result.partnerName });
   } catch (err) {
     // The one_active_partnership_per_user unique index is the real backstop
-    // against a race (e.g. two tabs accepting at once) — surfaces as a
-    // generic constraint-violation error, treated the same as the checked
-    // "already connected" case above.
+    // against a race (e.g. two tabs accepting at once) — Postgres surfaces
+    // that as error code 23505 (unique_violation), the exact same
+    // "already connected" case the checked branch above handles cleanly.
+    // Same fix as the sibling race in invite/route.ts.
+    if (err instanceof Error && "code" in err && err.code === "23505") {
+      return NextResponse.json(
+        { error: "You're already in a Partnership — disconnect first to accept a new invite." },
+        { status: 409 }
+      );
+    }
     console.error("POST /api/partnership/accept failed", err);
     return NextResponse.json({ error: "Couldn't accept that invite. Try again." }, { status: 500 });
   }
