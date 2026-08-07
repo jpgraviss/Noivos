@@ -101,7 +101,7 @@ export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
       {sections.map((section) => (
         <Card key={section.title}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
-            <section.icon size={16} color={colors.textSecondary} />
+            <section.icon size={16} color={colors.textSecondary} aria-hidden={true} />
             <Text variant="h3">{section.title}</Text>
           </View>
           {section.items.map((item) => {
@@ -125,9 +125,9 @@ export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
                     {item.label}
                   </Text>
                   {expanded ? (
-                    <ChevronDown size={16} color={colors.textSecondary} />
+                    <ChevronDown size={16} color={colors.textSecondary} aria-hidden={true} />
                   ) : (
-                    <ChevronRight size={16} color={colors.textSecondary} />
+                    <ChevronRight size={16} color={colors.textSecondary} aria-hidden={true} />
                   )}
                 </Pressable>
                 {expanded && (
@@ -144,7 +144,7 @@ export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
       {onSignOut && (
         <Card>
           <Pressable onPress={onSignOut} role="button" style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <LogOut size={16} color={colors.textPrimary} />
+            <LogOut size={16} color={colors.textPrimary} aria-hidden={true} />
             <Text variant="body" style={{ fontWeight: '600' }}>
               Sign Out
             </Text>

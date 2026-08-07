@@ -455,7 +455,7 @@ export function GoalsScreen() {
         ) : !weddingBackendAvailable ? (
           <>
             <Card glow={palette.sourPunch}>
-              <Flag size={16} color={palette.sourPunch} style={{ marginBottom: spacing.xs }} />
+              <Flag size={16} color={palette.sourPunch} style={{ marginBottom: spacing.xs }} aria-hidden={true} />
               <Text variant="display" color={palette.sourPunch}>
                 {weddingDetails.daysLeft}
               </Text>
@@ -556,7 +556,7 @@ export function GoalsScreen() {
         ) : (
           <>
             <Card glow={palette.sourPunch}>
-              <Flag size={16} color={palette.sourPunch} style={{ marginBottom: spacing.xs }} />
+              <Flag size={16} color={palette.sourPunch} style={{ marginBottom: spacing.xs }} aria-hidden={true} />
               <Text variant="display" color={palette.sourPunch}>
                 {daysUntil(apiWedding.weddingDate) ?? "—"}
               </Text>
@@ -651,7 +651,7 @@ export function GoalsScreen() {
                 </View>
               ) : (
                 <Pressable onPress={() => setShowAddVendor(true)} role="button" style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs }}>
-                  <Plus size={16} color={palette.sourLime} />
+                  <Plus size={16} color={palette.sourLime} aria-hidden={true} />
                   <Text variant="bodySmall" style={{ fontWeight: "600" }}>
                     Add a vendor
                   </Text>
@@ -672,7 +672,7 @@ export function GoalsScreen() {
                   aria-checked={item.isComplete}
                   style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.xs }}
                 >
-                  {item.isComplete ? <CircleCheck size={18} color={palette.sourLime} /> : <Circle size={18} color={colors.textSecondary} />}
+                  {item.isComplete ? <CircleCheck size={18} color={palette.sourLime} aria-hidden={true} /> : <Circle size={18} color={colors.textSecondary} aria-hidden={true} />}
                   <Text variant="body" secondary={item.isComplete}>
                     {item.title}
                   </Text>
@@ -784,7 +784,7 @@ export function GoalsScreen() {
                   role="button"
                   style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs }}
                 >
-                  <Plus size={16} color={palette.sourLime} />
+                  <Plus size={16} color={palette.sourLime} aria-hidden={true} />
                   <Text variant="bodySmall" style={{ fontWeight: "600" }}>
                     Log a family contribution
                   </Text>
@@ -932,7 +932,7 @@ export function GoalsScreen() {
                 </View>
               ) : (
                 <Pressable onPress={() => setShowAddGoal(true)} role="button" style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-                  <Plus size={18} color={palette.sourLime} />
+                  <Plus size={18} color={palette.sourLime} aria-hidden={true} />
                   <Text variant="body" style={{ fontWeight: "600" }}>
                     Add a goal
                   </Text>

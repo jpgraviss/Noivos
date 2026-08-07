@@ -337,7 +337,7 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
 
       <Card>
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm }}>
-          <BarChart3 size={16} color={palette.citrus} />
+          <BarChart3 size={16} color={palette.citrus} aria-hidden={true} />
           <Text variant="h3">AI Insights</Text>
         </View>
         <View style={{ gap: spacing.sm }}>
@@ -351,7 +351,7 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
 
       <Card>
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm }}>
-          <CreditCard size={16} color={colors.textSecondary} />
+          <CreditCard size={16} color={colors.textSecondary} aria-hidden={true} />
           <Text variant="h3">Upcoming Bills</Text>
         </View>
         {(apiBills ?? upcomingBills).length === 0 && (
@@ -371,7 +371,7 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
 
       <Card>
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm }}>
-          <ActivityIcon size={16} color={colors.textSecondary} />
+          <ActivityIcon size={16} color={colors.textSecondary} aria-hidden={true} />
           <Text variant="h3">Activity</Text>
         </View>
         {apiActivity && apiActivity.length === 0 && (

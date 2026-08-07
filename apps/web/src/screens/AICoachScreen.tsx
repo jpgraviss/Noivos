@@ -142,10 +142,10 @@ export function AICoachScreen() {
             Left visible with an honest label rather than a silently dead
             icon, same posture as AppShell's Search icon. */}
         <Pressable hitSlop={8} role="button" aria-label="Voice input — coming soon">
-          <Mic size={18} color={colors.textSecondary} />
+          <Mic size={18} color={colors.textSecondary} aria-hidden={true} />
         </Pressable>
         <Pressable hitSlop={8} role="button" aria-label="Attach a photo — coming soon">
-          <Camera size={18} color={colors.textSecondary} />
+          <Camera size={18} color={colors.textSecondary} aria-hidden={true} />
         </Pressable>
         <Pressable
           onPress={() => send(draft)}
@@ -154,7 +154,7 @@ export function AICoachScreen() {
           role="button"
           aria-label="Send message"
         >
-          <Send size={18} color={draft.trim() ? palette.sourLime : colors.textSecondary} />
+          <Send size={18} color={draft.trim() ? palette.sourLime : colors.textSecondary} aria-hidden={true} />
         </Pressable>
       </View>
     </ScreenStack>

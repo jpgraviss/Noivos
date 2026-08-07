@@ -23,7 +23,7 @@ import { ProductPreview } from "./ProductPreview";
 // is deliberately no fake customer count, testimonial, or press logo since
 // none of that exists yet either.
 const FEATURES: {
-  icon: ComponentType<{ size?: number; color?: string }>;
+  icon: ComponentType<{ size?: number; color?: string; "aria-hidden"?: boolean }>;
   color: string;
   title: string;
   body: string;
@@ -310,7 +310,7 @@ export function LandingPage() {
                   marginBottom: 16,
                 }}
               >
-                <f.icon size={20} color={f.color} />
+                <f.icon size={20} color={f.color} aria-hidden={true} />
               </div>
               <h3 style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: 19, margin: "0 0 8px" }}>
                 {f.title}

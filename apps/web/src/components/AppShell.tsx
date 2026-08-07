@@ -156,7 +156,7 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
                     textAlign: "left",
                   }}
                 >
-                  <IconCmp size={18} color={active ? colors.primary : colors.textSecondary} />
+                  <IconCmp size={18} color={active ? colors.primary : colors.textSecondary} aria-hidden={true} />
                   <span style={{ fontFamily: "var(--font-inter)", fontSize: 14, fontWeight: 600 }}>{label}</span>
                 </button>
               );
@@ -214,7 +214,7 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
               aria-label="Sign out"
               title="Sign out"
             >
-              <LogOut size={16} color={colors.textSecondary} />
+              <LogOut size={16} color={colors.textSecondary} aria-hidden={true} />
             </button>
           )}
         </div>
@@ -237,7 +237,7 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
                 affordance isn't silently missing, but it's a known,
                 deliberately-deferred gap, not a hidden dead end. */}
             <button className="noivos-icon-btn" aria-label="Search" title="Search — coming soon">
-              <Search size={16} color={colors.textSecondary} />
+              <Search size={16} color={colors.textSecondary} aria-hidden={true} />
             </button>
             <button
               className="noivos-icon-btn"
@@ -246,10 +246,10 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
               title="Recent activity"
               onClick={toggleActivity}
             >
-              <Bell size={16} color={colors.textSecondary} />
+              <Bell size={16} color={colors.textSecondary} aria-hidden={true} />
             </button>
             <button className="noivos-icon-btn" aria-label="Settings" title="Settings" onClick={() => setTab("More")}>
-              <Settings size={16} color={colors.textSecondary} />
+              <Settings size={16} color={colors.textSecondary} aria-hidden={true} />
             </button>
 
             {showActivity && (
@@ -327,7 +327,7 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
                 font: "inherit",
               }}
             >
-              <IconCmp size={18} color={active ? palette.sourLime : colors.textSecondary} />
+              <IconCmp size={18} color={active ? palette.sourLime : colors.textSecondary} aria-hidden={true} />
               <span style={{ fontSize: 11 }}>{label}</span>
             </button>
           );

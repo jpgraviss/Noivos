@@ -245,7 +245,7 @@ export function BudgetScreen() {
                     role="button"
                     style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: spacing.sm }}
                   >
-                    <Plus size={14} color={palette.sourLime} />
+                    <Plus size={14} color={palette.sourLime} aria-hidden={true} />
                     <Text variant="bodySmall" color={palette.sourLime}>
                       Log an expense
                     </Text>

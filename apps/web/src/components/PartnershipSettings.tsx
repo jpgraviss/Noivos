@@ -315,7 +315,7 @@ export function PartnershipSettings() {
 
       {!hasActivePartnership && view === "summary" && (
         <div style={{ marginTop: spacing.sm, display: "flex", alignItems: "center", gap: spacing.sm }}>
-          <UserPlus size={16} color={palette.sourLime} />
+          <UserPlus size={16} color={palette.sourLime} aria-hidden={true} />
           <Text variant="bodySmall" style={{ color: palette.sourLime }}>
             Invite a partner to reconnect
           </Text>
@@ -358,7 +358,7 @@ function Row({
       <Text variant="body" secondary>
         {label}
       </Text>
-      {showChevron && <ChevronRight size={16} color={colors.textSecondary} />}
+      {showChevron && <ChevronRight size={16} color={colors.textSecondary} aria-hidden={true} />}
     </button>
   );
 }
