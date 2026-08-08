@@ -1,10 +1,20 @@
 import React, { useState } from 'react';
 import { View, TextInput, Pressable } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import { useSignIn, useSignUp, useSSO } from '@clerk/expo';
+import { isClerkAPIResponseError, useSignIn, useSignUp, useSSO } from '@clerk/expo';
 import { Button, Card, ScreenContainer, Text, useTheme, spacing, radius, palette } from '@noivos/ui';
 
 WebBrowser.maybeCompleteAuthSession();
+
+// Narrows via Clerk's own exported type guard rather than `catch (err: any)`
+// — matches the instanceof-based narrowing convention apps/web's API routes
+// already use for their own caught errors (e.g. the 23505-error-code check
+// in lib/db.ts-adjacent routes), applied here to the one place in the app
+// that has to catch Clerk SDK errors directly instead of Clerk's own
+// pre-built UI handling them.
+function clerkErrorMessage(err: unknown): string | undefined {
+  return isClerkAPIResponseError(err) ? err.errors[0]?.longMessage : undefined;
+}
 
 // PRD §12.1: Email, Apple, Google. Apple/Google both go through useSSO
 // (browser-based) rather than the platform-native hooks — this app is
@@ -59,8 +69,8 @@ export function SignInScreen() {
           setError("That code didn't work — try again.");
         }
       }
-    } catch (err: any) {
-      setError(err?.errors?.[0]?.longMessage ?? "Something went wrong — let's try that again.");
+    } catch (err: unknown) {
+      setError(clerkErrorMessage(err) ?? "Something went wrong — let's try that again.");
     } finally {
       setPending(false);
     }
@@ -73,8 +83,8 @@ export function SignInScreen() {
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId });
       }
-    } catch (err: any) {
-      setError(err?.errors?.[0]?.longMessage ?? 'Sign-in was cancelled or failed.');
+    } catch (err: unknown) {
+      setError(clerkErrorMessage(err) ?? 'Sign-in was cancelled or failed.');
     }
   }
 
