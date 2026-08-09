@@ -318,12 +318,23 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
         </View>
       </ScreenGridWide>
 
+      {/* No deltaLabel/deltaDirection here (unlike the tiles below) — there's
+          no real historical savings data to compute one from yet (no daily
+          balance snapshots wired; account_balance_snapshots has zero
+          current app usage per 0007's audit). This used to hardcode
+          "4.2% this month" unconditionally for every user regardless of
+          their real trend (found 2026-08-08, same "specific fabricated
+          fact" issue as the partner-name bugs fixed earlier, just a number
+          instead of a name). The sparkline itself still rides on
+          useSavingsTrend's synthetic shape (see that function's own
+          comment) — a lower-severity, already-disclosed, purely decorative
+          fabrication (no axis, no hover, no stated numeric claim) rather
+          than a specific false fact, and genuinely fixing it needs new
+          infrastructure this pass doesn't add, so it's left as-is and
+          flagged rather than half-fixed. */}
       <StatTile
         label="Total saved"
         value={`$${savingsTotal.toLocaleString()}`}
-        deltaLabel="4.2% this month"
-        deltaDirection="up"
-        deltaIsGood
         sparkline={trend.map((t) => t.value)}
       />
       <StatTile
