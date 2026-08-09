@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { View, Pressable } from "react-native";
 import { Activity as ActivityIcon, BarChart3, CreditCard } from "lucide-react-native";
 import { Card, Text, useTheme, spacing, palette, getTextColorFor } from "@noivos/ui";
-import { budgetSnapshot, goals as mockGoals, activityFeed, insights, upcomingBills, moneyMeeting, currentUser } from "../data/mockData";
+import { budgetSnapshot, goals as mockGoals, activityFeed, upcomingBills, moneyMeeting, currentUser } from "../data/mockData";
 import { AvatarStack } from "../components/AvatarStack";
 import { StatTile } from "../components/StatTile";
 import { TrendChart } from "../components/TrendChart";
 import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
 import { formatRelativeTime } from "../lib/formatRelativeTime";
+import { buildInsights, type BudgetCategoryFact, type GoalProgressFact } from "../lib/insights";
 
 interface ApiGoal {
   id: string;
@@ -16,6 +17,13 @@ interface ApiGoal {
   targetAmount: number;
   targetDate: string | null;
   contributions: { amount: number }[];
+}
+
+interface ApiBudget {
+  month: string;
+  planned: number;
+  spent: number;
+  categories: { id: string; name: string; shared: boolean; planned: number; spent: number }[];
 }
 
 // Mock 8-week combined-savings trend, ending at the current total across all
@@ -53,15 +61,23 @@ export interface HomeScreenProps {
 // 0005_add_activity_feed_insert_policy.sql to actually persist events; see
 // packages/database/README.md. Falls back to the mock goals/partner/bills/
 // agenda/activity data independently if a given backend isn't reachable.
-// Budget card/AI Insights stay mock — no shared-transactions feed or AI
-// backend exists yet.
+// The Budget card pulls from /api/budget (2026-08-08) — the same real
+// budget-categories data BudgetScreen.tsx already wired 2026-08-05, just
+// consumed here too, so the two screens can't show conflicting numbers for
+// the same month the way the pre-fix Goals numbers used to. AI Insights
+// (2026-08-08) is real "basic insights" per PRD §13's free tier — plain
+// rule-based checks derived from that same Budget data plus real goal
+// totals (lib/insights.ts), same posture as Money Meeting's agenda: not an
+// AI call, so it doesn't need the AI Coach provider decision. Falls back to
+// the mock budget/goals data independently if a given backend isn't
+// reachable, same as every other card on this screen.
 export function HomeScreen({ userName }: HomeScreenProps = {}) {
   const { colors } = useTheme();
   const displayName = userName || currentUser.name;
-  const overBudget = budgetSnapshot.spent > budgetSnapshot.planned * 0.9;
 
   const [backendAvailable, setBackendAvailable] = useState(false);
   const [apiGoals, setApiGoals] = useState<ApiGoal[]>([]);
+  const [apiBudget, setApiBudget] = useState<ApiBudget | null>(null);
   const [partnerName, setPartnerName] = useState<string | null>(null);
   const [apiBills, setApiBills] = useState<{ id: string; name: string; amount: number; due: string }[] | null>(null);
   const [apiMeeting, setApiMeeting] = useState<{
@@ -87,6 +103,25 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
       })
       .catch(() => {
         // No database/Clerk reachable — fall back to the mock goals below.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/budget")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("budget fetch failed");
+        return res.json() as Promise<ApiBudget>;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setApiBudget(data);
+      })
+      .catch(() => {
+        // No database/Clerk reachable — fall back to the mock budget below.
       });
     return () => {
       cancelled = true;
@@ -211,6 +246,31 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
     : (weddingGoal as (typeof mockGoals)[number] | undefined)?.target;
   const weddingPercent = weddingTarget ? Math.round((weddingTotal / weddingTarget) * 100) : null;
 
+  // Independent fallback (apiBudget ?? budgetSnapshot), not gated on the
+  // shared `backendAvailable` flag — same convention as apiBills/apiMeeting/
+  // apiActivity below, each degrading to its own mock on its own fetch
+  // failure rather than all-or-nothing with the Goals fetch specifically.
+  const budget = apiBudget ?? budgetSnapshot;
+  const overBudget = budget.spent > budget.planned * 0.9;
+
+  const goalFacts: GoalProgressFact[] = backendAvailable
+    ? apiGoals.map((g) => ({
+        id: g.id,
+        name: g.name,
+        targetAmount: g.targetAmount,
+        totalContributed: g.contributions.reduce((s, c) => s + c.amount, 0),
+      }))
+    : mockGoals.map((g) => ({
+        id: g.id,
+        name: g.name,
+        targetAmount: g.target,
+        totalContributed: g.contributors.reduce((s, c) => s + c.amount, 0),
+      }));
+  const categoryFacts: BudgetCategoryFact[] = apiBudget
+    ? apiBudget.categories.map((c) => ({ id: c.id, name: c.name, planned: c.planned, spent: c.spent }))
+    : budgetSnapshot.categories.map((c) => ({ id: c.name, name: c.name, planned: c.planned, spent: c.spent }));
+  const computedInsights = buildInsights(categoryFacts, goalFacts);
+
   const trend = useSavingsTrend(savingsTotal);
 
   return (
@@ -245,8 +305,8 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
       />
       <StatTile
         label="Spent this month"
-        value={`$${budgetSnapshot.spent.toLocaleString()}`}
-        deltaLabel={`of $${budgetSnapshot.planned.toLocaleString()} planned`}
+        value={`$${budget.spent.toLocaleString()}`}
+        deltaLabel={`of $${budget.planned.toLocaleString()} planned`}
         deltaDirection={overBudget ? "up" : "down"}
         deltaIsGood={!overBudget}
       />
@@ -310,16 +370,22 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
 
       <Card>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }}>
-          <Text variant="h3">{budgetSnapshot.month} Budget</Text>
+          <Text variant="h3">{budget.month} Budget</Text>
           <Text variant="bodySmall" secondary>
-            ${budgetSnapshot.spent} of ${budgetSnapshot.planned}
+            ${budget.spent} of ${budget.planned}
           </Text>
         </View>
         <View style={{ height: 10, borderRadius: 999, backgroundColor: colors.border, marginTop: spacing.sm, overflow: "hidden" }}>
           <View
             style={{
               height: "100%",
-              width: `${Math.min((budgetSnapshot.spent / budgetSnapshot.planned) * 100, 100)}%`,
+              // Guards the same divide-by-zero StackedProgressBarMath.ts's
+              // computeSegmentWidths() already guards against (2026-08-06) —
+              // planned is always positive today (DEFAULT_CATEGORIES' own
+              // test asserts it), but nothing stops a future all-zero-
+              // planned budget from reaching this line, and Infinity%/NaN%
+              // is an invalid width value either way.
+              width: `${budget.planned > 0 ? Math.min((budget.spent / budget.planned) * 100, 100) : 0}%`,
               backgroundColor: palette.sourLime,
             }}
           />
@@ -341,7 +407,7 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
           <Text variant="h3">AI Insights</Text>
         </View>
         <View style={{ gap: spacing.sm }}>
-          {insights.map((i) => (
+          {computedInsights.map((i) => (
             <Text key={i.id} variant="body" secondary>
               {i.text}
             </Text>

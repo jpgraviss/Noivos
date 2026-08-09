@@ -60,11 +60,12 @@ export const activityFeed = [
   { id: 'a3', text: 'Marcus joined your Partnership', time: '3mo ago' },
 ];
 
-export const insights = [
-  { id: 'i1', type: 'opportunity', text: 'At your current pace, you’ll hit Emergency Fund 2 months early.' },
-  { id: 'i2', type: 'spending_increase', text: 'Dining Out is running $40 over plan this month.' },
-  { id: 'i3', type: 'savings_streak', text: '6-week savings streak — keep it going!' },
-];
+// The old static `insights` mock array (opportunity/spending_increase/
+// savings_streak flourishes) was replaced 2026-08-08 by HomeScreen.tsx's
+// buildInsights() (lib/insights.ts), which now computes the same kind of
+// facts — for real, when a backend is reachable, and from budgetSnapshot/
+// goals above as the mock-fallback source — instead of a fixed list. See
+// PROJECT_MEMORY.md's 2026-08-08 entry.
 
 export const upcomingBills = [
   { id: 'b1', name: 'Venue deposit', amount: 1200, due: 'Aug 8' },
