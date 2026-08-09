@@ -102,7 +102,15 @@ function toDisplayGoal(g: ApiGoal): DisplayGoal {
 // backend isn't reachable, same posture as IdentitySettings.
 export function GoalsScreen() {
   const { colors } = useTheme();
-  const [segment, setSegment] = useState<"wedding" | "goals">(weddingDetails.active ? "wedding" : "goals");
+  // Was `weddingDetails.active ? "wedding" : "goals"` — the mock's `.active`
+  // is a hardcoded `true`, so this always opened on the Wedding segment
+  // regardless of whether the real signed-in user's Partnership had
+  // actually started Wedding Mode (found 2026-08-08, same class of bug as
+  // AppShell.tsx's tab-label fix in the same commit). Can't know the real
+  // answer synchronously on first render — the /api/wedding fetch below
+  // hasn't run yet — so this defaults to the safe "goals" state and the
+  // fetch effect flips it to "wedding" once it genuinely knows.
+  const [segment, setSegment] = useState<"wedding" | "goals">("goals");
 
   const [loaded, setLoaded] = useState(false);
   const [backendAvailable, setBackendAvailable] = useState(false);
@@ -160,9 +168,19 @@ export function GoalsScreen() {
         setWeddingBackendAvailable(true);
         setHasPartnership(data.hasPartnership);
         setApiWedding(data.weddingDetails);
+        // Now that we genuinely know: default to the Wedding segment only
+        // if this real Partnership actually has an active wedding_details
+        // row — matches the UX Blueprint §3.2 intent ("while Wedding Mode
+        // is active this tab leads with the vendor tracker") without
+        // guessing before the fetch resolves.
+        if (data.hasPartnership && data.weddingDetails) setSegment("wedding");
       })
       .catch(() => {
-        // No database/Clerk/route available — fall back to the mock.
+        // No database/Clerk/route available — fall back to the mock's own
+        // "active" flag for the initial segment, same as every other
+        // wedding-mode signal on this screen falls back to the mock when
+        // there's no real signal reachable at all.
+        if (!cancelled && weddingDetails.active) setSegment("wedding");
       })
       .finally(() => {
         if (!cancelled) setWeddingLoaded(true);
@@ -412,13 +430,20 @@ export function GoalsScreen() {
     ? apiGoals.map(toDisplayGoal)
     : mockGoals.map((g) => ({ id: g.id, name: g.name, target: g.target, shared: g.shared, contributors: g.contributors }));
 
+  // Real once /api/wedding resolves successfully — matches this screen's
+  // own definition of "wedding mode is on" a few lines down (a real
+  // Partnership with a real wedding_details row), not the mock's
+  // hardcoded-true `.active` flag. Only falls back to that mock flag if
+  // the fetch itself never came back at all (see the effect above).
+  const weddingActive = weddingBackendAvailable ? Boolean(hasPartnership && apiWedding) : weddingDetails.active;
+
   return (
     <ScreenGrid>
       <ScreenGridWide>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: spacing.md }}>
-          <Text variant="h1">{weddingDetails.active ? "Wedding" : "Goals"}</Text>
+          <Text variant="h1">{weddingActive ? "Wedding" : "Goals"}</Text>
 
-          {weddingDetails.active && (
+          {weddingActive && (
             <View style={{ flexDirection: "row", gap: spacing.sm }}>
               {(["wedding", "goals"] as const).map((s) => (
                 <Pressable
@@ -445,7 +470,7 @@ export function GoalsScreen() {
         </View>
       </ScreenGridWide>
 
-      {segment === "wedding" && weddingDetails.active ? (
+      {segment === "wedding" && weddingActive ? (
         !weddingLoaded ? (
           <Card>
             <Text variant="bodySmall" secondary>

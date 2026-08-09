@@ -94,12 +94,44 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Same relabel rule as apps/mobile's RootNavigator (UX/UI Blueprint §3.2)
+  // — but was permanently wrong for every real user before this fix
+  // (2026-08-08): `weddingDetails.active` is a static mock flag hardcoded
+  // `true`, so this tab said "Wedding" regardless of whether the signed-in
+  // user's real Partnership had actually started Wedding Mode. Fetches the
+  // same /api/wedding GoalsScreen.tsx already calls — matches this app's
+  // established "each component fetches its own data independently, falls
+  // back to mock independently" convention (same posture as the /api/profile
+  // fetch just above) rather than lifting state or prop-drilling from
+  // GoalsScreen. Defaults to the safe "Goals" label while loading, not the
+  // mock's `true` — a brief flash of "Goals" for a real Wedding-Mode user
+  // costs far less than permanently mislabeling the tab for everyone who's
+  // never started it, which is the bug this fixes. Falls back to the mock's
+  // own `.active` flag only on genuine fetch failure, so the tab label and
+  // the screen it leads to (GoalsScreen.tsx's own identical fallback,
+  // fixed in the same commit) can't contradict each other in dev/preview
+  // mode with no backend reachable at all.
+  const [weddingActive, setWeddingActive] = useState(false);
+  useEffect(() => {
+    fetch("/api/wedding")
+      .then((res) => {
+        if (!res.ok) throw new Error("wedding fetch failed");
+        return res.json() as Promise<{ hasPartnership: boolean; weddingDetails: unknown }>;
+      })
+      .then((data) => {
+        setWeddingActive(Boolean(data.hasPartnership && data.weddingDetails));
+      })
+      .catch(() => {
+        setWeddingActive(weddingDetails.active);
+      });
+  }, []);
+
   // Real signed-in name when Clerk is configured (see AuthenticatedAppShell);
   // falls back to the mock persona otherwise, same as everywhere else in
   // this dev-mode app.
   const displayName = userName || currentUser.name;
-  // Same relabel rule as apps/mobile's RootNavigator (UX/UI Blueprint §3.2).
-  const goalsLabel = weddingDetails.active ? "Wedding" : "Goals";
+  const goalsLabel = weddingActive ? "Wedding" : "Goals";
   const ActiveScreen = SCREENS[tab];
   const pageTitle = tab === "Goals" ? goalsLabel : tab;
 
