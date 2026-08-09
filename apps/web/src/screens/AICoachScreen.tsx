@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View, TextInput, Pressable } from "react-native";
 import { Camera, Mic, Send } from "lucide-react-native";
 import { Card, Text, useTheme, spacing, radius, palette, getTextColorFor } from "@noivos/ui";
-import { aiConversation, currentUser } from "../data/mockData";
+import { aiConversation } from "../data/mockData";
 import { ScreenStack } from "../components/ScreenLayout";
 
 const SUGGESTIONS = [
@@ -87,8 +87,21 @@ export function AICoachScreen() {
       ))}
 
       <Card>
+        {/* Was `SHARE WITH {currentUser.partnerName.toUpperCase()}` — that
+            mock name ("MARCUS") was shown unconditionally to every real
+            user regardless of who their actual connected partner is, or
+            whether they have one at all (found 2026-08-08, same bug class
+            as BudgetScreen's earlier partnerName fix). This screen has no
+            real data of any kind yet (canned/keyword-matched replies, no
+            /api/* fetches anywhere in this file) — adding a whole new
+            fetch just to personalize one caption would be disproportionate
+            to what's actually broken here, so this uses a neutral,
+            never-wrong "YOUR PARTNER" instead of a specific name, matching
+            OwnershipBadge's own precedent (packages/ui/src/OwnershipBadge.tsx)
+            of omitting a name entirely rather than fabricating one when it
+            isn't actually known. */}
         <Text variant="caption" secondary>
-          SHARE WITH {currentUser.partnerName.toUpperCase()}
+          SHARE WITH YOUR PARTNER
         </Text>
         {/* Not wired to anything — there's no "share an AI conversation to
             Activity" event type yet. Disabled with honest copy rather than

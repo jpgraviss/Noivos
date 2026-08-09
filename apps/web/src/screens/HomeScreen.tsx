@@ -79,6 +79,18 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
   const [apiGoals, setApiGoals] = useState<ApiGoal[]>([]);
   const [apiBudget, setApiBudget] = useState<ApiBudget | null>(null);
   const [partnerName, setPartnerName] = useState<string | null>(null);
+  // True once /api/partnership has genuinely answered (connected or not) —
+  // distinct from `partnerName` being null, which is also true while still
+  // loading *and* when the backend is unreachable. Needed so a genuinely
+  // solo real user (PRD §10.3's "Unpartnered... a valid, supported,
+  // permanent state") doesn't see a fabricated "& Marcus" avatar chip —
+  // found 2026-08-08 by checking PartnershipSettings.tsx's own partner-name
+  // fetch, which already correctly distinguishes "connected: false" from
+  // "unreachable" (`setPartnerName(data.partnerName ?? null)` on success vs.
+  // the mock only in `.catch()`) — this screen's fetch below never made
+  // that distinction, so `partnerName || currentUser.partnerName` fell back
+  // to the mock name in both cases.
+  const [partnershipChecked, setPartnershipChecked] = useState(false);
   const [apiBills, setApiBills] = useState<{ id: string; name: string; amount: number; due: string }[] | null>(null);
   const [apiMeeting, setApiMeeting] = useState<{
     id: string;
@@ -141,12 +153,17 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
       })
       .then((data) => {
         if (cancelled) return;
+        setPartnershipChecked(true);
         if (data.connected && data.partnerName) {
           setPartnerName(data.partnerName);
         }
       })
       .catch(() => {
-        // No database/Clerk reachable — fall back to the mock partner name.
+        // No database/Clerk reachable — stays unchecked, falls back to the
+        // mock partner name/avatar-chip below (partnershipChecked never
+        // flips true, so this is indistinguishable from "still loading" —
+        // matches every other card's illustrative-mock-when-unreachable
+        // posture on this screen).
       });
     return () => {
       cancelled = true;
@@ -291,7 +308,13 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
             </Text>
             <Text variant="display">Hey, {displayName}</Text>
           </View>
-          <AvatarStack names={[displayName, partnerName || currentUser.partnerName]} />
+          {/* Hidden only once we're genuinely certain there's no partner —
+              while loading or if the backend's unreachable, this still
+              shows the couple-chip (with the mock name as a last resort)
+              rather than flicker in and out; see partnershipChecked above. */}
+          {(!partnershipChecked || partnerName) && (
+            <AvatarStack names={[displayName, partnerName || currentUser.partnerName]} />
+          )}
         </View>
       </ScreenGridWide>
 
