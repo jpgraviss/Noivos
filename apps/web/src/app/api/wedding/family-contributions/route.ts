@@ -4,7 +4,7 @@ import { withUserContext } from "@/lib/db";
 import { findActiveMembership } from "@/lib/partnership";
 import { findWeddingDetails } from "@/lib/wedding";
 import { logActivityEvent } from "@/lib/activity";
-import { tooLong, MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from "@/lib/validate";
+import { tooLong, tooLarge, MAX_NAME_LENGTH, MAX_NOTE_LENGTH, MAX_AMOUNT } from "@/lib/validate";
 
 function clerkConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
@@ -43,6 +43,9 @@ export async function POST(request: Request) {
   }
   if (!Number.isFinite(amount) || amount <= 0) {
     return NextResponse.json({ error: "amount must be a positive number" }, { status: 400 });
+  }
+  if (tooLarge(amount, MAX_AMOUNT)) {
+    return NextResponse.json({ error: `amount must be $${MAX_AMOUNT.toLocaleString()} or less` }, { status: 400 });
   }
   if (note && tooLong(note, MAX_NOTE_LENGTH)) {
     return NextResponse.json({ error: `Note must be ${MAX_NOTE_LENGTH} characters or fewer` }, { status: 400 });

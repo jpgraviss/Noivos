@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { withUserContext } from "@/lib/db";
 import { findActiveMembership } from "@/lib/partnership";
-import { tooLong, MAX_NAME_LENGTH } from "@/lib/validate";
+import { tooLong, tooLarge, MAX_NAME_LENGTH, MAX_AMOUNT } from "@/lib/validate";
 
 const GOAL_TYPES = [
   "wedding",
@@ -112,6 +112,9 @@ export async function POST(request: Request) {
   }
   if (!Number.isFinite(targetAmount) || targetAmount <= 0) {
     return NextResponse.json({ error: "Target amount must be a positive number" }, { status: 400 });
+  }
+  if (tooLarge(targetAmount, MAX_AMOUNT)) {
+    return NextResponse.json({ error: `Target amount must be $${MAX_AMOUNT.toLocaleString()} or less` }, { status: 400 });
   }
   if (!(GOAL_TYPES as readonly string[]).includes(goalType)) {
     return NextResponse.json({ error: `goalType must be one of: ${GOAL_TYPES.join(", ")}` }, { status: 400 });
