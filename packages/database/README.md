@@ -17,6 +17,7 @@ Schema and RLS policies for the Noivos Postgres database, hosted on **Neon** (se
 - `migrations/0011_add_foreign_key_indexes.sql` — adds plain btree indexes on foreign-key columns that RLS policies and application queries actually filter/join on. Postgres doesn't auto-index FK columns the way it does primary keys; until this, the only indexes in the whole schema were the hand-added uniqueness constraints from `0001`/`0008`. Most notably, `was_partnership_member()` — the single most-called RLS helper function, referenced by nearly every policy in the schema — had zero index support for its own `partnership_members` lookup.
 - `migrations/0012_fix_write_policy_membership_gaps.sql` — fixes a severe cross-tenant data-injection hole in `accounts_write`, `transactions_write`, `recurring_expenses_write`, `budgets_write`, and `goals_write`: all five checked `owner_id = current_user_id() and partnership_is_active(partnership_id)` but never `was_partnership_member(partnership_id)`, so any authenticated user could insert a row attributed to (and visible to the real members of) any other active Partnership. The same bug class as `0009`/`0010`, missed on those tables during that earlier audit.
 - `migrations/0013_fix_activity_feed_insert_membership_gap.sql` — the same gap again, found by grepping every migration for `partnership_is_active()` rather than trusting `0012`'s own list was complete: `activity_feed_events_insert` (from `0005`, not `0002`, which is why the earlier sweeps missed it) had the identical shape. Lower severity — can only inject a misleading feed sentence, not real financial data — but the same real hole at the enforcement layer.
+- `migrations/0014_fix_disconnect_orphaned_membership.sql` — fixes a severe bug (not RLS-hole class, a data-integrity/dead-end-UX class): `POST /api/partnership/disconnect` only updates the disconnecting user's own `partnership_members` row (its RLS policy only permits `user_id = current_user_id()`, by design), leaving the *other* partner's row with `left_at` still null forever — a permanent, unrecoverable collision with `one_active_partnership_per_user` the moment they try to form a new Partnership. Adds a `SECURITY DEFINER` trigger on `partnerships` that closes out every member's row (and revokes any still-pending invites) the moment a Partnership's status flips to `disconnected`, plus a one-time backfill for any partnership already disconnected before this migration existed. Paired with a defense-in-depth check in `accept/route.ts` rejecting an invite whose Partnership is no longer active.
 
 ## The auth handoff (read before touching this)
 
@@ -52,6 +53,7 @@ Supabase gave RLS policies a free, built-in `auth.uid()`. Clerk (the new auth pr
 | `0011_add_foreign_key_indexes.sql` | ✅ Applied 2026-08-08 |
 | `0012_fix_write_policy_membership_gaps.sql` | ✅ Applied 2026-08-08 |
 | `0013_fix_activity_feed_insert_membership_gap.sql` | ✅ Applied 2026-08-08 |
+| `0014_fix_disconnect_orphaned_membership.sql` | ⏳ Not yet applied |
 
 When a new migration file is added here, add its row to this table as **Not yet applied** in the same commit — don't let a migration exist in the repo without a tracked status. When the founder confirms one has been run, flip it to Applied (with the date) in the same turn, not deferred to the next PROJECT_MEMORY pass.
 
@@ -71,6 +73,7 @@ psql "$DATABASE_URL" -f migrations/0010_fix_with_check_membership_gaps.sql
 psql "$DATABASE_URL" -f migrations/0011_add_foreign_key_indexes.sql
 psql "$DATABASE_URL" -f migrations/0012_fix_write_policy_membership_gaps.sql
 psql "$DATABASE_URL" -f migrations/0013_fix_activity_feed_insert_membership_gap.sql
+psql "$DATABASE_URL" -f migrations/0014_fix_disconnect_orphaned_membership.sql
 ```
 
 `apps/mobile` still runs entirely on mock data (`apps/mobile/src/data/mockData.ts`) — only `apps/web` is wired to real queries so far (identity settings, All Goals, Partnership, Wedding Mode, Budget); everything else across both apps is still mock data, shaped to match this schema so swapping in real queries later is a plumbing change, not a redesign.

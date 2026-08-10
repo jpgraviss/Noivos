@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { withUserContext } from "@/lib/db";
+import { isUuid } from "@/lib/validate";
 
 function clerkConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
@@ -27,6 +28,15 @@ export async function POST(request: Request) {
   const id = typeof body.id === "string" ? body.id : "";
   if (!id) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
+  }
+  // Same class of gap already closed in goals/[id]/contributions and
+  // budget/transactions: without this, a malformed id hits Postgres's own
+  // uuid-cast error inside the catch block below and surfaces as this
+  // route's generic 500 instead of a clean, specific 400 (found
+  // 2026-08-10). Not a security gap — money_meetings_all's RLS already
+  // scopes this correctly — just a validation/error-quality one.
+  if (!isUuid(id)) {
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
 
   try {

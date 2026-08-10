@@ -44,12 +44,26 @@ export async function POST(request: Request) {
       await client.query(`insert into users (id) values ($1) on conflict (id) do nothing`, [userId]);
 
       const invite = await client.query(
-        `select id, partnership_id, inviter_id, expires_at from partnership_invites
-         where invite_token = $1 and status = 'pending'`,
+        `select pi.id, pi.partnership_id, pi.inviter_id, pi.expires_at, p.status as partnership_status
+         from partnership_invites pi
+         join partnerships p on p.id = pi.partnership_id
+         where pi.invite_token = $1 and pi.status = 'pending'`,
         [inviteToken]
       );
       const inv = invite.rows[0];
       if (!inv) return { invalid: true as const };
+      // Defense in depth: migration 0014's disconnect trigger now revokes
+      // any still-pending invite the moment its Partnership disconnects,
+      // so this shouldn't normally be reachable — but this route's own
+      // check shouldn't depend solely on that trigger having fired (e.g.
+      // for any invite that predates that migration and wasn't caught by
+      // its backfill for some reason). Without this, accepting a stale
+      // invite for an already-disconnected Partnership would insert this
+      // user into partnership_members with left_at staying null forever —
+      // the exact permanently-orphaned-membership bug 0014 fixes, just
+      // reached from the invite side instead of the disconnect side
+      // (found 2026-08-10).
+      if (inv.partnership_status !== "active") return { partnershipGone: true as const };
       if (new Date(inv.expires_at) < new Date()) return { expired: true as const };
       if (inv.inviter_id === userId) return { ownInvite: true as const };
 
@@ -70,6 +84,12 @@ export async function POST(request: Request) {
 
     if (result.invalid) {
       return NextResponse.json({ error: "This invite doesn't exist or has already been used." }, { status: 404 });
+    }
+    if (result.partnershipGone) {
+      return NextResponse.json(
+        { error: "This invite is no longer valid — the Partnership it belonged to has been disconnected." },
+        { status: 410 }
+      );
     }
     if (result.expired) {
       return NextResponse.json({ error: "This invite has expired." }, { status: 410 });
