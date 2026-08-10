@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { withUserContext } from "@/lib/db";
-import { tooLong, MAX_NAME_LENGTH } from "@/lib/validate";
+import { tooLong, isPlausibleBirthdate, MAX_NAME_LENGTH } from "@/lib/validate";
 
 // Same fallback posture as the rest of the app: if Clerk isn't configured
 // (no ClerkProvider/clerkMiddleware running at all — see proxy.ts), there's
@@ -69,9 +69,16 @@ export async function POST(request: Request) {
   }
   // The client sends this from a native <input type="date">, but a
   // client-supplied string is never trusted blindly before it reaches a
-  // SQL date column.
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(birthdate)) {
-    return NextResponse.json({ error: "Birthdate must be in YYYY-MM-DD format" }, { status: 400 });
+  // SQL date column. Was format-only (`/^\d{4}-\d{2}-\d{2}$/`), which let a
+  // format-valid but nonsensical value like "2026-13-45" through to a raw
+  // Postgres cast error — and, unlike other date fields in this app,
+  // birthdate is used for real identity verification and locked once set
+  // (see the comment on this route's own POST/GET pair and
+  // IdentitySettings.tsx), so it's also checked for basic plausibility
+  // (not in the future, not before 1900) — a sanity bound, not a
+  // minimum-age policy (see isPlausibleBirthdate's own comment).
+  if (!isPlausibleBirthdate(birthdate)) {
+    return NextResponse.json({ error: "Enter a real birthdate" }, { status: 400 });
   }
 
   try {

@@ -4,7 +4,7 @@ import { withUserContext } from "@/lib/db";
 import { findActiveMembership } from "@/lib/partnership";
 import { findWeddingDetails } from "@/lib/wedding";
 import { logActivityEvent } from "@/lib/activity";
-import { tooLong, tooLarge, MAX_NAME_LENGTH, MAX_AMOUNT } from "@/lib/validate";
+import { tooLong, tooLarge, isValidDateString, MAX_NAME_LENGTH, MAX_AMOUNT } from "@/lib/validate";
 
 function clerkConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
@@ -46,8 +46,8 @@ export async function POST(request: Request) {
   if (balanceDue !== null && tooLarge(balanceDue, MAX_AMOUNT)) {
     return NextResponse.json({ error: `Balance due must be $${MAX_AMOUNT.toLocaleString()} or less` }, { status: 400 });
   }
-  if (balanceDueDate && !/^\d{4}-\d{2}-\d{2}$/.test(balanceDueDate)) {
-    return NextResponse.json({ error: "balanceDueDate must be in YYYY-MM-DD format" }, { status: 400 });
+  if (balanceDueDate && !isValidDateString(balanceDueDate)) {
+    return NextResponse.json({ error: "balanceDueDate must be a real date in YYYY-MM-DD format" }, { status: 400 });
   }
 
   try {

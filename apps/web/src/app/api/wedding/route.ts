@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { withUserContext } from "@/lib/db";
 import { findActiveMembership } from "@/lib/partnership";
 import { findWeddingDetails } from "@/lib/wedding";
+import { isValidDateString } from "@/lib/validate";
 
 function clerkConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
@@ -114,8 +115,8 @@ export async function POST(request: Request) {
     body.guestCountEstimate === undefined || body.guestCountEstimate === null || body.guestCountEstimate === ""
       ? null
       : Number(body.guestCountEstimate);
-  if (weddingDate && !/^\d{4}-\d{2}-\d{2}$/.test(weddingDate)) {
-    return NextResponse.json({ error: "weddingDate must be in YYYY-MM-DD format" }, { status: 400 });
+  if (weddingDate && !isValidDateString(weddingDate)) {
+    return NextResponse.json({ error: "weddingDate must be a real date in YYYY-MM-DD format" }, { status: 400 });
   }
   if (guestCountEstimate !== null && (!Number.isFinite(guestCountEstimate) || guestCountEstimate < 0)) {
     return NextResponse.json({ error: "guestCountEstimate must be a non-negative number" }, { status: 400 });

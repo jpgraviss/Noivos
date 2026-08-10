@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { withUserContext } from "@/lib/db";
 import { findActiveMembership } from "@/lib/partnership";
 import { findWeddingDetails } from "@/lib/wedding";
-import { tooLong, MAX_NAME_LENGTH } from "@/lib/validate";
+import { tooLong, isValidDateString, MAX_NAME_LENGTH } from "@/lib/validate";
 
 function clerkConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
@@ -32,8 +32,8 @@ export async function POST(request: Request) {
   if (tooLong(title, MAX_NAME_LENGTH)) {
     return NextResponse.json({ error: `Checklist item title must be ${MAX_NAME_LENGTH} characters or fewer` }, { status: 400 });
   }
-  if (dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
-    return NextResponse.json({ error: "dueDate must be in YYYY-MM-DD format" }, { status: 400 });
+  if (dueDate && !isValidDateString(dueDate)) {
+    return NextResponse.json({ error: "dueDate must be a real date in YYYY-MM-DD format" }, { status: 400 });
   }
 
   try {

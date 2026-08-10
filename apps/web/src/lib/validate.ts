@@ -31,3 +31,46 @@ export function tooLong(value: string, max: number): boolean {
 export function tooLarge(value: number, max: number): boolean {
   return value > max;
 }
+
+// Every optional date field across these routes (goals' targetDate,
+// wedding's weddingDate, vendors' balanceDueDate, checklist's dueDate,
+// profile's birthdate) used to check only `/^\d{4}-\d{2}-\d{2}$/` — format,
+// not whether it's a real calendar date. Something format-valid but
+// nonsensical like "2026-13-45" passed that regex and would only get
+// caught by Postgres's own `date` column throwing a raw, unhelpful cast
+// error (found 2026-08-08 while adding birthdate's own sanity checks,
+// which needed real date parsing anyway — extracted this once rather than
+// duplicate the same two-part check five times).
+//
+// JS's ISO-string `Date` parsing rejects a month/day clearly out of range
+// (month 13, day 32) as Invalid Date, but does NOT validate a day against
+// the *actual* length of that specific month — "2026-02-30" silently
+// parses as 2026-03-02 instead of failing (confirmed directly: an initial
+// version of this function trusted `Number.isNaN` alone and a test caught
+// it). Round-tripping the parsed date back through `toISOString()` and
+// comparing it to the original string catches that rollover — a month
+// that doesn't exist gets rejected outright by the parser; a day that
+// doesn't exist in an otherwise-valid month gets rejected here instead.
+export function isValidDateString(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return false;
+  return parsed.toISOString().slice(0, 10) === value;
+}
+
+// Birthdate specifically needs more than "is this a real calendar date" —
+// it's used for identity verification ahead of Plaid integration (see
+// IdentitySettings.tsx) and, unlike every other date field in this app, is
+// locked once set (no "Request a change" flow is wired up yet — see that
+// component's own comment), so a nonsensical value here is stuck, not just
+// a display glitch. Rejects a birthdate in the future or before 1900 — a
+// generous sanity bound, deliberately not a minimum-age/eligibility rule.
+// Whether this app requires users to be some minimum age is a legal/
+// compliance call this project isn't making unilaterally here, same
+// posture as the AI Coach provider decision.
+export function isPlausibleBirthdate(value: string): boolean {
+  if (!isValidDateString(value)) return false;
+  const year = Number(value.slice(0, 4));
+  if (year < 1900) return false;
+  return new Date(`${value}T00:00:00Z`).getTime() <= Date.now();
+}

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { withUserContext } from "@/lib/db";
 import { findActiveMembership } from "@/lib/partnership";
-import { tooLong, tooLarge, MAX_NAME_LENGTH, MAX_AMOUNT } from "@/lib/validate";
+import { tooLong, tooLarge, isValidDateString, MAX_NAME_LENGTH, MAX_AMOUNT } from "@/lib/validate";
 
 const GOAL_TYPES = [
   "wedding",
@@ -119,8 +119,8 @@ export async function POST(request: Request) {
   if (!(GOAL_TYPES as readonly string[]).includes(goalType)) {
     return NextResponse.json({ error: `goalType must be one of: ${GOAL_TYPES.join(", ")}` }, { status: 400 });
   }
-  if (targetDate && !/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
-    return NextResponse.json({ error: "targetDate must be in YYYY-MM-DD format" }, { status: 400 });
+  if (targetDate && !isValidDateString(targetDate)) {
+    return NextResponse.json({ error: "targetDate must be a real date in YYYY-MM-DD format" }, { status: 400 });
   }
 
   // Personal/Shared toggle (2026-08-08) — GoalsScreen.tsx's "Add a goal"

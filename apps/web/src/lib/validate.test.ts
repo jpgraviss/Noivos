@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { tooLong, tooLarge, MAX_NAME_LENGTH, MAX_NOTE_LENGTH, MAX_EMAIL_LENGTH, MAX_AMOUNT } from "./validate";
+import {
+  tooLong,
+  tooLarge,
+  isValidDateString,
+  isPlausibleBirthdate,
+  MAX_NAME_LENGTH,
+  MAX_NOTE_LENGTH,
+  MAX_EMAIL_LENGTH,
+  MAX_AMOUNT,
+} from "./validate";
 
 describe("tooLong", () => {
   it("allows a value exactly at the limit", () => {
@@ -46,5 +55,50 @@ describe("tooLarge", () => {
     // error instead of this clean check firing first.
     expect(MAX_AMOUNT).toBe(100_000_000);
     expect(MAX_AMOUNT).toBeLessThan(999_999_999_999.99);
+  });
+});
+
+describe("isValidDateString", () => {
+  it("accepts a real calendar date", () => {
+    expect(isValidDateString("2026-06-15")).toBe(true);
+  });
+
+  it("rejects an out-of-range month", () => {
+    expect(isValidDateString("2026-13-01")).toBe(false);
+  });
+
+  it("rejects a day that doesn't exist in that month", () => {
+    // February never has 30 days, in a leap year or not.
+    expect(isValidDateString("2026-02-30")).toBe(false);
+  });
+
+  it("rejects a value that isn't even the right shape", () => {
+    expect(isValidDateString("not-a-date")).toBe(false);
+    expect(isValidDateString("06/15/2026")).toBe(false);
+    expect(isValidDateString("")).toBe(false);
+  });
+});
+
+describe("isPlausibleBirthdate", () => {
+  it("accepts an ordinary past birthdate", () => {
+    expect(isPlausibleBirthdate("1995-03-20")).toBe(true);
+  });
+
+  it("rejects a birthdate in the future", () => {
+    const future = new Date();
+    future.setFullYear(future.getFullYear() + 5);
+    expect(isPlausibleBirthdate(future.toISOString().slice(0, 10))).toBe(false);
+  });
+
+  it("rejects a birthdate before 1900", () => {
+    expect(isPlausibleBirthdate("1899-12-31")).toBe(false);
+  });
+
+  it("accepts a birthdate exactly at the 1900 boundary", () => {
+    expect(isPlausibleBirthdate("1900-01-01")).toBe(true);
+  });
+
+  it("rejects a format-valid but nonsensical date even with a plausible year", () => {
+    expect(isPlausibleBirthdate("1995-13-01")).toBe(false);
   });
 });
