@@ -4,6 +4,7 @@ import {
   tooLarge,
   isValidDateString,
   isPlausibleBirthdate,
+  isUuid,
   MAX_NAME_LENGTH,
   MAX_NOTE_LENGTH,
   MAX_EMAIL_LENGTH,
@@ -100,5 +101,22 @@ describe("isPlausibleBirthdate", () => {
 
   it("rejects a format-valid but nonsensical date even with a plausible year", () => {
     expect(isPlausibleBirthdate("1995-13-01")).toBe(false);
+  });
+});
+
+describe("isUuid", () => {
+  it("accepts a real UUID (any case)", () => {
+    expect(isUuid("123e4567-e89b-12d3-a456-426614174000")).toBe(true);
+    expect(isUuid("123E4567-E89B-12D3-A456-426614174000")).toBe(true);
+  });
+
+  it("rejects a value with the wrong shape", () => {
+    expect(isUuid("not-a-uuid")).toBe(false);
+    expect(isUuid("")).toBe(false);
+    expect(isUuid("123e4567-e89b-12d3-a456")).toBe(false);
+  });
+
+  it("rejects a UUID-length string with a non-hex character", () => {
+    expect(isUuid("123e4567-e89b-12d3-a456-42661417400g")).toBe(false);
   });
 });

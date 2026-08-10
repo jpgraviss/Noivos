@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { withUserContext } from "@/lib/db";
 import { logActivityEvent } from "@/lib/activity";
-import { tooLong, tooLarge, MAX_NOTE_LENGTH, MAX_AMOUNT } from "@/lib/validate";
+import { tooLong, tooLarge, isUuid, MAX_NOTE_LENGTH, MAX_AMOUNT } from "@/lib/validate";
 
 function clerkConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
@@ -31,7 +31,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // confidently wrong reason for what's actually a format error, not an
   // RLS denial. Checked format explicitly so those two genuinely different
   // failure modes get genuinely different responses.
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(goalId)) {
+  if (!isUuid(goalId)) {
     return NextResponse.json({ error: "Invalid goal id" }, { status: 400 });
   }
 

@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { withUserContext } from "@/lib/db";
 import { findOrCreateManualAccount } from "@/lib/budget";
 import { logActivityEvent } from "@/lib/activity";
-import { tooLong, tooLarge, MAX_NAME_LENGTH, MAX_AMOUNT } from "@/lib/validate";
+import { tooLong, tooLarge, isUuid, MAX_NAME_LENGTH, MAX_AMOUNT } from "@/lib/validate";
 
 function clerkConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
@@ -34,6 +34,14 @@ export async function POST(request: Request) {
 
   if (!categoryId) {
     return NextResponse.json({ error: "categoryId is required" }, { status: 400 });
+  }
+  // Not reachable via the real UI — BudgetScreen.tsx only ever sends a
+  // category id it already fetched from GET /api/budget — but same posture
+  // as the identical fix in goals/[id]/contributions: without this, a
+  // malformed id would hit Postgres's own uuid-cast error and surface as
+  // this route's generic 500 rather than a clean, specific 400.
+  if (!isUuid(categoryId)) {
+    return NextResponse.json({ error: "Invalid categoryId" }, { status: 400 });
   }
   if (!Number.isFinite(amount) || amount <= 0) {
     return NextResponse.json({ error: "amount must be a positive number" }, { status: 400 });

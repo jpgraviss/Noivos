@@ -74,3 +74,17 @@ export function isPlausibleBirthdate(value: string): boolean {
   if (year < 1900) return false;
   return new Date(`${value}T00:00:00Z`).getTime() <= Date.now();
 }
+
+// Every `id`/`categoryId`/`goalId`-shaped field in this app is a Postgres
+// `uuid` column. Passing a client-supplied string straight into a `where
+// id = $1` without checking its shape first means a malformed value hits
+// Postgres's own uuid-cast error instead of a clean 400 — worse, the
+// route's own catch-all sometimes attributes a *specific but wrong* reason
+// to that failure (e.g. "the goal may not exist or isn't yours" for what
+// was actually just a bad string, found 2026-08-08 in
+// goals/[id]/contributions). Extracted once both that route and
+// budget/transactions needed the identical check rather than duplicate the
+// regex in each.
+export function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
