@@ -64,12 +64,17 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
           return res.json() as Promise<{ hasPartnership: boolean; events: ActivityEvent[] }>;
         })
         .then((data) => {
-          if (data.hasPartnership) {
-            setActivityIsReal(true);
-            setActivityEvents(data.events);
-          } else {
-            setActivityEvents(mockActivityFeed);
-          }
+          setActivityIsReal(true);
+          // hasPartnership: false is a real, confirmed answer (PRD §10.3's
+          // "Unpartnered... a valid, supported, permanent state"), not a
+          // sign the backend is unreachable — was falling back to
+          // mockActivityFeed here too (found 2026-08-08, same bug as
+          // HomeScreen.tsx's Activity card fixed in the same commit),
+          // showing a genuinely solo real user fabricated events about a
+          // partner who doesn't exist. The dropdown already has a real
+          // "No activity yet." empty state a few lines down for exactly
+          // this — just needed to actually reach it instead of the mock.
+          setActivityEvents(data.hasPartnership ? data.events : []);
         })
         .catch(() => {
           setActivityEvents(mockActivityFeed);

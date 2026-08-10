@@ -218,11 +218,22 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
         return res.json() as Promise<{ hasPartnership: boolean; events: { id: string; text: string; time: string }[] }>;
       })
       .then((data) => {
-        if (cancelled || !data.hasPartnership) return;
-        setApiActivity(data.events);
+        if (cancelled) return;
+        // hasPartnership: false is a real, confirmed answer (PRD §10.3's
+        // "Unpartnered... a valid, supported, permanent state"), not a
+        // sign the backend is unreachable — this used to `return` here
+        // without setting apiActivity at all, which left it `null` forever
+        // and fell through to the mock `activityFeed` below for a
+        // genuinely solo real user (found 2026-08-08, same bug as
+        // AppShell.tsx's bell dropdown fixed in the same commit), showing
+        // fabricated events about a partner who doesn't exist. The render
+        // below already has a real "No activity yet" empty state for
+        // exactly this — just needed to actually reach it with `[]`
+        // instead of falling through to the mock.
+        setApiActivity(data.hasPartnership ? data.events : []);
       })
       .catch(() => {
-        // No database/Clerk reachable (or no Partnership yet) — fall back to the mock below.
+        // No database/Clerk reachable — fall back to the mock below.
       });
     return () => {
       cancelled = true;
