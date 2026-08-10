@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { withUserContext } from "@/lib/db";
+import { findActiveMembership } from "@/lib/partnership";
 import { tooLong, MAX_NAME_LENGTH } from "@/lib/validate";
 
 const GOAL_TYPES = [
@@ -90,7 +91,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
-  let body: { name?: unknown; goalType?: unknown; targetAmount?: unknown; targetDate?: unknown };
+  let body: { name?: unknown; goalType?: unknown; targetAmount?: unknown; targetDate?: unknown; shared?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -101,6 +102,7 @@ export async function POST(request: Request) {
   const goalType = typeof body.goalType === "string" ? body.goalType : "custom";
   const targetAmount = typeof body.targetAmount === "number" ? body.targetAmount : Number(body.targetAmount);
   const targetDate = typeof body.targetDate === "string" && body.targetDate ? body.targetDate : null;
+  const wantsShared = body.shared === true;
 
   if (!name) {
     return NextResponse.json({ error: "Goal name is required" }, { status: 400 });
@@ -118,41 +120,55 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "targetDate must be in YYYY-MM-DD format" }, { status: 400 });
   }
 
-  // Known, deliberately-not-attempted gap (found 2026-08-08, same pass that
-  // fixed GET's `shared` field never being read at all): this only ever
-  // inserts owner_id, never partnership_id/is_shared, so every goal
-  // created through this route today is personal — there is currently no
-  // way to create a *shared* goal via the real app at all, even though
-  // "Goals built for two" is a headline feature (landing page copy) and
-  // the mock data explicitly demonstrates both shapes coexisting for one
-  // user (Our Wedding/Emergency Fund shared, New Camera personal). Unlike
-  // Budget (which correctly defaults to shared-when-partnered, no user
-  // choice needed since there's only ever one shared budget per month),
-  // Goals genuinely need a per-goal choice — a user staying partnered the
-  // whole time might still want a personal goal alongside shared ones, so
-  // blanket-defaulting every new goal to shared once partnered (mirroring
-  // Budget's pattern) would be wrong here, not just inconsistent. Fixing
-  // this for real needs a Personal/Shared choice on the "Add a goal" form,
-  // a real UI/product decision, not a data-wiring fix — flagged in
-  // PROJECT_MEMORY.md rather than guessed at.
+  // Personal/Shared toggle (2026-08-08) — GoalsScreen.tsx's "Add a goal"
+  // form only ever shows the choice when `hasPartnership` is true, but
+  // this route can't trust that: it independently looks up the writer's
+  // own real membership via findActiveMembership() (never trusting a
+  // client-supplied partnershipId — there is no such field in this body at
+  // all) and rejects `shared: true` outright if the writer genuinely has
+  // no active Partnership, rather than silently downgrading to personal
+  // (which would be a confusing, easy-to-miss surprise: you asked for
+  // shared, got personal, no error). Unlike Budget (one shared budget per
+  // Partnership per month, no per-item choice), goals genuinely need this
+  // per-goal choice — the mock data itself always showed both shapes
+  // coexisting for one user. Requires migration
+  // 0012_fix_write_policy_membership_gaps.sql for goals_write's RLS to
+  // actually accept a shared insert correctly scoped to the writer's real
+  // membership — see packages/database/README.md.
   try {
-    const goal = await withUserContext(userId, async (client) => {
+    const result = await withUserContext(userId, async (client) => {
       await client.query(`insert into users (id) values ($1) on conflict (id) do nothing`, [userId]);
-      const result = await client.query(
-        `insert into goals (owner_id, goal_type, name, target_amount, target_date)
-         values ($1, $2, $3, $4, $5)
-         returning id, name, goal_type, target_amount::float8 as target_amount, target_date::text as target_date`,
-        [userId, goalType, name, targetAmount, targetDate]
+
+      let partnershipId: string | null = null;
+      if (wantsShared) {
+        const membership = await findActiveMembership(userId, client);
+        if (!membership) return { needsPartnership: true as const };
+        partnershipId = membership.partnership_id;
+      }
+
+      const goalResult = await client.query(
+        `insert into goals (owner_id, partnership_id, is_shared, goal_type, name, target_amount, target_date)
+         values ($1, $2, $3, $4, $5, $6, $7)
+         returning id, name, goal_type, target_amount::float8 as target_amount, target_date::text as target_date, is_shared`,
+        [userId, partnershipId, wantsShared, goalType, name, targetAmount, targetDate]
       );
-      return result.rows[0];
+      return { needsPartnership: false as const, goal: goalResult.rows[0] };
     });
+
+    if (result.needsPartnership) {
+      return NextResponse.json(
+        { error: "You need a Partnership to create a shared goal — invite a partner first, or create this as personal." },
+        { status: 400 }
+      );
+    }
+    const goal = result.goal;
     return NextResponse.json({
       id: goal.id,
       name: goal.name,
       goalType: goal.goal_type,
       targetAmount: goal.target_amount,
       targetDate: goal.target_date,
-      shared: false,
+      shared: goal.is_shared,
       contributions: [],
     });
   } catch (err) {

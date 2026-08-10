@@ -127,6 +127,13 @@ export function GoalsScreen() {
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [newGoalName, setNewGoalName] = useState("");
   const [newGoalTarget, setNewGoalTarget] = useState("");
+  // Defaults to Personal, not Shared — the safest, least-surprising choice
+  // (matches every goal this route has ever created until now; see
+  // POST /api/goals's own comment for why this couldn't default to
+  // shared-when-partnered the way Budget does). Only offered as a choice
+  // at all when `hasPartnership` is true — a solo user has nothing to
+  // share with yet.
+  const [newGoalShared, setNewGoalShared] = useState(false);
   const [addingGoal, setAddingGoal] = useState(false);
   const [addGoalError, setAddGoalError] = useState<string | null>(null);
 
@@ -375,7 +382,7 @@ export function GoalsScreen() {
       const res = await fetch("/api/goals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, targetAmount: target, goalType: "custom" }),
+        body: JSON.stringify({ name, targetAmount: target, goalType: "custom", shared: newGoalShared }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -385,6 +392,7 @@ export function GoalsScreen() {
       setApiGoals((prev) => [...prev, data]);
       setNewGoalName("");
       setNewGoalTarget("");
+      setNewGoalShared(false);
       setShowAddGoal(false);
     } catch {
       setAddGoalError("Couldn't reach the server — check your connection and try again.");
@@ -938,6 +946,53 @@ export function GoalsScreen() {
                       color: colors.textPrimary,
                     }}
                   />
+                  {/* Only offered when a real Partnership exists — a solo
+                      user has nothing to share with yet, and POST
+                      /api/goals rejects `shared: true` without one anyway
+                      (see that route's own validation). Same Pressable +
+                      role="button" + aria-pressed pill pattern as the
+                      Wedding/All Goals segment toggle above, not a segment
+                      switch itself — this sets state consumed only by
+                      handleAddGoal's POST body, added 2026-08-08 once
+                      GET/POST /api/goals actually round-tripped a real
+                      `shared` field (previously hardcoded false either way). */}
+                  {hasPartnership && (
+                    <View>
+                      <Text variant="caption" secondary style={{ marginBottom: 4 }}>
+                        Who&apos;s this for?
+                      </Text>
+                      <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                        {(["personal", "shared"] as const).map((opt) => {
+                          const optIsShared = opt === "shared";
+                          const selected = newGoalShared === optIsShared;
+                          return (
+                            <Pressable
+                              key={opt}
+                              onPress={() => setNewGoalShared(optIsShared)}
+                              role="button"
+                              aria-pressed={selected}
+                              style={{
+                                paddingVertical: 8,
+                                paddingHorizontal: 14,
+                                borderRadius: radius.pill,
+                                backgroundColor: selected ? palette.sourLime : colors.surface,
+                                borderWidth: 1,
+                                borderColor: selected ? palette.sourLime : colors.border,
+                              }}
+                            >
+                              <Text
+                                variant="bodySmall"
+                                color={selected ? palette.licorice : colors.textPrimary}
+                                style={{ fontWeight: "600" }}
+                              >
+                                {optIsShared ? "Shared" : "Personal"}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
                   {addGoalError && (
                     <Text variant="caption" style={{ color: palette.sourPunch }}>
                       {addGoalError}
