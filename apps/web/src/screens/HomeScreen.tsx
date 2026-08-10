@@ -98,6 +98,15 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
     topics: string[];
     status: string;
   } | null>(null);
+  // null = still loading or backend unreachable (falls back to the mock
+  // card below, same posture as every other card); only `false` — a real,
+  // confirmed "this user has no Partnership" answer — hides the card
+  // entirely. Money Meetings are inherently a couple's ritual (money_meetings
+  // requires a non-null partnership_id; there's no solo concept at all), so
+  // unlike Activity's empty-list state, there's no meaningful "0 meetings"
+  // card to show instead — omitting it is the honest move, same as
+  // AvatarStack's fix a few entries ago.
+  const [meetingHasPartnership, setMeetingHasPartnership] = useState<boolean | null>(null);
   const [completingMeeting, setCompletingMeeting] = useState(false);
   const [apiActivity, setApiActivity] = useState<{ id: string; text: string; time: string }[] | null>(null);
 
@@ -199,11 +208,19 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
         >;
       })
       .then((data) => {
-        if (cancelled || !data.hasPartnership) return;
-        setApiMeeting({ id: data.id, weekOf: data.weekOf, topics: data.topics, status: data.status });
+        if (cancelled) return;
+        // hasPartnership: false is a real, confirmed answer — used to
+        // `return` here without recording that anywhere, which meant a
+        // genuinely solo real user got the exact same "unreachable" mock
+        // fallback as someone whose fetch had actually failed (found
+        // 2026-08-08, same bug already fixed for Activity above).
+        setMeetingHasPartnership(data.hasPartnership);
+        if (data.hasPartnership) {
+          setApiMeeting({ id: data.id, weekOf: data.weekOf, topics: data.topics, status: data.status });
+        }
       })
       .catch(() => {
-        // No database/Clerk reachable (or no Partnership yet) — fall back to the mock below.
+        // No database/Clerk reachable — stays null, falls back to the mock below.
       });
     return () => {
       cancelled = true;
@@ -366,43 +383,49 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
       {/* Money Meeting ritual card — a distinct treatment, UX Blueprint §3.3.
           Real as of 2026-08-05 once a Partnership exists: the agenda is
           derived from real Budget/Wedding data (see lib/moneyMeeting.ts),
-          not an AI call. Falls back to the mock agenda otherwise. */}
-      <ScreenGridWide>
-        <Card glow={palette.grape}>
-          <Text variant="caption" color={palette.grape}>
-            WEEK OF {(apiMeeting?.weekOf ?? moneyMeeting.weekOf).toUpperCase()}
-          </Text>
-          <Text variant="h3" style={{ marginTop: spacing.xs }}>
-            {apiMeeting?.status === "completed" ? "Money Meeting complete" : "Your Money Meeting is ready"}
-          </Text>
-          <View style={{ marginTop: spacing.sm, gap: 4 }}>
-            {(apiMeeting?.topics ?? moneyMeeting.topics).map((t, i) => (
-              <Text key={i} variant="bodySmall" secondary>
-                • {t}
-              </Text>
-            ))}
-          </View>
-          {apiMeeting && apiMeeting.status !== "completed" && (
-            <Pressable
-              onPress={handleCompleteMeeting}
-              disabled={completingMeeting}
-              role="button"
-              style={{
-                alignSelf: "flex-start",
-                marginTop: spacing.sm,
-                paddingVertical: 8,
-                paddingHorizontal: 14,
-                borderRadius: 999,
-                backgroundColor: palette.grape,
-              }}
-            >
-              <Text variant="bodySmall" color={getTextColorFor(palette.grape)} style={{ fontWeight: "600" }}>
-                {completingMeeting ? "Saving…" : "Mark as done"}
-              </Text>
-            </Pressable>
-          )}
-        </Card>
-      </ScreenGridWide>
+          not an AI call. Falls back to the mock agenda while loading/
+          unreachable; omitted entirely once a real fetch confirms this
+          user genuinely has no Partnership (meetingHasPartnership === false)
+          — Money Meetings can't exist without one, so there's no honest
+          "empty" version of this card to show instead. */}
+      {meetingHasPartnership !== false && (
+        <ScreenGridWide>
+          <Card glow={palette.grape}>
+            <Text variant="caption" color={palette.grape}>
+              WEEK OF {(apiMeeting?.weekOf ?? moneyMeeting.weekOf).toUpperCase()}
+            </Text>
+            <Text variant="h3" style={{ marginTop: spacing.xs }}>
+              {apiMeeting?.status === "completed" ? "Money Meeting complete" : "Your Money Meeting is ready"}
+            </Text>
+            <View style={{ marginTop: spacing.sm, gap: 4 }}>
+              {(apiMeeting?.topics ?? moneyMeeting.topics).map((t, i) => (
+                <Text key={i} variant="bodySmall" secondary>
+                  • {t}
+                </Text>
+              ))}
+            </View>
+            {apiMeeting && apiMeeting.status !== "completed" && (
+              <Pressable
+                onPress={handleCompleteMeeting}
+                disabled={completingMeeting}
+                role="button"
+                style={{
+                  alignSelf: "flex-start",
+                  marginTop: spacing.sm,
+                  paddingVertical: 8,
+                  paddingHorizontal: 14,
+                  borderRadius: 999,
+                  backgroundColor: palette.grape,
+                }}
+              >
+                <Text variant="bodySmall" color={getTextColorFor(palette.grape)} style={{ fontWeight: "600" }}>
+                  {completingMeeting ? "Saving…" : "Mark as done"}
+                </Text>
+              </Pressable>
+            )}
+          </Card>
+        </ScreenGridWide>
+      )}
 
       <ScreenGridWide>
         <Card>
