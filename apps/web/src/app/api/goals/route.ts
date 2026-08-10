@@ -37,7 +37,7 @@ export async function GET() {
       await client.query(`insert into users (id) values ($1) on conflict (id) do nothing`, [userId]);
 
       const goalsResult = await client.query(
-        `select id, name, goal_type, target_amount::float8 as target_amount, target_date::text as target_date
+        `select id, name, goal_type, target_amount::float8 as target_amount, target_date::text as target_date, is_shared
          from goals order by created_at asc`
       );
       const goalIds = goalsResult.rows.map((r) => r.id);
@@ -61,6 +61,7 @@ export async function GET() {
         goalType: g.goal_type,
         targetAmount: g.target_amount,
         targetDate: g.target_date,
+        shared: g.is_shared,
         contributions: contributionsResult.rows
           .filter((c) => c.goal_id === g.id)
           .map((c) => ({
@@ -117,6 +118,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "targetDate must be in YYYY-MM-DD format" }, { status: 400 });
   }
 
+  // Known, deliberately-not-attempted gap (found 2026-08-08, same pass that
+  // fixed GET's `shared` field never being read at all): this only ever
+  // inserts owner_id, never partnership_id/is_shared, so every goal
+  // created through this route today is personal — there is currently no
+  // way to create a *shared* goal via the real app at all, even though
+  // "Goals built for two" is a headline feature (landing page copy) and
+  // the mock data explicitly demonstrates both shapes coexisting for one
+  // user (Our Wedding/Emergency Fund shared, New Camera personal). Unlike
+  // Budget (which correctly defaults to shared-when-partnered, no user
+  // choice needed since there's only ever one shared budget per month),
+  // Goals genuinely need a per-goal choice — a user staying partnered the
+  // whole time might still want a personal goal alongside shared ones, so
+  // blanket-defaulting every new goal to shared once partnered (mirroring
+  // Budget's pattern) would be wrong here, not just inconsistent. Fixing
+  // this for real needs a Personal/Shared choice on the "Add a goal" form,
+  // a real UI/product decision, not a data-wiring fix — flagged in
+  // PROJECT_MEMORY.md rather than guessed at.
   try {
     const goal = await withUserContext(userId, async (client) => {
       await client.query(`insert into users (id) values ($1) on conflict (id) do nothing`, [userId]);
@@ -134,6 +152,7 @@ export async function POST(request: Request) {
       goalType: goal.goal_type,
       targetAmount: goal.target_amount,
       targetDate: goal.target_date,
+      shared: false,
       contributions: [],
     });
   } catch (err) {

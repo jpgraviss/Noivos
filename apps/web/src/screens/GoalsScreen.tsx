@@ -33,6 +33,7 @@ interface ApiGoal {
   goalType: string;
   targetAmount: number;
   targetDate: string | null;
+  shared: boolean;
   contributions: ApiContribution[];
 }
 
@@ -87,7 +88,14 @@ function toDisplayGoal(g: ApiGoal): DisplayGoal {
       color: CONTRIBUTOR_COLORS[idx % CONTRIBUTOR_COLORS.length],
     };
   });
-  return { id: g.id, name: g.name, target: g.targetAmount, shared: false, contributors };
+  // Was hardcoded `false` — every real goal, shared or personal, showed the
+  // "Personal" OwnershipBadge regardless of its actual sharing status,
+  // since GET /api/goals never selected/returned is_shared at all (found
+  // and fixed 2026-08-08). Every real goal happens to genuinely be
+  // personal today anyway (POST /api/goals can't create a shared one yet —
+  // see that route's own comment), so this had zero visible effect until
+  // that's fixed too, but the field itself was simply wrong.
+  return { id: g.id, name: g.name, target: g.targetAmount, shared: g.shared, contributors };
 }
 
 // Per docs/03 UX/UX-UI Blueprint.md §3.2: while Wedding Mode is active this
