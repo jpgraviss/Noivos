@@ -22,6 +22,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
   const { id: goalId } = await params;
+  // Not reachable via the real UI — GoalsScreen.tsx only ever calls this
+  // with a goal id it already fetched from GET /api/goals — but a route
+  // boundary shouldn't trust that. Without this, a malformed id here would
+  // hit Postgres's own uuid-cast error inside the catch block below and
+  // get reported as the *specific* "the goal may not exist or isn't yours"
+  // 403 (found 2026-08-08 while reading this route closely) — a
+  // confidently wrong reason for what's actually a format error, not an
+  // RLS denial. Checked format explicitly so those two genuinely different
+  // failure modes get genuinely different responses.
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(goalId)) {
+    return NextResponse.json({ error: "Invalid goal id" }, { status: 400 });
+  }
 
   let body: { amount?: unknown; note?: unknown };
   try {
