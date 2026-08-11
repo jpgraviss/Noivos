@@ -4,7 +4,7 @@ import { Circle, CircleCheck, Flag, Plus } from "lucide-react-native";
 import { Card, OwnershipBadge, StackedProgressBar, Text, useTheme, spacing, radius, palette } from "@noivos/ui";
 import { goals as mockGoals, weddingDetails } from "../data/mockData";
 import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
-import { daysUntil } from "../lib/date";
+import { daysUntil, daysUntilHumanDate } from "../lib/date";
 
 // Rotated per distinct contributor. Originally a hardcoded darker green
 // (#638C00) stood in for palette.sourLime here specifically because the old
@@ -498,7 +498,7 @@ export function GoalsScreen() {
             <Card glow={palette.sourPunch}>
               <Flag size={16} color={palette.sourPunch} style={{ marginBottom: spacing.xs }} aria-hidden={true} />
               <Text variant="display" color={palette.sourPunch}>
-                {weddingDetails.daysLeft}
+                {daysUntilHumanDate(weddingDetails.date)}
               </Text>
               <Text variant="body" secondary>
                 days until {weddingDetails.date}
@@ -517,7 +517,7 @@ export function GoalsScreen() {
                   <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
                     <Text variant="body">{v.name}</Text>
                     <Text variant="bodySmall" secondary>
-                      ${v.balanceDue} due {v.dueDate}
+                      ${v.balanceDue.toLocaleString()} due {v.dueDate}
                     </Text>
                   </View>
                   <Text variant="caption" color={palette.sourLime}>
@@ -665,7 +665,7 @@ export function GoalsScreen() {
                     <Text variant="body">{v.name}</Text>
                     {v.balanceDue != null && (
                       <Text variant="bodySmall" secondary>
-                        ${v.balanceDue}{v.balanceDueDate ? ` due ${v.balanceDueDate}` : ""}
+                        ${v.balanceDue.toLocaleString()}{v.balanceDueDate ? ` due ${v.balanceDueDate}` : ""}
                       </Text>
                     )}
                   </View>

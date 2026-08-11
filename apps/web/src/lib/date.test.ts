@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { daysUntil } from "./date";
+import { daysUntil, daysUntilHumanDate } from "./date";
 
 // daysUntil drives Wedding Mode's countdown ("N days until [date]") — real
 // date math with a real consequence if it's wrong. Both "now" and the
@@ -43,5 +43,33 @@ describe("daysUntil", () => {
     // case itself if that's ever undesirable.
     vi.setSystemTime(new Date("2026-08-09T12:00:00"));
     expect(daysUntil("2026-08-06")).toBe(-3);
+  });
+});
+
+// GoalsScreen.tsx's mock/fallback wedding countdown branch specifically —
+// same math as daysUntil(), for the human-readable date format the mock
+// data is authored in. Added 2026-08-11 alongside the fix for a real,
+// verified bug: that branch used to render a separately-stored `daysLeft`
+// literal that had already drifted 9 days out of sync with the mock's own
+// `date` field.
+describe("daysUntilHumanDate", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("counts days out correctly for a human-readable date", () => {
+    vi.setSystemTime(new Date("2026-07-07T12:00:00"));
+    expect(daysUntilHumanDate("August 6, 2026")).toBe(30);
+  });
+
+  it("returns +0 (not -0) for the date itself, any time of day", () => {
+    vi.setSystemTime(new Date("2026-08-06T15:00:00"));
+    expect(daysUntilHumanDate("August 6, 2026")).toBe(0);
+    expect(Object.is(daysUntilHumanDate("August 6, 2026"), -0)).toBe(false);
+  });
+
+  it("goes negative once the date has passed", () => {
+    vi.setSystemTime(new Date("2026-08-09T12:00:00"));
+    expect(daysUntilHumanDate("August 6, 2026")).toBe(-3);
   });
 });

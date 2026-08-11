@@ -43,7 +43,11 @@ export function GoalsScreen() {
       {segment === 'wedding' && weddingDetails.active ? (
         <>
           <Card glow={palette.sourPunch}>
-            <Text variant="display" color={palette.sourPunch}>{weddingDetails.daysLeft}</Text>
+            {/* Computed from weddingDetails.date rather than a stored
+                daysLeft literal (found 2026-08-11: the two had drifted
+                9 days out of sync, and would keep drifting further every
+                day this mock content stays deployed). */}
+            <Text variant="display" color={palette.sourPunch}>{Math.ceil((new Date(weddingDetails.date).getTime() - Date.now()) / 86400000)}</Text>
             <Text variant="body" secondary>days until {weddingDetails.date}</Text>
             <Text variant="bodySmall" secondary style={{ marginTop: spacing.xs }}>~{weddingDetails.guestEstimate} guests</Text>
           </Card>

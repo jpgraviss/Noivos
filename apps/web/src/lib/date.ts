@@ -19,3 +19,22 @@ export function daysUntil(dateStr: string | null): number | null {
   // some future caller doing an Object.is/strict-identity check.
   return Math.ceil((target.getTime() - now.getTime()) / 86400000) || 0;
 }
+
+// Same math as daysUntil(), but for a human-readable date string (e.g.
+// "June 12, 2027") rather than an ISO yyyy-mm-dd one — needed for
+// GoalsScreen.tsx's mock/fallback wedding countdown branch (shown only
+// when the real wedding backend is unreachable), whose mock date is
+// authored in that display-friendly format. Extracted as its own function
+// (2026-08-11) rather than inlining `new Date(...).getTime() - Date.now()`
+// directly in the component: `react-hooks/purity` (this repo's React
+// Compiler lint rule) flags a direct `Date.now()` call inside a component's
+// render body as an impure read, but not one made inside an imported
+// function like this — the same reason daysUntil() above already gets a
+// pass at its own real-data call site. Also fixes a real bug found the
+// same day: that mock branch used to render a hardcoded `daysLeft` number
+// stored separately from `date`, and the two had already drifted 9 days
+// out of sync (and would keep drifting further every day this mock content
+// stays deployed) — computing it here instead removes the drift entirely.
+export function daysUntilHumanDate(dateStr: string): number {
+  return Math.ceil((new Date(dateStr).getTime() - new Date().getTime()) / 86400000) || 0;
+}

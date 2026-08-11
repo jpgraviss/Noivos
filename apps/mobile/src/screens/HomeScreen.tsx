@@ -31,7 +31,7 @@ export function HomeScreen() {
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <Text variant="h3">{budgetSnapshot.month} Budget</Text>
-          <Text variant="bodySmall" secondary>${budgetSnapshot.spent} of ${budgetSnapshot.planned}</Text>
+          <Text variant="bodySmall" secondary>${budgetSnapshot.spent.toLocaleString()} of ${budgetSnapshot.planned.toLocaleString()}</Text>
         </View>
         <View style={{ height: 10, borderRadius: 999, backgroundColor: colors.border, marginTop: spacing.sm, overflow: 'hidden' }}>
           <View
@@ -65,7 +65,7 @@ export function HomeScreen() {
         {upcomingBills.map((b) => (
           <View key={b.id} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
             <Text variant="body">{b.name}</Text>
-            <Text variant="body" secondary>${b.amount} · {b.due}</Text>
+            <Text variant="body" secondary>${b.amount.toLocaleString()} · {b.due}</Text>
           </View>
         ))}
       </Card>

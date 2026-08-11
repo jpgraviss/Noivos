@@ -73,8 +73,10 @@ export const upcomingBills = [
 
 export const weddingDetails = {
   active: true,
+  // No stored daysLeft literal — GoalsScreen.tsx computes it from `date` at
+  // render time instead (found 2026-08-11: a hardcoded number here had
+  // drifted 9 days out of sync with `date` and would keep drifting).
   date: 'June 12, 2027',
-  daysLeft: 314,
   guestEstimate: 120,
   vendors: [
     { name: 'Willow Creek Venue', status: 'Deposit paid', balanceDue: 4200, dueDate: 'Mar 1' },

@@ -440,7 +440,7 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }}>
           <Text variant="h3">{budget.month} Budget</Text>
           <Text variant="bodySmall" secondary>
-            ${budget.spent} of ${budget.planned}
+            ${budget.spent.toLocaleString()} of ${budget.planned.toLocaleString()}
           </Text>
         </View>
         <View style={{ height: 10, borderRadius: 999, backgroundColor: colors.border, marginTop: spacing.sm, overflow: "hidden" }}>
@@ -497,7 +497,7 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
           <View key={b.id} style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
             <Text variant="body">{b.name}</Text>
             <Text variant="body" secondary>
-              ${b.amount} · {b.due}
+              ${b.amount.toLocaleString()} · {b.due}
             </Text>
           </View>
         ))}
