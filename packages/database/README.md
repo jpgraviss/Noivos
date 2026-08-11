@@ -53,7 +53,7 @@ Supabase gave RLS policies a free, built-in `auth.uid()`. Clerk (the new auth pr
 | `0011_add_foreign_key_indexes.sql` | ✅ Applied 2026-08-08 |
 | `0012_fix_write_policy_membership_gaps.sql` | ✅ Applied 2026-08-08 |
 | `0013_fix_activity_feed_insert_membership_gap.sql` | ✅ Applied 2026-08-08 |
-| `0014_fix_disconnect_orphaned_membership.sql` | ⏳ Not yet applied |
+| `0014_fix_disconnect_orphaned_membership.sql` | ✅ Applied 2026-08-11 |
 
 When a new migration file is added here, add its row to this table as **Not yet applied** in the same commit — don't let a migration exist in the repo without a tracked status. When the founder confirms one has been run, flip it to Applied (with the date) in the same turn, not deferred to the next PROJECT_MEMORY pass.
 
