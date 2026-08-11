@@ -15,8 +15,9 @@ function clerkConfigured() {
 // first creates it) instead of one row per user, so both partners actually
 // see the same numbers. Only the creating partner can currently *edit* it
 // (budget_categories_write in 0002_rls.sql is owner-scoped) — the other
-// partner gets a real, correct read-only view. A true co-editable budget
-// needs its own RLS pass later; not attempted here.
+// partner gets a real, correct read-only view (see the budgetOwnedByRequester
+// guard below, which is what actually makes that true rather than crashing).
+// A true co-editable budget needs its own RLS pass later; not attempted here.
 export async function GET() {
   if (!clerkConfigured()) {
     return NextResponse.json({ error: "Clerk isn't configured" }, { status: 503 });
@@ -75,12 +76,20 @@ export async function GET() {
       // Find this month's budget: the shared partnership one if it already
       // exists, else this user's own row (creating it if neither exists).
       let budgetId: string | null = null;
+      // Tracks whether *this* request's user is the budgets row's owner —
+      // needed below because budget_categories_write's RLS is owner-scoped
+      // (see the design note above), so a non-owning partner genuinely
+      // cannot write a budget_categories row for this budget, only read it.
+      let budgetOwnedByRequester = true;
       if (partnershipId) {
         const sharedBudget = await client.query(
-          `select id from budgets where partnership_id = $1 and is_shared = true and month = $2::date`,
+          `select id, owner_id from budgets where partnership_id = $1 and is_shared = true and month = $2::date`,
           [partnershipId, month]
         );
-        if (sharedBudget.rows[0]) budgetId = sharedBudget.rows[0].id;
+        if (sharedBudget.rows[0]) {
+          budgetId = sharedBudget.rows[0].id;
+          budgetOwnedByRequester = sharedBudget.rows[0].owner_id === userId;
+        }
       }
       if (!budgetId) {
         const own = await client.query(
@@ -131,28 +140,48 @@ export async function GET() {
       // budget_categories row (seeded from the default planned amount when
       // it's a known default, 0 otherwise) so newly-added categories always
       // show up rather than silently being excluded.
-      const categories = await client.query(
-        `select id, name from categories
-         where owner_id = $1 or ($2::uuid is not null and partnership_id = $2)
-         order by created_at asc`,
-        [userId, partnershipId]
-      );
-      for (const cat of categories.rows) {
-        const existingBc = await client.query(
-          `select id from budget_categories where budget_id = $1 and category_id = $2`,
-          [budgetId, cat.id]
-        );
-        if (!existingBc.rows[0]) {
-          const seed = DEFAULT_CATEGORIES.find((d) => d.name === cat.name);
-          // ON CONFLICT DO NOTHING against budget_categories_unique (migration
-          // 0008) — same class of race as the categories bootstrap above; the
-          // select below re-reads everything fresh regardless of who won.
-          await client.query(
-            `insert into budget_categories (budget_id, category_id, planned_amount)
-             values ($1, $2, $3)
-             on conflict (budget_id, category_id) do nothing`,
-            [budgetId, cat.id, seed?.plannedAmount ?? 0]
+      //
+      // Only attempted when this request's user actually owns budgetId —
+      // budget_categories_write's RLS is owner-scoped (see the design note
+      // above), so a non-owning partner's insert here would be denied by
+      // RLS on *any* not-yet-linked category, shared or personal (found
+      // 2026-08-11: this wasn't a rare edge case — it fires the very first
+      // time the non-creating partner loads Budget in a given month, since
+      // whoever didn't create this month's shared budget row never owns
+      // it). That denial previously propagated straight to the outer catch
+      // block below as a raw, uncaught error, turning the intended
+      // "the other partner gets a real, correct read-only view" (per the
+      // design note above) into an actual 500 that broke their Budget page
+      // outright. Skipping the backfill for a non-owner is what actually
+      // makes that read-only view real: they still see every
+      // budget_categories row the owner has already linked, just without
+      // this request also trying to add missing ones on their behalf.
+      const categories = budgetOwnedByRequester
+        ? await client.query(
+            `select id, name from categories
+             where owner_id = $1 or ($2::uuid is not null and partnership_id = $2)
+             order by created_at asc`,
+            [userId, partnershipId]
+          )
+        : null;
+      if (categories) {
+        for (const cat of categories.rows) {
+          const existingBc = await client.query(
+            `select id from budget_categories where budget_id = $1 and category_id = $2`,
+            [budgetId, cat.id]
           );
+          if (!existingBc.rows[0]) {
+            const seed = DEFAULT_CATEGORIES.find((d) => d.name === cat.name);
+            // ON CONFLICT DO NOTHING against budget_categories_unique (migration
+            // 0008) — same class of race as the categories bootstrap above; the
+            // select below re-reads everything fresh regardless of who won.
+            await client.query(
+              `insert into budget_categories (budget_id, category_id, planned_amount)
+               values ($1, $2, $3)
+               on conflict (budget_id, category_id) do nothing`,
+              [budgetId, cat.id, seed?.plannedAmount ?? 0]
+            );
+          }
         }
       }
 
