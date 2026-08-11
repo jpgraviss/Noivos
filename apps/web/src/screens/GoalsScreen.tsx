@@ -598,12 +598,51 @@ export function GoalsScreen() {
           <>
             <Card glow={palette.sourPunch}>
               <Flag size={16} color={palette.sourPunch} style={{ marginBottom: spacing.xs }} aria-hidden={true} />
-              <Text variant="display" color={palette.sourPunch}>
-                {daysUntil(apiWedding.weddingDate) ?? "—"}
-              </Text>
-              <Text variant="body" secondary>
-                {apiWedding.weddingDate ? `days until ${apiWedding.weddingDate}` : "Set a wedding date to see your countdown"}
-              </Text>
+              {/* daysUntil() returns a negative number once the date has
+                  passed (correct — it's real date math, not itself a bug),
+                  but nothing here branched on that: a couple whose wedding
+                  date has already come and gone (an ordinary state — this
+                  screen doesn't clear or archive anything once the date
+                  passes) saw a bare negative integer glued to forward-
+                  looking "days until" copy, e.g. "-5 / days until
+                  2026-06-12" (found 2026-08-11). */}
+              {(() => {
+                const days = daysUntil(apiWedding.weddingDate);
+                if (days === null) {
+                  return (
+                    <>
+                      <Text variant="display" color={palette.sourPunch}>
+                        —
+                      </Text>
+                      <Text variant="body" secondary>
+                        Set a wedding date to see your countdown
+                      </Text>
+                    </>
+                  );
+                }
+                if (days <= 0) {
+                  return (
+                    <>
+                      <Text variant="display" color={palette.sourPunch}>
+                        Married!
+                      </Text>
+                      <Text variant="body" secondary>
+                        {days === 0 ? `Today's the day — ${apiWedding.weddingDate}` : `Your wedding was ${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"} ago`}
+                      </Text>
+                    </>
+                  );
+                }
+                return (
+                  <>
+                    <Text variant="display" color={palette.sourPunch}>
+                      {days}
+                    </Text>
+                    <Text variant="body" secondary>
+                      days until {apiWedding.weddingDate}
+                    </Text>
+                  </>
+                );
+              })()}
               {apiWedding.guestCountEstimate != null && (
                 <Text variant="bodySmall" secondary style={{ marginTop: spacing.xs }}>
                   ~{apiWedding.guestCountEstimate} guests

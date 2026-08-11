@@ -32,12 +32,25 @@ function inputStyle(borderColor: string, textColor: string, locked: boolean): CS
 // not just by disabling this input. Changing either after that is meant to
 // require admin approval; there's no admin system built yet, so "Request a
 // change" only shows an explanatory note rather than sending anything real.
-export function IdentitySettings({ defaultName }: { defaultName?: string }) {
+//
+// Deliberately takes no default-name prop: AppShell's best-effort greeting
+// name (a Clerk first/full name, an email-derived guess, or the neutral
+// "You") is fine for a greeting, but it's not necessarily this person's
+// real full legal-ish name, and once saved here it locks forever with no
+// working correction flow. This component used to pre-fill nameDraft from
+// exactly that greeting name — found 2026-08-11: a user who didn't notice
+// or clear the pre-filled value before hitting Save could permanently lock
+// in a guess, worst case the mock persona "Ava" itself, when AppShell had
+// nothing real to greet a Clerk user with (no first/full name set). Only a
+// name this component itself fetches below from a previously-saved
+// /api/profile row (an actual prior save, not a guess) is trustworthy
+// enough to pre-fill.
+export function IdentitySettings() {
   const { colors } = useTheme();
   const [backendAvailable, setBackendAvailable] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [saved, setSaved] = useState<Identity | null>(null);
-  const [nameDraft, setNameDraft] = useState(defaultName ?? "");
+  const [nameDraft, setNameDraft] = useState("");
   const [birthdateDraft, setBirthdateDraft] = useState("");
   const [requestNoteVisible, setRequestNoteVisible] = useState(false);
   const [saving, setSaving] = useState(false);

@@ -37,7 +37,7 @@ export interface MoreScreenProps {
   userName?: string;
 }
 
-export function MoreScreen({ onSignOut, userName }: MoreScreenProps = {}) {
+export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
   const { colors, mode, setMode } = useTheme();
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
@@ -59,7 +59,7 @@ export function MoreScreen({ onSignOut, userName }: MoreScreenProps = {}) {
         <Text variant="h1">More</Text>
       </ScreenGridWide>
 
-      <IdentitySettings defaultName={userName} />
+      <IdentitySettings />
 
       <PartnershipSettings />
 
