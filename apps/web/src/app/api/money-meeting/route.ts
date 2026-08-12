@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { clerkConfigured } from "@/lib/clerk";
 import { withUserContext } from "@/lib/db";
 import { findActiveMembership } from "@/lib/partnership";
 import { buildAgenda } from "@/lib/moneyMeeting";
-
-function clerkConfigured() {
-  return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
-}
 
 // money_meetings.partnership_id is NOT NULL — this ritual only exists for a
 // real Partnership, never solo. No new migration needed: the table and its

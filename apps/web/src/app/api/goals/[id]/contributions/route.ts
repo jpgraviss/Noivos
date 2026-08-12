@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { clerkConfigured } from "@/lib/clerk";
 import { withUserContext } from "@/lib/db";
 import { logActivityEvent } from "@/lib/activity";
 import { tooLong, tooLarge, isUuid, MAX_NOTE_LENGTH, MAX_AMOUNT } from "@/lib/validate";
-
-function clerkConfigured() {
-  return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
-}
 
 // The goal_contributions_write RLS policy (0004_tighten_goal_contributions_rls.sql)
 // is what actually enforces "you can only contribute to a goal you own or

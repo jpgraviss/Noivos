@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { clerkConfigured } from "@/lib/clerk";
 import { withUserContext } from "@/lib/db";
 import { findOrCreateManualAccount } from "@/lib/budget";
 import { logActivityEvent } from "@/lib/activity";
 import { tooLong, tooLarge, isUuid, MAX_NAME_LENGTH, MAX_AMOUNT } from "@/lib/validate";
-
-function clerkConfigured() {
-  return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
-}
 
 // Logs a manually-entered expense against an existing budget category. No
 // Plaid/bank-linking exists yet, so every transaction in V1 goes through

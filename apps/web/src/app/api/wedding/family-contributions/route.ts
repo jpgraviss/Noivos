@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { clerkConfigured } from "@/lib/clerk";
 import { withUserContext } from "@/lib/db";
 import { findActiveMembership } from "@/lib/partnership";
 import { findWeddingDetails } from "@/lib/wedding";
 import { logActivityEvent } from "@/lib/activity";
 import { tooLong, tooLarge, MAX_NAME_LENGTH, MAX_NOTE_LENGTH, MAX_AMOUNT } from "@/lib/validate";
-
-function clerkConfigured() {
-  return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
-}
 
 // Deliberately a plain ledger line, not a structured contributor entity —
 // per PROJECT_MEMORY.md's 2026-08-02 decision (PRD §12.8): family members

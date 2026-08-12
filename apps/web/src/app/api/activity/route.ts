@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { clerkConfigured } from "@/lib/clerk";
 import { withUserContext } from "@/lib/db";
 import { findActiveMembership } from "@/lib/partnership";
 import { describeActivityEvent } from "@/lib/activity";
-
-function clerkConfigured() {
-  return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
-}
 
 // activity_feed_events_select's RLS (0002_rls.sql) already scopes this to
 // events in a Partnership this user is/was a member of — no manual

@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { clerkConfigured } from "@/lib/clerk";
 import { withUserContext } from "@/lib/db";
 import { logActivityEvent } from "@/lib/activity";
-
-function clerkConfigured() {
-  return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
-}
 
 // No manual ownership check needed here beyond RLS itself —
 // wedding_checklist_items_all's WITH CHECK (0002_rls.sql) already requires

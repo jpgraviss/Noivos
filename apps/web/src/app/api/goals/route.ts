@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { clerkConfigured } from "@/lib/clerk";
 import { withUserContext } from "@/lib/db";
 import { findActiveMembership } from "@/lib/partnership";
 import { tooLong, tooLarge, isValidDateString, MAX_NAME_LENGTH, MAX_AMOUNT } from "@/lib/validate";
@@ -15,10 +16,6 @@ const GOAL_TYPES = [
   "retirement",
   "custom",
 ] as const;
-
-function clerkConfigured() {
-  return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
-}
 
 // GET/POST both rely entirely on RLS to scope rows to what this user can
 // actually see/write (goals_select/goals_write, packages/database/

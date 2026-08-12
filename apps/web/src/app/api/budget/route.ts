@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { clerkConfigured } from "@/lib/clerk";
 import { withUserContext } from "@/lib/db";
 import { findActiveMembership } from "@/lib/partnership";
 import { DEFAULT_CATEGORIES } from "@/lib/budget";
-
-function clerkConfigured() {
-  return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
-}
 
 // Design note (fast-tracked judgment call, same posture as the Partnership
 // status='active' fix — flagged here and in PROJECT_MEMORY.md rather than

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { clerkConfigured } from "@/lib/clerk";
 import { withUserContext } from "@/lib/db";
 import { tooLong, isPlausibleBirthdate, MAX_NAME_LENGTH } from "@/lib/validate";
 
@@ -7,10 +8,6 @@ import { tooLong, isPlausibleBirthdate, MAX_NAME_LENGTH } from "@/lib/validate";
 // (no ClerkProvider/clerkMiddleware running at all — see proxy.ts), there's
 // no authenticated user to attach data to, so these routes fail clearly
 // rather than crashing on a missing auth context.
-function clerkConfigured() {
-  return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
-}
-
 export async function GET() {
   if (!clerkConfigured()) {
     return NextResponse.json({ error: "Clerk isn't configured" }, { status: 503 });
