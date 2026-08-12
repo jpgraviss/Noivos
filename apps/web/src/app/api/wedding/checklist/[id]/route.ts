@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { clerkConfigured } from "@/lib/clerk";
 import { withUserContext } from "@/lib/db";
 import { logActivityEvent } from "@/lib/activity";
+import { isUuid } from "@/lib/validate";
 
 // No manual ownership check needed here beyond RLS itself —
 // wedding_checklist_items_all's WITH CHECK (0002_rls.sql) already requires
@@ -18,6 +19,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
   const { id } = await params;
+  // Not reachable via the real UI — GoalsScreen.tsx only ever calls this
+  // with an id it already fetched from GET /api/wedding — but same posture
+  // as the identical fix in goals/[id]/contributions (found 2026-08-08):
+  // without this, a malformed id hits Postgres's own uuid-cast error inside
+  // the catch block below and surfaces as this route's generic 500 instead
+  // of a clean, specific 400. The two sibling [id]-segment routes in this
+  // app now match (found 2026-08-11 — this one had been left out during
+  // the earlier pass since its 500 message was already honestly generic
+  // rather than confidently wrong, but a clean 400 is still the better
+  // response for a format error either way).
+  if (!isUuid(id)) {
+    return NextResponse.json({ error: "Invalid checklist item id" }, { status: 400 });
+  }
 
   let body: { isComplete?: unknown };
   try {
