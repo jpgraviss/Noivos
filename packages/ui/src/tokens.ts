@@ -81,8 +81,20 @@ export const colorTokens: Record<'dark' | 'light', ColorTokens> = {
 
 // Text-on-color enforcement table — Design System §2. Never choose a
 // text color for one of these backgrounds outside this map.
+//
+// sourLime -> licorice (found 2026-08-11, was sourCloud): sourLime's actual
+// WCAG relative luminance (0.725) sits right next to sourCloud's (0.898) —
+// a measured contrast ratio of ~1.22:1, nowhere close to the 4.5:1 (normal
+// text) or 3:1 (large/bold text) minimum. Off-white text on a bright
+// neon-lime background was effectively illegible on every default
+// (variant="primary") Button in both apps — the marketing page's main
+// "Get started" CTA, "Send invite", the identity Save button, and more,
+// in both light and dark mode identically (colorTokens.primary resolves to
+// sourLime in both). citrus, a similarly light/high-luminance accent, was
+// already correctly paired with dark licorice text (~13:1) — sourLime now
+// gets the same treatment, which also measures ~13.7:1.
 export const textOnColor: Record<string, string> = {
-  [palette.sourLime]: palette.sourCloud,
+  [palette.sourLime]: palette.licorice,
   [palette.sourPunch]: palette.sourCloud,
   [palette.electricBlue]: palette.sourCloud,
   [palette.citrus]: palette.licorice,
