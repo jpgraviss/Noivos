@@ -153,32 +153,43 @@ export async function GET() {
       // makes that read-only view real: they still see every
       // budget_categories row the owner has already linked, just without
       // this request also trying to add missing ones on their behalf.
-      const categories = budgetOwnedByRequester
-        ? await client.query(
-            `select id, name from categories
-             where owner_id = $1 or ($2::uuid is not null and partnership_id = $2)
-             order by created_at asc`,
-            [userId, partnershipId]
-          )
-        : null;
-      if (categories) {
-        for (const cat of categories.rows) {
-          const existingBc = await client.query(
-            `select id from budget_categories where budget_id = $1 and category_id = $2`,
-            [budgetId, cat.id]
+      // Single set-based query instead of one existence-check SELECT per
+      // category (found 2026-08-13, a real N+1): the previous version
+      // looped over every category visible to this user/partnership
+      // (8+ once a couple customizes their budget, only growing from
+      // there) and ran a sequential SELECT for each one — on *every*
+      // GET, even in the ordinary steady-state case where nothing is
+      // actually missing. BudgetScreen.tsx calls this route on every page
+      // load and again after every expense submission, so that was N
+      // extra round trips added to every single request, each one paying
+      // Neon's real network latency for zero actual work. Now it's
+      // exactly one query, returning zero rows once nothing's missing.
+      if (budgetOwnedByRequester) {
+        const missing = await client.query(
+          `select c.id, c.name
+           from categories c
+           left join budget_categories bc on bc.budget_id = $1 and bc.category_id = c.id
+           where (c.owner_id = $2 or ($3::uuid is not null and c.partnership_id = $3))
+             and bc.id is null`,
+          [budgetId, userId, partnershipId]
+        );
+        if (missing.rows.length > 0) {
+          const categoryIds = missing.rows.map((r) => r.id as string);
+          const plannedAmounts = missing.rows.map(
+            (r) => DEFAULT_CATEGORIES.find((d) => d.name === r.name)?.plannedAmount ?? 0
           );
-          if (!existingBc.rows[0]) {
-            const seed = DEFAULT_CATEGORIES.find((d) => d.name === cat.name);
-            // ON CONFLICT DO NOTHING against budget_categories_unique (migration
-            // 0008) — same class of race as the categories bootstrap above; the
-            // select below re-reads everything fresh regardless of who won.
-            await client.query(
-              `insert into budget_categories (budget_id, category_id, planned_amount)
-               values ($1, $2, $3)
-               on conflict (budget_id, category_id) do nothing`,
-              [budgetId, cat.id, seed?.plannedAmount ?? 0]
-            );
-          }
+          // ON CONFLICT DO NOTHING against budget_categories_unique (migration
+          // 0008) — same class of race as the categories bootstrap above; the
+          // select below re-reads everything fresh regardless of who won.
+          // unnest() turns the two parallel arrays into rows for a single
+          // multi-row insert, rather than one insert per missing category.
+          await client.query(
+            `insert into budget_categories (budget_id, category_id, planned_amount)
+             select $1, cat_id, planned
+             from unnest($2::uuid[], $3::numeric[]) as t(cat_id, planned)
+             on conflict (budget_id, category_id) do nothing`,
+            [budgetId, categoryIds, plannedAmounts]
+          );
         }
       }
 
