@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View, Pressable, TextInput } from "react-native";
 import { Plus } from "lucide-react-native";
 import { Card, OwnershipBadge, StackedProgressBar, Skeleton, Text, useTheme, spacing, radius, palette } from "@noivos/ui";
@@ -74,13 +74,35 @@ export function BudgetScreen() {
   const [submittingFor, setSubmittingFor] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Guards two distinct races (found 2026-08-13, same audit pass that
+  // built the Skeleton-gating above but missed hardening this specific
+  // function at the time): unlike every sibling screen's fetch effect
+  // (HomeScreen's six, GoalsScreen's two), loadBudget() had no
+  // cancellation guard at all, and it's called from two places — the
+  // mount effect below, and handleAddExpense's post-save refetch — so a
+  // request token beats a simple boolean flag here.
+  // 1. Unmount: AppShell swaps ActiveScreen wholesale on tab switch,
+  //    unmounting this screen entirely. Without a guard, a slow /api/budget
+  //    response that resolves after the user has already clicked away
+  //    calls setState on an unmounted component (a real React warning/leak).
+  // 2. Out-of-order responses: two expenses logged to two different
+  //    categories in quick succession (each category's add-form is only
+  //    gated by its own submittingFor === c.id, so two concurrent adds are
+  //    possible) fire two overlapping loadBudget() GETs whose responses can
+  //    arrive in either order — without a token, whichever resolves last
+  //    wins even if it was fired first, silently overwriting a fresher
+  //    budget snapshot with a staler one.
+  const loadRequestRef = useRef(0);
+
   function loadBudget() {
+    const requestId = ++loadRequestRef.current;
     fetch("/api/budget")
       .then(async (res) => {
         if (!res.ok) throw new Error("budget fetch failed");
         return res.json() as Promise<ApiBudget>;
       })
       .then((data) => {
+        if (loadRequestRef.current !== requestId) return;
         setBackendAvailable(true);
         setApiBudget(data);
       })
@@ -88,12 +110,17 @@ export function BudgetScreen() {
         // No database/Clerk reachable — fall back to the mock snapshot below.
       })
       .finally(() => {
-        setResolved(true);
+        if (loadRequestRef.current === requestId) setResolved(true);
       });
   }
 
   useEffect(() => {
     loadBudget();
+    return () => {
+      // Unmounting invalidates any in-flight request — bump past whatever
+      // requestId it captured so its .then()/.finally() become no-ops.
+      loadRequestRef.current += 1;
+    };
   }, []);
 
   async function handleAddExpense(categoryId: string) {

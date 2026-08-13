@@ -180,8 +180,20 @@ export function SignInScreen() {
                 a "button" role — role="button" is what actually gets this a
                 Space-key activation and a proper screen-reader announcement
                 (confirmed against react-native-web's PressResponder source). */}
+            {/* disabled={pending} added 2026-08-13, same audit pass that
+                added the SSO buttons' pending guard just above — this was
+                the one interactive control left on the screen without one.
+                Without it, switching Sign In <-> Create Account while an
+                onEmailPress request is still in flight left the visible
+                form (and its Cancel/submit button's label) out of sync
+                with which mode that in-flight request actually started
+                as — onEmailPress's closure still branches on the mode it
+                captured at call time, not whatever mode is now showing, so
+                the eventual success/error handling could land against a
+                form the user is no longer looking at. */}
             <Pressable
               onPress={() => setMode(mode === 'signIn' ? 'signUp' : 'signIn')}
+              disabled={pending}
               role="button"
               style={{ marginTop: spacing.md }}
             >

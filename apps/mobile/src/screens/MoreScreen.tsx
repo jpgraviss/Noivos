@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Pressable } from 'react-native';
 import { ChevronDown, ChevronRight, LogOut, Settings, Sparkles, Users } from 'lucide-react-native';
-import { Card, ScreenContainer, Text, useTheme, spacing } from '@noivos/ui';
+import { Card, ScreenContainer, Text, useTheme, spacing, getTextColorFor } from '@noivos/ui';
 import { currentUser } from '../data/mockData';
 
 // Honest "not built yet" copy per row, not a silent dead end — mirrors
@@ -87,7 +87,16 @@ export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
                   borderWidth: 1,
                   borderColor: colors.border,
                   backgroundColor: mode === m ? colors.primary : 'transparent',
-                  color: mode === m ? colors.background : colors.textPrimary,
+                  // Was colors.background (found 2026-08-13, same fix as
+                  // apps/web's MoreScreen.tsx — see that file's comment):
+                  // the current theme's background isn't necessarily
+                  // legible on colors.primary (sourLime) — in light mode
+                  // it's a near-white ~1.3:1 pairing, the same illegible
+                  // combination already fixed once this session via
+                  // tokens.ts's textOnColor map. getTextColorFor() is the
+                  // actual enforcement table for this, independent of
+                  // which theme mode happens to be active.
+                  color: mode === m ? getTextColorFor(colors.primary) : colors.textPrimary,
                   fontWeight: '600',
                 }}
               >

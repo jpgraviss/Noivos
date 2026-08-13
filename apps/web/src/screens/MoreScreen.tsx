@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, Pressable } from "react-native";
 import { ChevronDown, ChevronRight, LogOut, Settings, Sparkles } from "lucide-react-native";
-import { Card, Text, useTheme, spacing } from "@noivos/ui";
+import { Card, Text, useTheme, spacing, palette, getTextColorFor } from "@noivos/ui";
 import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
 import { IdentitySettings } from "../components/IdentitySettings";
 import { PartnershipSettings } from "../components/PartnershipSettings";
@@ -40,17 +40,44 @@ export interface MoreScreenProps {
 export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
   const { colors, mode, setMode } = useTheme();
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  const [appearanceError, setAppearanceError] = useState<string | null>(null);
 
-  // Best-effort persistence — if there's no database/Clerk reachable, the
-  // mode still changes locally via setMode below, it just won't survive a
-  // reload. Same graceful-passthrough posture as everywhere else.
-  function selectMode(m: "dark" | "light") {
+  // Best-effort persistence — if there's no database/Clerk reachable (503
+  // "Clerk isn't configured"), the mode still changes locally via setMode
+  // below and stays changed, it just won't survive a reload. Deliberate,
+  // silent dev/demo-mode passthrough, same posture as everywhere else in
+  // this app — not treated as a failure.
+  //
+  // Distinct from a genuine save failure (found 2026-08-13): the backend
+  // IS configured and reachable, but the save itself failed — a stale/
+  // expired Clerk session (401) or a real DB error (500). The old version
+  // here only had a `.catch()`, which catches network-level exceptions but
+  // never inspects `res.ok`, so any non-2xx response was silently treated
+  // as success — the toggle looked saved for the rest of the session, then
+  // silently reverted on the next reload with zero explanation. Now
+  // reverts immediately and says why, instead of quietly lying about a
+  // preference that didn't actually stick. A genuine network failure
+  // (fetch itself throwing) gets the same revert-and-explain treatment,
+  // matching every other form's "Couldn't reach the server" convention
+  // elsewhere in this app.
+  async function selectMode(m: "dark" | "light") {
+    const previous = mode;
     setMode(m);
-    fetch("/api/profile/appearance", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: m }),
-    }).catch(() => {});
+    setAppearanceError(null);
+    try {
+      const res = await fetch("/api/profile/appearance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: m }),
+      });
+      if (!res.ok && res.status !== 503) {
+        setMode(previous);
+        setAppearanceError("Couldn't save that — try again.");
+      }
+    } catch {
+      setMode(previous);
+      setAppearanceError("Couldn't save that — try again.");
+    }
   }
 
   return (
@@ -68,6 +95,11 @@ export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
         <Text variant="bodySmall" secondary style={{ marginBottom: spacing.sm }}>
           Dark is Noivos&apos; default look — light mode is available too.
         </Text>
+        {appearanceError && (
+          <Text variant="caption" style={{ color: palette.sourPunch, marginBottom: spacing.sm }}>
+            {appearanceError}
+          </Text>
+        )}
         <View style={{ flexDirection: "row", gap: spacing.sm }}>
           {/* A Pressable, not a Text with onPress — react-native-web's Text
               only attaches an onClick handler for onPress, with no role,
@@ -93,7 +125,19 @@ export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
                   borderWidth: 1,
                   borderColor: colors.border,
                   backgroundColor: mode === m ? colors.primary : "transparent",
-                  color: mode === m ? colors.background : colors.textPrimary,
+                  // Was colors.background — the CURRENT theme's background,
+                  // not necessarily one that's legible on colors.primary
+                  // (sourLime). In dark mode that happens to be licorice
+                  // (near-black, ~13:1 on sourLime — fine); in light mode
+                  // it's #FAFAF8 (near-white, ~1.3:1 on sourLime — the same
+                  // illegible pairing already fixed once this session via
+                  // tokens.ts's textOnColor map, just reached through a
+                  // different code path here instead of that map). Found
+                  // 2026-08-13 while touching this file for the appearance-
+                  // save fix above. getTextColorFor() is the actual
+                  // enforcement table for "what text color goes on this
+                  // background," independent of which theme mode is active.
+                  color: mode === m ? getTextColorFor(colors.primary) : colors.textPrimary,
                   fontWeight: "600",
                 }}
               >
