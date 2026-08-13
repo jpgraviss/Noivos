@@ -76,7 +76,16 @@ export function SignInScreen() {
     }
   }
 
+  // Found 2026-08-13: unlike onEmailPress above, this never touched
+  // `pending` and neither SSO button below passed it as `disabled` — a
+  // double-tap (an ordinary fat-finger on a touchscreen, easy to hit on a
+  // slow network) could fire startSSOFlow twice concurrently, opening two
+  // browser auth sessions back-to-back with two independent setActive()
+  // calls racing each other once both complete. Reuses the same `pending`
+  // state the email path already established, guarded the same way.
   async function onSSOPress(strategy: 'oauth_apple' | 'oauth_google') {
+    if (pending) return;
+    setPending(true);
     setError(null);
     try {
       const { createdSessionId, setActive } = await startSSOFlow({ strategy });
@@ -85,6 +94,8 @@ export function SignInScreen() {
       }
     } catch (err: unknown) {
       setError(clerkErrorMessage(err) ?? 'Sign-in was cancelled or failed.');
+    } finally {
+      setPending(false);
     }
   }
 
@@ -181,8 +192,8 @@ export function SignInScreen() {
           </Card>
 
           <View style={{ gap: spacing.sm }}>
-            <Button label="Continue with Apple" variant="secondary" onPress={() => onSSOPress('oauth_apple')} />
-            <Button label="Continue with Google" variant="tertiary" onPress={() => onSSOPress('oauth_google')} />
+            <Button label="Continue with Apple" variant="secondary" disabled={pending} onPress={() => onSSOPress('oauth_apple')} />
+            <Button label="Continue with Google" variant="tertiary" disabled={pending} onPress={() => onSSOPress('oauth_google')} />
           </View>
         </>
       )}

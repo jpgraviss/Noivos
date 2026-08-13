@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, Pressable } from "react-native";
 import { Activity as ActivityIcon, BarChart3, CreditCard } from "lucide-react-native";
-import { Card, Text, useTheme, spacing, palette, getTextColorFor } from "@noivos/ui";
+import { Card, Text, Skeleton, useTheme, spacing, palette, getTextColorFor } from "@noivos/ui";
 import { budgetSnapshot, goals as mockGoals, activityFeed, upcomingBills, moneyMeeting, currentUser } from "../data/mockData";
 import { AvatarStack } from "../components/AvatarStack";
 import { StatTile } from "../components/StatTile";
@@ -34,6 +34,18 @@ function useSavingsTrend(total: number) {
   const weeks = ["7wk ago", "6wk ago", "5wk ago", "4wk ago", "3wk ago", "2wk ago", "Last wk", "This wk"];
   const shape = [0.78, 0.8, 0.83, 0.85, 0.89, 0.93, 0.97, 1];
   return weeks.map((label, i) => ({ label, value: Math.round(total * shape[i]) }));
+}
+
+// Placeholder standing in for a <StatTile> before its underlying fetch has
+// resolved — same rough shape (label + hero number), never any actual
+// digits, so nothing here can be mistaken for a real (or fake) number.
+function StatTileSkeleton() {
+  return (
+    <Card style={{ gap: spacing.xs }}>
+      <Skeleton width="50%" height={11} />
+      <Skeleton width="70%" height={26} style={{ marginTop: spacing.xs }} />
+    </Card>
+  );
 }
 
 export interface HomeScreenProps {
@@ -79,6 +91,25 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
   const [apiGoals, setApiGoals] = useState<ApiGoal[]>([]);
   const [apiBudget, setApiBudget] = useState<ApiBudget | null>(null);
   const [partnerName, setPartnerName] = useState<string | null>(null);
+  // Each *Resolved flag below flips true once its own fetch has genuinely
+  // settled — succeeded or failed, doesn't matter which — and gates that
+  // section's render between a neutral <Skeleton> and real content (see
+  // Skeleton.tsx). Added 2026-08-13: this screen's mock fallback data
+  // (budgetSnapshot/mockGoals/upcomingBills/etc.) used to render
+  // immediately on first paint, before any of these six independent
+  // fetches had resolved — for a real, signed-in user with a working
+  // backend, that meant a real, visible flash of wrong numbers before the
+  // correct ones replaced them a moment later on every load, not a rare
+  // edge case (confirmed via production runtime logs: the fetches
+  // genuinely succeed, they just aren't instant). Gating on "resolved"
+  // rather than reintroducing a single whole-page loading gate keeps each
+  // card upgrading independently the moment its own fetch settles, same
+  // as the mock-fallback split that already exists here per-section.
+  const [goalsResolved, setGoalsResolved] = useState(false);
+  const [budgetResolved, setBudgetResolved] = useState(false);
+  const [billsResolved, setBillsResolved] = useState(false);
+  const [meetingResolved, setMeetingResolved] = useState(false);
+  const [activityResolved, setActivityResolved] = useState(false);
   // True once /api/partnership has genuinely answered (connected or not) —
   // distinct from `partnerName` being null, which is also true while still
   // loading *and* when the backend is unreachable. Needed so a genuinely
@@ -91,6 +122,13 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
   // that distinction, so `partnerName || currentUser.partnerName` fell back
   // to the mock name in both cases.
   const [partnershipChecked, setPartnershipChecked] = useState(false);
+  // Distinct from partnershipChecked above: that one only flips true on a
+  // successful, connected answer, so a genuine fetch *failure* leaves it
+  // false forever — indistinguishable from "still loading" by design, so
+  // the AvatarStack's *mock-name* fallback logic keeps working when the
+  // backend is genuinely unreachable. This flag flips true on failure too,
+  // purely to gate the skeleton vs. real-or-mock render decision below.
+  const [partnershipResolved, setPartnershipResolved] = useState(false);
   const [apiBills, setApiBills] = useState<{ id: string; name: string; amount: number; due: string }[] | null>(null);
   const [apiMeeting, setApiMeeting] = useState<{
     id: string;
@@ -124,6 +162,9 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
       })
       .catch(() => {
         // No database/Clerk reachable — fall back to the mock goals below.
+      })
+      .finally(() => {
+        if (!cancelled) setGoalsResolved(true);
       });
     return () => {
       cancelled = true;
@@ -143,6 +184,9 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
       })
       .catch(() => {
         // No database/Clerk reachable — fall back to the mock budget below.
+      })
+      .finally(() => {
+        if (!cancelled) setBudgetResolved(true);
       });
     return () => {
       cancelled = true;
@@ -173,6 +217,9 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
         // flips true, so this is indistinguishable from "still loading" —
         // matches every other card's illustrative-mock-when-unreachable
         // posture on this screen).
+      })
+      .finally(() => {
+        if (!cancelled) setPartnershipResolved(true);
       });
     return () => {
       cancelled = true;
@@ -192,6 +239,9 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
       })
       .catch(() => {
         // No database/Clerk reachable — fall back to the mock bills below.
+      })
+      .finally(() => {
+        if (!cancelled) setBillsResolved(true);
       });
     return () => {
       cancelled = true;
@@ -221,6 +271,9 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
       })
       .catch(() => {
         // No database/Clerk reachable — stays null, falls back to the mock below.
+      })
+      .finally(() => {
+        if (!cancelled) setMeetingResolved(true);
       });
     return () => {
       cancelled = true;
@@ -251,6 +304,9 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
       })
       .catch(() => {
         // No database/Clerk reachable — fall back to the mock below.
+      })
+      .finally(() => {
+        if (!cancelled) setActivityResolved(true);
       });
     return () => {
       cancelled = true;
@@ -336,12 +392,19 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
             </Text>
             <Text variant="display">Hey, {displayName}</Text>
           </View>
-          {/* Hidden only once we're genuinely certain there's no partner —
-              while loading or if the backend's unreachable, this still
-              shows the couple-chip (with the mock name as a last resort)
-              rather than flicker in and out; see partnershipChecked above. */}
-          {(!partnershipChecked || partnerName) && (
-            <AvatarStack names={[displayName, partnerName || currentUser.partnerName]} />
+          {/* Skeleton until the fetch genuinely settles (partnershipResolved) —
+              was showing the mock "& Marcus" chip immediately on every load
+              before that (found 2026-08-13). Once resolved: hidden only if
+              we're genuinely certain there's no partner; if the backend
+              turned out to be unreachable, still shows the couple-chip
+              (with the mock name as a last resort) rather than flicker in
+              and out — see partnershipChecked above. */}
+          {!partnershipResolved ? (
+            <Skeleton width={120} height={32} radiusSize={16} />
+          ) : (
+            (!partnershipChecked || partnerName) && (
+              <AvatarStack names={[displayName, partnerName || currentUser.partnerName]} />
+            )
           )}
         </View>
       </ScreenGridWide>
@@ -360,24 +423,37 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
           than a specific false fact, and genuinely fixing it needs new
           infrastructure this pass doesn't add, so it's left as-is and
           flagged rather than half-fixed. */}
-      <StatTile
-        label="Total saved"
-        value={`$${savingsTotal.toLocaleString()}`}
-        sparkline={trend.map((t) => t.value)}
-      />
-      <StatTile
-        label="Spent this month"
-        value={`$${budget.spent.toLocaleString()}`}
-        deltaLabel={`of $${budget.planned.toLocaleString()} planned`}
-        deltaDirection={overBudget ? "up" : "down"}
-        deltaIsGood={!overBudget}
-      />
-      {weddingGoal && weddingPercent !== null && (
+      {!goalsResolved ? (
+        <StatTileSkeleton />
+      ) : (
         <StatTile
-          label="Wedding progress"
-          value={`${weddingPercent}%`}
-          deltaLabel={`$${weddingTotal.toLocaleString()} of $${weddingTarget?.toLocaleString()}`}
+          label="Total saved"
+          value={`$${savingsTotal.toLocaleString()}`}
+          sparkline={trend.map((t) => t.value)}
         />
+      )}
+      {!budgetResolved ? (
+        <StatTileSkeleton />
+      ) : (
+        <StatTile
+          label="Spent this month"
+          value={`$${budget.spent.toLocaleString()}`}
+          deltaLabel={`of $${budget.planned.toLocaleString()} planned`}
+          deltaDirection={overBudget ? "up" : "down"}
+          deltaIsGood={!overBudget}
+        />
+      )}
+      {!goalsResolved ? (
+        <StatTileSkeleton />
+      ) : (
+        weddingGoal &&
+        weddingPercent !== null && (
+          <StatTile
+            label="Wedding progress"
+            value={`${weddingPercent}%`}
+            deltaLabel={`$${weddingTotal.toLocaleString()} of $${weddingTarget?.toLocaleString()}`}
+          />
+        )
       )}
 
       {/* Money Meeting ritual card — a distinct treatment, UX Blueprint §3.3.
@@ -388,43 +464,56 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
           user genuinely has no Partnership (meetingHasPartnership === false)
           — Money Meetings can't exist without one, so there's no honest
           "empty" version of this card to show instead. */}
-      {meetingHasPartnership !== false && (
+      {!meetingResolved ? (
         <ScreenGridWide>
           <Card glow={palette.grape}>
-            <Text variant="caption" color={palette.grape}>
-              WEEK OF {(apiMeeting?.weekOf ?? moneyMeeting.weekOf).toUpperCase()}
-            </Text>
-            <Text variant="h3" style={{ marginTop: spacing.xs }}>
-              {apiMeeting?.status === "completed" ? "Money Meeting complete" : "Your Money Meeting is ready"}
-            </Text>
-            <View style={{ marginTop: spacing.sm, gap: 4 }}>
-              {(apiMeeting?.topics ?? moneyMeeting.topics).map((t, i) => (
-                <Text key={i} variant="bodySmall" secondary>
-                  • {t}
-                </Text>
-              ))}
+            <Skeleton width={140} height={11} />
+            <Skeleton width="55%" height={20} style={{ marginTop: spacing.sm }} />
+            <View style={{ marginTop: spacing.sm, gap: 6 }}>
+              <Skeleton width="90%" height={13} />
+              <Skeleton width="75%" height={13} />
             </View>
-            {apiMeeting && apiMeeting.status !== "completed" && (
-              <Pressable
-                onPress={handleCompleteMeeting}
-                disabled={completingMeeting}
-                role="button"
-                style={{
-                  alignSelf: "flex-start",
-                  marginTop: spacing.sm,
-                  paddingVertical: 8,
-                  paddingHorizontal: 14,
-                  borderRadius: 999,
-                  backgroundColor: palette.grape,
-                }}
-              >
-                <Text variant="bodySmall" color={getTextColorFor(palette.grape)} style={{ fontWeight: "600" }}>
-                  {completingMeeting ? "Saving…" : "Mark as done"}
-                </Text>
-              </Pressable>
-            )}
           </Card>
         </ScreenGridWide>
+      ) : (
+        meetingHasPartnership !== false && (
+          <ScreenGridWide>
+            <Card glow={palette.grape}>
+              <Text variant="caption" color={palette.grape}>
+                WEEK OF {(apiMeeting?.weekOf ?? moneyMeeting.weekOf).toUpperCase()}
+              </Text>
+              <Text variant="h3" style={{ marginTop: spacing.xs }}>
+                {apiMeeting?.status === "completed" ? "Money Meeting complete" : "Your Money Meeting is ready"}
+              </Text>
+              <View style={{ marginTop: spacing.sm, gap: 4 }}>
+                {(apiMeeting?.topics ?? moneyMeeting.topics).map((t, i) => (
+                  <Text key={i} variant="bodySmall" secondary>
+                    • {t}
+                  </Text>
+                ))}
+              </View>
+              {apiMeeting && apiMeeting.status !== "completed" && (
+                <Pressable
+                  onPress={handleCompleteMeeting}
+                  disabled={completingMeeting}
+                  role="button"
+                  style={{
+                    alignSelf: "flex-start",
+                    marginTop: spacing.sm,
+                    paddingVertical: 8,
+                    paddingHorizontal: 14,
+                    borderRadius: 999,
+                    backgroundColor: palette.grape,
+                  }}
+                >
+                  <Text variant="bodySmall" color={getTextColorFor(palette.grape)} style={{ fontWeight: "600" }}>
+                    {completingMeeting ? "Saving…" : "Mark as done"}
+                  </Text>
+                </Pressable>
+              )}
+            </Card>
+          </ScreenGridWide>
+        )
       )}
 
       <ScreenGridWide>
@@ -432,41 +521,56 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
           <Text variant="h3" style={{ marginBottom: spacing.sm }}>
             Combined savings
           </Text>
-          <TrendChart points={trend} />
+          {!goalsResolved ? <Skeleton height={160} radiusSize={8} /> : <TrendChart points={trend} />}
         </Card>
       </ScreenGridWide>
 
-      <Card>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }}>
-          <Text variant="h3">{budget.month} Budget</Text>
-          <Text variant="bodySmall" secondary>
-            ${budget.spent.toLocaleString()} of ${budget.planned.toLocaleString()}
-          </Text>
-        </View>
-        <View style={{ height: 10, borderRadius: 999, backgroundColor: colors.border, marginTop: spacing.sm, overflow: "hidden" }}>
-          <View
-            style={{
-              height: "100%",
-              // Guards the same divide-by-zero StackedProgressBarMath.ts's
-              // computeSegmentWidths() already guards against (2026-08-06) —
-              // planned is always positive today (DEFAULT_CATEGORIES' own
-              // test asserts it), but nothing stops a future all-zero-
-              // planned budget from reaching this line, and Infinity%/NaN%
-              // is an invalid width value either way.
-              width: `${budget.planned > 0 ? Math.min((budget.spent / budget.planned) * 100, 100) : 0}%`,
-              backgroundColor: palette.sourLime,
-            }}
-          />
-        </View>
-      </Card>
-
-      {weddingGoal && weddingPercent !== null && (
-        <Card glow={palette.sourLime}>
-          <Text variant="h3">{weddingGoal.name}</Text>
-          <Text variant="bodySmall" secondary style={{ marginTop: 2 }}>
-            ${weddingTotal.toLocaleString()} of ${weddingTarget?.toLocaleString()} · {weddingPercent}%
-          </Text>
+      {!budgetResolved ? (
+        <Card>
+          <Skeleton width="40%" height={18} />
+          <Skeleton height={10} radiusSize={999} style={{ marginTop: spacing.sm }} />
         </Card>
+      ) : (
+        <Card>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }}>
+            <Text variant="h3">{budget.month} Budget</Text>
+            <Text variant="bodySmall" secondary>
+              ${budget.spent.toLocaleString()} of ${budget.planned.toLocaleString()}
+            </Text>
+          </View>
+          <View style={{ height: 10, borderRadius: 999, backgroundColor: colors.border, marginTop: spacing.sm, overflow: "hidden" }}>
+            <View
+              style={{
+                height: "100%",
+                // Guards the same divide-by-zero StackedProgressBarMath.ts's
+                // computeSegmentWidths() already guards against (2026-08-06) —
+                // planned is always positive today (DEFAULT_CATEGORIES' own
+                // test asserts it), but nothing stops a future all-zero-
+                // planned budget from reaching this line, and Infinity%/NaN%
+                // is an invalid width value either way.
+                width: `${budget.planned > 0 ? Math.min((budget.spent / budget.planned) * 100, 100) : 0}%`,
+                backgroundColor: palette.sourLime,
+              }}
+            />
+          </View>
+        </Card>
+      )}
+
+      {!goalsResolved ? (
+        <Card glow={palette.sourLime}>
+          <Skeleton width="45%" height={18} />
+          <Skeleton width="65%" height={13} style={{ marginTop: 6 }} />
+        </Card>
+      ) : (
+        weddingGoal &&
+        weddingPercent !== null && (
+          <Card glow={palette.sourLime}>
+            <Text variant="h3">{weddingGoal.name}</Text>
+            <Text variant="bodySmall" secondary style={{ marginTop: 2 }}>
+              ${weddingTotal.toLocaleString()} of ${weddingTarget?.toLocaleString()} · {weddingPercent}%
+            </Text>
+          </Card>
+        )
       )}
 
       <Card>
@@ -474,13 +578,20 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
           <BarChart3 size={16} color={palette.citrus} aria-hidden={true} />
           <Text variant="h3">AI Insights</Text>
         </View>
-        <View style={{ gap: spacing.sm }}>
-          {computedInsights.map((i) => (
-            <Text key={i.id} variant="body" secondary>
-              {i.text}
-            </Text>
-          ))}
-        </View>
+        {!budgetResolved || !goalsResolved ? (
+          <View style={{ gap: spacing.sm }}>
+            <Skeleton width="95%" height={14} />
+            <Skeleton width="80%" height={14} />
+          </View>
+        ) : (
+          <View style={{ gap: spacing.sm }}>
+            {computedInsights.map((i) => (
+              <Text key={i.id} variant="body" secondary>
+                {i.text}
+              </Text>
+            ))}
+          </View>
+        )}
       </Card>
 
       <Card>
@@ -488,19 +599,28 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
           <CreditCard size={16} color={colors.textSecondary} aria-hidden={true} />
           <Text variant="h3">Upcoming Bills</Text>
         </View>
-        {(apiBills ?? upcomingBills).length === 0 && (
-          <Text variant="bodySmall" secondary>
-            No upcoming bills.
-          </Text>
-        )}
-        {(apiBills ?? upcomingBills).map((b) => (
-          <View key={b.id} style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
-            <Text variant="body">{b.name}</Text>
-            <Text variant="body" secondary>
-              ${b.amount.toLocaleString()} · {b.due}
-            </Text>
+        {!billsResolved ? (
+          <View style={{ gap: spacing.xs }}>
+            <Skeleton width="100%" height={16} />
+            <Skeleton width="85%" height={16} />
           </View>
-        ))}
+        ) : (
+          <>
+            {(apiBills ?? upcomingBills).length === 0 && (
+              <Text variant="bodySmall" secondary>
+                No upcoming bills.
+              </Text>
+            )}
+            {(apiBills ?? upcomingBills).map((b) => (
+              <View key={b.id} style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+                <Text variant="body">{b.name}</Text>
+                <Text variant="body" secondary>
+                  ${b.amount.toLocaleString()} · {b.due}
+                </Text>
+              </View>
+            ))}
+          </>
+        )}
       </Card>
 
       <Card>
@@ -508,36 +628,51 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
           <ActivityIcon size={16} color={colors.textSecondary} aria-hidden={true} />
           <Text variant="h3">Activity</Text>
         </View>
-        {apiActivity && apiActivity.length === 0 && (
-          <Text variant="bodySmall" secondary>
-            No activity yet — updates will show up here as you and your partner use Noivos.
-          </Text>
-        )}
-        {(apiActivity ?? activityFeed).map((a) => (
-          <View key={a.id} style={{ flexDirection: "row", gap: spacing.sm, marginBottom: spacing.xs, alignItems: "flex-start" }}>
-            <View
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: 999,
-                backgroundColor: palette.electricBlue,
-                alignItems: "center",
-                justifyContent: "center",
-                marginTop: 2,
-              }}
-            >
-              <Text variant="caption" style={{ color: getTextColorFor(palette.electricBlue), fontWeight: "700" }}>
-                {a.text.slice(0, 1)}
-              </Text>
+        {!activityResolved ? (
+          <View style={{ gap: spacing.sm }}>
+            <View style={{ flexDirection: "row", gap: spacing.sm, alignItems: "center" }}>
+              <Skeleton width={22} height={22} radiusSize={999} />
+              <Skeleton width="70%" height={14} />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text variant="body">{a.text}</Text>
-              <Text variant="caption" secondary>
-                {apiActivity ? formatRelativeTime(a.time) : a.time}
-              </Text>
+            <View style={{ flexDirection: "row", gap: spacing.sm, alignItems: "center" }}>
+              <Skeleton width={22} height={22} radiusSize={999} />
+              <Skeleton width="55%" height={14} />
             </View>
           </View>
-        ))}
+        ) : (
+          <>
+            {apiActivity && apiActivity.length === 0 && (
+              <Text variant="bodySmall" secondary>
+                No activity yet — updates will show up here as you and your partner use Noivos.
+              </Text>
+            )}
+            {(apiActivity ?? activityFeed).map((a) => (
+              <View key={a.id} style={{ flexDirection: "row", gap: spacing.sm, marginBottom: spacing.xs, alignItems: "flex-start" }}>
+                <View
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: 999,
+                    backgroundColor: palette.electricBlue,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginTop: 2,
+                  }}
+                >
+                  <Text variant="caption" style={{ color: getTextColorFor(palette.electricBlue), fontWeight: "700" }}>
+                    {a.text.slice(0, 1)}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text variant="body">{a.text}</Text>
+                  <Text variant="caption" secondary>
+                    {apiActivity ? formatRelativeTime(a.time) : a.time}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </>
+        )}
       </Card>
     </ScreenGrid>
   );

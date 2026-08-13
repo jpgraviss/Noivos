@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, Pressable, TextInput } from "react-native";
 import { Plus } from "lucide-react-native";
-import { Card, OwnershipBadge, StackedProgressBar, Text, useTheme, spacing, radius, palette } from "@noivos/ui";
+import { Card, OwnershipBadge, StackedProgressBar, Skeleton, Text, useTheme, spacing, radius, palette } from "@noivos/ui";
 import { budgetSnapshot } from "../data/mockData";
 import { ProgressRing } from "../components/ProgressRing";
 import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
@@ -49,16 +49,22 @@ interface ApiBudget {
 // RLS policies were already part of 0001_init.sql/0002_rls.sql, just unused
 // until now.
 //
-// No "Loading…" gate on first render (removed 2026-08-11, previously
-// blocked the whole screen behind a bare loading text until the fetch
-// resolved) — `budget` below already falls back to budgetSnapshot's mock
-// numbers synchronously, on the very first render, same as every other
-// real-data screen in this app (HomeScreen, GoalsScreen). There was never
-// a moment with nothing to show; the fetch just silently upgrades the
-// already-visible mock numbers to real ones once it resolves.
+// Loading state history, 2026-08-11 to 2026-08-13: this screen used to
+// gate its whole render behind a bare "Loading…" text row until the fetch
+// resolved. That was removed on the theory that it was pure friction, in
+// favor of showing `budget`'s mock fallback immediately — but that traded
+// one real problem for a worse one: a real, signed-in user with a working
+// backend now saw an actual flash of WRONG numbers (the mock ones) before
+// the correct ones replaced them a moment later, on every load (confirmed
+// via production runtime logs — the real fetch genuinely succeeds, it
+// just isn't instant). `resolved` restores the gate, but the loading state
+// itself is now a neutral <Skeleton> shaped like the real layout rather
+// than either a bare loading line or fabricated numbers — the middle
+// ground that satisfies both complaints. See Skeleton.tsx.
 export function BudgetScreen() {
   const { colors } = useTheme();
 
+  const [resolved, setResolved] = useState(false);
   const [backendAvailable, setBackendAvailable] = useState(false);
   const [apiBudget, setApiBudget] = useState<ApiBudget | null>(null);
 
@@ -80,6 +86,9 @@ export function BudgetScreen() {
       })
       .catch(() => {
         // No database/Clerk reachable — fall back to the mock snapshot below.
+      })
+      .finally(() => {
+        setResolved(true);
       });
   }
 
@@ -142,6 +151,23 @@ export function BudgetScreen() {
   // data doesn't have this problem (its "spent" IS that sum), but computing
   // it locally keeps the chart correct either way.
   const totalCategorySpend = categoryBreakdown.reduce((sum, c) => sum + c.amount, 0);
+
+  if (!resolved) {
+    return (
+      <ScreenGrid>
+        <ScreenGridWide>
+          <Skeleton width="30%" height={30} />
+          <Skeleton width="45%" height={14} style={{ marginTop: spacing.sm }} />
+        </ScreenGridWide>
+        {[0, 1, 2].map((i) => (
+          <Card key={i}>
+            <Skeleton width="50%" height={18} />
+            <Skeleton height={8} radiusSize={999} style={{ marginTop: spacing.md }} />
+          </Card>
+        ))}
+      </ScreenGrid>
+    );
+  }
 
   return (
     <ScreenGrid>

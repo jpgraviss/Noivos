@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, Pressable, TextInput } from "react-native";
 import { Circle, CircleCheck, Flag, Plus } from "lucide-react-native";
-import { Card, OwnershipBadge, StackedProgressBar, Text, useTheme, spacing, radius, palette } from "@noivos/ui";
+import { Card, OwnershipBadge, StackedProgressBar, Skeleton, Text, useTheme, spacing, radius, palette } from "@noivos/ui";
 import { goals as mockGoals, weddingDetails } from "../data/mockData";
 import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
 import { daysUntil, daysUntilHumanDate } from "../lib/date";
@@ -120,6 +120,17 @@ export function GoalsScreen() {
   // fetch effect flips it to "wedding" once it genuinely knows.
   const [segment, setSegment] = useState<"wedding" | "goals">("goals");
 
+  // Loading state history, 2026-08-11 to 2026-08-13: this per-segment gate
+  // was removed on the theory that it was pure friction, since displayGoals/
+  // weddingActive below already fall back to real, synchronous mock data —
+  // but that traded a bare "Loading…" line for something worse: a real,
+  // signed-in user with a working backend saw an actual flash of WRONG
+  // numbers (the mock ones) before the correct ones replaced them a moment
+  // later, on every load (confirmed via production runtime logs — the real
+  // fetches genuinely succeed, they just aren't instant). Restored, but
+  // showing a neutral <Skeleton> shaped like the real layout instead of
+  // either a bare loading line or fabricated numbers.
+  const [loaded, setLoaded] = useState(false);
   const [backendAvailable, setBackendAvailable] = useState(false);
   const [apiGoals, setApiGoals] = useState<ApiGoal[]>([]);
 
@@ -142,6 +153,7 @@ export function GoalsScreen() {
 
   // Wedding segment real-data state — separate from the "All Goals" fetch
   // above since /api/wedding and /api/goals are independent resources.
+  const [weddingLoaded, setWeddingLoaded] = useState(false);
   const [weddingBackendAvailable, setWeddingBackendAvailable] = useState(false);
   const [hasPartnership, setHasPartnership] = useState(false);
   const [apiWedding, setApiWedding] = useState<ApiWeddingDetails | null>(null);
@@ -194,6 +206,9 @@ export function GoalsScreen() {
         // wedding-mode signal on this screen falls back to the mock when
         // there's no real signal reachable at all.
         if (!cancelled && weddingDetails.active) setSegment("wedding");
+      })
+      .finally(() => {
+        if (!cancelled) setWeddingLoaded(true);
       });
     return () => {
       cancelled = true;
@@ -355,6 +370,9 @@ export function GoalsScreen() {
       })
       .catch(() => {
         // No database/Clerk/route available — fall back to mock goals.
+      })
+      .finally(() => {
+        if (!cancelled) setLoaded(true);
       });
     return () => {
       cancelled = true;
@@ -479,7 +497,19 @@ export function GoalsScreen() {
       </ScreenGridWide>
 
       {segment === "wedding" && weddingActive ? (
-        !weddingBackendAvailable ? (
+        !weddingLoaded ? (
+          <>
+            <Card glow={palette.sourPunch}>
+              <Skeleton width={60} height={40} />
+              <Skeleton width="50%" height={13} style={{ marginTop: spacing.sm }} />
+            </Card>
+            <Card>
+              <Skeleton width="30%" height={18} />
+              <Skeleton width="70%" height={14} style={{ marginTop: spacing.md }} />
+              <Skeleton width="55%" height={14} style={{ marginTop: spacing.sm }} />
+            </Card>
+          </>
+        ) : !weddingBackendAvailable ? (
           <>
             <Card glow={palette.sourPunch}>
               <Flag size={16} color={palette.sourPunch} style={{ marginBottom: spacing.xs }} aria-hidden={true} />
@@ -860,6 +890,16 @@ export function GoalsScreen() {
             </ScreenGridWide>
           </>
         )
+      ) : !loaded ? (
+        <>
+          {[0, 1].map((i) => (
+            <Card key={i}>
+              <Skeleton width="40%" height={18} />
+              <Skeleton width="60%" height={13} style={{ marginTop: spacing.sm }} />
+              <Skeleton height={8} radiusSize={999} style={{ marginTop: spacing.md }} />
+            </Card>
+          ))}
+        </>
       ) : (
         <>
           {displayGoals.map((g) => {
