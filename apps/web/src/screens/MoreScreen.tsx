@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, Pressable } from "react-native";
 import { ChevronDown, ChevronRight, LogOut, Settings, Sparkles } from "lucide-react-native";
-import { Card, Text, useTheme, spacing, palette, getTextColorFor } from "@noivos/ui";
+import { Card, Text, useTheme, spacing, getTextColorFor } from "@noivos/ui";
 import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
 import { IdentitySettings } from "../components/IdentitySettings";
 import { PartnershipSettings } from "../components/PartnershipSettings";
@@ -96,7 +96,10 @@ export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
           Dark is Noivos&apos; default look — light mode is available too.
         </Text>
         {appearanceError && (
-          <Text variant="caption" style={{ color: palette.sourPunch, marginBottom: spacing.sm }}>
+          // colors.danger, not palette.sourPunch (found 2026-08-13, same
+          // audit pass right after this error state was added — see
+          // tokens.ts): the raw hex fails WCAG AA in light mode.
+          <Text variant="caption" style={{ color: colors.danger, marginBottom: spacing.sm }}>
             {appearanceError}
           </Text>
         )}

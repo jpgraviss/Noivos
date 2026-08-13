@@ -479,7 +479,15 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
         meetingHasPartnership !== false && (
           <ScreenGridWide>
             <Card glow={palette.grape}>
-              <Text variant="caption" color={palette.grape}>
+              {/* Was color={palette.grape} directly (found 2026-08-13):
+                  colored text sitting on the card's own neutral surface
+                  (glow only tints the border/shadow — see Card.tsx) fails
+                  WCAG AA in both themes (~3.91:1 dark, ~4.29:1 light,
+                  both below the 4.5:1 minimum for this 11px caption). The
+                  card's glow border already carries the grape identity;
+                  secondary reuses the theme's already-verified-safe
+                  muted-text token instead of inventing a new grape shade. */}
+              <Text variant="caption" secondary>
                 WEEK OF {(apiMeeting?.weekOf ?? moneyMeeting.weekOf).toUpperCase()}
               </Text>
               <Text variant="h3" style={{ marginTop: spacing.xs }}>

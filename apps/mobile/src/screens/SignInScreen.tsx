@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, TextInput, Pressable } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { isClerkAPIResponseError, useSignIn, useSignUp, useSSO } from '@clerk/expo';
-import { Button, Card, ScreenContainer, Text, useTheme, spacing, radius, palette } from '@noivos/ui';
+import { Button, Card, ScreenContainer, Text, useTheme, spacing, radius } from '@noivos/ui';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -211,7 +211,9 @@ export function SignInScreen() {
       )}
 
       {error && (
-        <Text variant="bodySmall" color={palette.sourPunch}>
+        // colors.danger, not palette.sourPunch (found 2026-08-13 — see
+        // tokens.ts): the raw hex fails WCAG AA in light mode specifically.
+        <Text variant="bodySmall" color={colors.danger}>
           {error}
         </Text>
       )}

@@ -178,7 +178,12 @@ export function IdentitySettings() {
       </div>
 
       {error && (
-        <Text variant="bodySmall" style={{ color: palette.sourPunch, marginBottom: spacing.sm }}>
+        // colors.danger, not palette.sourPunch directly (found 2026-08-13)
+        // — the raw hex fails WCAG AA in light mode specifically (3.34-
+        // 3.49:1 against light backgrounds vs. sourPunch's own 5.3:1 in
+        // dark mode); colors.danger is a real theme-aware token, unlike a
+        // single hex that can't pass both modes at once. See tokens.ts.
+        <Text variant="bodySmall" style={{ color: colors.danger, marginBottom: spacing.sm }}>
           {error}
         </Text>
       )}

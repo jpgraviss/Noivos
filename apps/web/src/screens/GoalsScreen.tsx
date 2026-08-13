@@ -594,7 +594,7 @@ export function GoalsScreen() {
                 style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 10, color: colors.textPrimary }}
               />
               {startWeddingError && (
-                <Text variant="caption" style={{ color: palette.sourPunch }}>
+                <Text variant="caption" style={{ color: colors.danger }}>
                   {startWeddingError}
                 </Text>
               )}
@@ -721,7 +721,7 @@ export function GoalsScreen() {
                     style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 10, color: colors.textPrimary }}
                   />
                   {addVendorError && (
-                    <Text variant="caption" style={{ color: palette.sourPunch }}>
+                    <Text variant="caption" style={{ color: colors.danger }}>
                       {addVendorError}
                     </Text>
                   )}
@@ -795,7 +795,7 @@ export function GoalsScreen() {
                 </Pressable>
               </View>
               {addChecklistError && (
-                <Text variant="caption" style={{ color: palette.sourPunch, marginTop: 4 }}>
+                <Text variant="caption" style={{ color: colors.danger, marginTop: 4 }}>
                   {addChecklistError}
                 </Text>
               )}
@@ -850,7 +850,7 @@ export function GoalsScreen() {
                     style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 10, color: colors.textPrimary }}
                   />
                   {addFamilyContributionError && (
-                    <Text variant="caption" style={{ color: palette.sourPunch }}>
+                    <Text variant="caption" style={{ color: colors.danger }}>
                       {addFamilyContributionError}
                     </Text>
                   )}
@@ -963,7 +963,7 @@ export function GoalsScreen() {
                   </View>
                 )}
                 {contributionErrors[g.id] && (
-                  <Text variant="caption" style={{ color: palette.sourPunch, marginTop: 4 }}>
+                  <Text variant="caption" style={{ color: colors.danger, marginTop: 4 }}>
                     {contributionErrors[g.id]}
                   </Text>
                 )}
@@ -1053,7 +1053,7 @@ export function GoalsScreen() {
                     </View>
                   )}
                   {addGoalError && (
-                    <Text variant="caption" style={{ color: palette.sourPunch }}>
+                    <Text variant="caption" style={{ color: colors.danger }}>
                       {addGoalError}
                     </Text>
                   )}

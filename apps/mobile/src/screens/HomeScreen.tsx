@@ -19,7 +19,11 @@ export function HomeScreen() {
 
       {/* Money Meeting ritual card — a distinct treatment, UX Blueprint §3.3 */}
       <Card glow={palette.grape}>
-        <Text variant="caption" color={palette.grape}>WEEK OF {moneyMeeting.weekOf.toUpperCase()}</Text>
+        {/* Was color={palette.grape} directly (found 2026-08-13, same fix
+            as apps/web's HomeScreen.tsx): fails WCAG AA in both themes at
+            this caption size — the card's glow border already carries the
+            grape identity. */}
+        <Text variant="caption" secondary>WEEK OF {moneyMeeting.weekOf.toUpperCase()}</Text>
         <Text variant="h3" style={{ marginTop: spacing.xs }}>Your Money Meeting is ready</Text>
         <View style={{ marginTop: spacing.sm, gap: 4 }}>
           {moneyMeeting.topics.map((t, i) => (

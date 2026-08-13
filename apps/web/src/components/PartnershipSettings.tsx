@@ -260,7 +260,7 @@ export function PartnershipSettings() {
             />
           )}
           {inviteError && (
-            <Text variant="bodySmall" style={{ color: palette.sourPunch, marginBottom: spacing.sm }}>
+            <Text variant="bodySmall" style={{ color: colors.danger, marginBottom: spacing.sm }}>
               {inviteError}
             </Text>
           )}
@@ -294,7 +294,7 @@ export function PartnershipSettings() {
               : "This will cancel the pending invite and free you up to start a new Partnership."}
           </Text>
           {disconnectError && (
-            <Text variant="bodySmall" style={{ color: palette.sourPunch, marginBottom: spacing.sm }}>
+            <Text variant="bodySmall" style={{ color: colors.danger, marginBottom: spacing.sm }}>
               {disconnectError}
             </Text>
           )}

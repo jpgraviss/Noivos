@@ -151,7 +151,10 @@ function InvitePageInner() {
               ) : (
                 <>
                   {acceptError && (
-                    <Text variant="bodySmall" style={{ color: palette.sourPunch, marginBottom: spacing.sm }}>
+                    // colors.danger, not palette.sourPunch (found
+                    // 2026-08-13 — see tokens.ts): the raw hex fails WCAG
+                    // AA in light mode specifically.
+                    <Text variant="bodySmall" style={{ color: colors.danger, marginBottom: spacing.sm }}>
                       {acceptError}
                     </Text>
                   )}

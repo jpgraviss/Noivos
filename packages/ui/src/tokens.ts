@@ -46,6 +46,25 @@ export interface ColorTokens {
   success: string;
   warning: string;
   border: string;
+  // Added 2026-08-13: every form-error message in the app used to hardcode
+  // palette.sourPunch directly as its text color (not routed through
+  // getTextColorFor — this is colored text sitting on the theme's own
+  // neutral background/card, not the reverse). That passes WCAG AA in dark
+  // mode (sourPunch on licorice background/#1E1D21 card: 5.305:1/4.803:1)
+  // but fails in light mode (sourPunch on #FAFAF8 background/#FFFFFF card:
+  // 3.339:1/3.490:1) — and light mode is a real, user-toggleable, first-
+  // class mode (MoreScreen's own copy: "light mode is available too"), not
+  // a fallback. A single static hex can't pass both modes at once — this
+  // is a genuinely theme-aware token, unlike the sourLime/textOnColor
+  // fixes, which just needed one corrected constant. `danger` in dark mode
+  // stays sourPunch itself (already passes); light mode uses a darkened
+  // variant of the same hue (0.8x RGB scale — #CC2471, chosen because it's
+  // the least darkening needed to clear 4.5:1 against both the light
+  // background and light card surface: 4.948:1/5.171:1) rather than a
+  // different color entirely, so error text still reads as "the same red/
+  // pink," just deeper in light mode the way most brand palettes need a
+  // shifted foreground per theme to stay legible.
+  danger: string;
 }
 
 export const colorTokens: Record<'dark' | 'light', ColorTokens> = {
@@ -62,6 +81,7 @@ export const colorTokens: Record<'dark' | 'light', ColorTokens> = {
     success: palette.sourLime,
     warning: palette.citrus,
     border: 'rgba(245, 243, 240, 0.12)',
+    danger: palette.sourPunch,
   },
   light: {
     background: '#FAFAF8',
@@ -76,6 +96,7 @@ export const colorTokens: Record<'dark' | 'light', ColorTokens> = {
     success: palette.sourLime,
     warning: palette.citrus,
     border: 'rgba(24, 23, 26, 0.10)',
+    danger: '#CC2471',
   },
 } as const;
 
@@ -93,12 +114,26 @@ export const colorTokens: Record<'dark' | 'light', ColorTokens> = {
 // sourLime in both). citrus, a similarly light/high-luminance accent, was
 // already correctly paired with dark licorice text (~13:1) — sourLime now
 // gets the same treatment, which also measures ~13.7:1.
+// sourPunch/electricBlue/grape -> licorice (found 2026-08-13, were all
+// sourCloud): computed WCAG contrast against sourCloud was 3.151:1,
+// 3.426:1, and 3.870:1 respectively — all below the 4.5:1 normal-text
+// minimum, hit at real, non-large/bold sizes across both apps (chat bubble
+// text in AICoachScreen, HomeScreen's "Mark as done" button and activity-
+// feed avatar initials, PartnershipSettings' Disconnect button, mobile
+// SignInScreen's "Continue with Apple" button). licorice measures 5.305:1
+// against sourPunch and 4.879:1 against electricBlue — both comfortably
+// pass — but only 4.319:1 against grape, still short of 4.5:1: grape's own
+// luminance (0.195) sits close enough to licorice's near-black (0.0067)
+// that licorice alone isn't quite dark enough. Rather than adjust grape's
+// actual brand hue to accommodate licorice, grape gets true black
+// (0.0, ~4.899:1) as this table's one deliberate exception — narrower and
+// safer than touching a core accent color to fit a text-contrast table.
 export const textOnColor: Record<string, string> = {
   [palette.sourLime]: palette.licorice,
-  [palette.sourPunch]: palette.sourCloud,
-  [palette.electricBlue]: palette.sourCloud,
+  [palette.sourPunch]: palette.licorice,
+  [palette.electricBlue]: palette.licorice,
   [palette.citrus]: palette.licorice,
-  [palette.grape]: palette.sourCloud,
+  [palette.grape]: "#000000",
 };
 
 export function getTextColorFor(background: string): string {
