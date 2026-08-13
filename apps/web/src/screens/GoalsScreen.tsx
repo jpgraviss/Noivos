@@ -120,7 +120,6 @@ export function GoalsScreen() {
   // fetch effect flips it to "wedding" once it genuinely knows.
   const [segment, setSegment] = useState<"wedding" | "goals">("goals");
 
-  const [loaded, setLoaded] = useState(false);
   const [backendAvailable, setBackendAvailable] = useState(false);
   const [apiGoals, setApiGoals] = useState<ApiGoal[]>([]);
 
@@ -143,7 +142,6 @@ export function GoalsScreen() {
 
   // Wedding segment real-data state — separate from the "All Goals" fetch
   // above since /api/wedding and /api/goals are independent resources.
-  const [weddingLoaded, setWeddingLoaded] = useState(false);
   const [weddingBackendAvailable, setWeddingBackendAvailable] = useState(false);
   const [hasPartnership, setHasPartnership] = useState(false);
   const [apiWedding, setApiWedding] = useState<ApiWeddingDetails | null>(null);
@@ -196,9 +194,6 @@ export function GoalsScreen() {
         // wedding-mode signal on this screen falls back to the mock when
         // there's no real signal reachable at all.
         if (!cancelled && weddingDetails.active) setSegment("wedding");
-      })
-      .finally(() => {
-        if (!cancelled) setWeddingLoaded(true);
       });
     return () => {
       cancelled = true;
@@ -360,9 +355,6 @@ export function GoalsScreen() {
       })
       .catch(() => {
         // No database/Clerk/route available — fall back to mock goals.
-      })
-      .finally(() => {
-        if (!cancelled) setLoaded(true);
       });
     return () => {
       cancelled = true;
@@ -487,13 +479,7 @@ export function GoalsScreen() {
       </ScreenGridWide>
 
       {segment === "wedding" && weddingActive ? (
-        !weddingLoaded ? (
-          <Card>
-            <Text variant="bodySmall" secondary>
-              Loading…
-            </Text>
-          </Card>
-        ) : !weddingBackendAvailable ? (
+        !weddingBackendAvailable ? (
           <>
             <Card glow={palette.sourPunch}>
               <Flag size={16} color={palette.sourPunch} style={{ marginBottom: spacing.xs }} aria-hidden={true} />
@@ -874,12 +860,6 @@ export function GoalsScreen() {
             </ScreenGridWide>
           </>
         )
-      ) : !loaded ? (
-        <Card>
-          <Text variant="bodySmall" secondary>
-            Loading…
-          </Text>
-        </Card>
       ) : (
         <>
           {displayGoals.map((g) => {

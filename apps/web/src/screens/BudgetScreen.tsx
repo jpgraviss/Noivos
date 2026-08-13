@@ -48,10 +48,17 @@ interface ApiBudget {
 // migration was needed — the budgets/categories/transactions schema and its
 // RLS policies were already part of 0001_init.sql/0002_rls.sql, just unused
 // until now.
+//
+// No "Loading…" gate on first render (removed 2026-08-11, previously
+// blocked the whole screen behind a bare loading text until the fetch
+// resolved) — `budget` below already falls back to budgetSnapshot's mock
+// numbers synchronously, on the very first render, same as every other
+// real-data screen in this app (HomeScreen, GoalsScreen). There was never
+// a moment with nothing to show; the fetch just silently upgrades the
+// already-visible mock numbers to real ones once it resolves.
 export function BudgetScreen() {
   const { colors } = useTheme();
 
-  const [loaded, setLoaded] = useState(false);
   const [backendAvailable, setBackendAvailable] = useState(false);
   const [apiBudget, setApiBudget] = useState<ApiBudget | null>(null);
 
@@ -73,9 +80,6 @@ export function BudgetScreen() {
       })
       .catch(() => {
         // No database/Clerk reachable — fall back to the mock snapshot below.
-      })
-      .finally(() => {
-        setLoaded(true);
       });
   }
 
@@ -138,18 +142,6 @@ export function BudgetScreen() {
   // data doesn't have this problem (its "spent" IS that sum), but computing
   // it locally keeps the chart correct either way.
   const totalCategorySpend = categoryBreakdown.reduce((sum, c) => sum + c.amount, 0);
-
-  if (!loaded) {
-    return (
-      <ScreenGrid>
-        <ScreenGridWide>
-          <Text variant="body" secondary>
-            Loading your Budget…
-          </Text>
-        </ScreenGridWide>
-      </ScreenGrid>
-    );
-  }
 
   return (
     <ScreenGrid>
