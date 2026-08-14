@@ -746,8 +746,22 @@ export function GoalsScreen() {
                         {savingWeddingEdit ? "Saving…" : "Save"}
                       </Text>
                     </Pressable>
+                    {/* disabled={savingWeddingEdit}, not just Save (found
+                        2026-08-13, right after this form shipped): Cancel had
+                        no guard against an in-flight save at all — tapping it
+                        while a PATCH was still resolving hid the form
+                        immediately (the user reasonably believes they
+                        discarded the edit), but nothing aborted the request,
+                        so handleSaveWeddingEdit's own .then still ran a
+                        moment later and silently applied (or failed to
+                        apply, into an error state no longer rendered once
+                        the form was gone) the "cancelled" edit anyway. Same
+                        gap existed on every other Cancel button in this file
+                        and in BudgetScreen.tsx's expense form — fixed
+                        identically everywhere rather than just here. */}
                     <Pressable
                       onPress={() => setShowEditWedding(false)}
+                      disabled={savingWeddingEdit}
                       role="button"
                       style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border }}
                     >
@@ -881,8 +895,14 @@ export function GoalsScreen() {
                         {addingVendor ? "Saving…" : "Add vendor"}
                       </Text>
                     </Pressable>
+                    {/* disabled={addingVendor} (found 2026-08-13 — see the
+                        Edit-Wedding Cancel button's own comment for the full
+                        explanation): without it, cancelling mid-save doesn't
+                        abort the in-flight POST, which can then silently
+                        apply after the form's already gone. */}
                     <Pressable
                       onPress={() => setShowAddVendor(false)}
+                      disabled={addingVendor}
                       role="button"
                       style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border }}
                     >
@@ -1010,8 +1030,14 @@ export function GoalsScreen() {
                         {addingFamilyContribution ? "Saving…" : "Log contribution"}
                       </Text>
                     </Pressable>
+                    {/* disabled={addingFamilyContribution} (found 2026-08-13
+                        — see the Edit-Wedding Cancel button's own comment
+                        for the full explanation): without it, cancelling
+                        mid-save doesn't abort the in-flight POST, which can
+                        then silently apply after the form's already gone. */}
                     <Pressable
                       onPress={() => setShowAddFamilyContribution(false)}
+                      disabled={addingFamilyContribution}
                       role="button"
                       style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border }}
                     >
@@ -1214,8 +1240,14 @@ export function GoalsScreen() {
                         {addingGoal ? "Saving…" : "Create goal"}
                       </Text>
                     </Pressable>
+                    {/* disabled={addingGoal} (found 2026-08-13 — see the
+                        Edit-Wedding Cancel button's own comment for the
+                        full explanation): without it, cancelling mid-save
+                        doesn't abort the in-flight POST, which can then
+                        silently apply after the form's already gone. */}
                     <Pressable
                       onPress={() => setShowAddGoal(false)}
+                      disabled={addingGoal}
                       role="button"
                       style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border }}
                     >

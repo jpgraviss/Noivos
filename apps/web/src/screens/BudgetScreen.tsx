@@ -353,8 +353,15 @@ export function BudgetScreen() {
                           {submittingFor === c.id ? "Saving…" : "Save"}
                         </Text>
                       </Pressable>
+                      {/* disabled={submittingFor === c.id} (found
+                          2026-08-13 — see GoalsScreen.tsx's Edit-Wedding
+                          Cancel button for the full explanation): without
+                          it, cancelling mid-save doesn't abort the
+                          in-flight POST, which can then silently apply
+                          after the form's already gone. */}
                       <Pressable
                         onPress={() => setAddingFor(null)}
+                        disabled={submittingFor === c.id}
                         role="button"
                         style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border }}
                       >
