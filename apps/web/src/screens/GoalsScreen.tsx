@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View, Pressable, TextInput } from "react-native";
 import { Circle, CircleCheck, Flag, Plus } from "lucide-react-native";
 import { Card, OwnershipBadge, StackedProgressBar, Skeleton, Text, useTheme, spacing, radius, palette } from "@noivos/ui";
@@ -78,6 +78,36 @@ interface ApiWeddingDetails {
   familyContributions: ApiFamilyContribution[];
 }
 
+// Returns keyboard focus to `ref`'s element when `isOpen` transitions from
+// true to false — this screen's three expandable add-forms (vendor,
+// family contribution, goal) each unmount their whole form subtree on
+// Cancel or a successful submit and mount a *different* Pressable (the
+// "Add a ___" toggle link) in the same slot. Since react-native-web renders
+// Pressable as a real focusable DOM node, a keyboard user who Tabs into
+// the form and activates Cancel had their focused element removed from
+// the DOM with no explicit focus management (found 2026-08-13) — the
+// browser silently drops focus to <body>, losing their tab position and
+// forcing them to restart tabbing from the top of the page instead of
+// landing back on the control that logically replaced the one they had
+// focused. Guarded against firing on initial mount (`isOpen` starts
+// false) — only a genuine true -> false transition triggers it.
+// `ref` is typed as RN's own `View` (the type Pressable's own `ref` prop
+// expects) rather than something with a `.focus()` method — RN's typings
+// target native platforms too, where View has no DOM-style `.focus()`, so
+// the cast to `unknown` at the actual call site below is deliberate: on
+// this web-only screen, react-native-web's Pressable forwards to a real
+// DOM node with a genuine `.focus()` at runtime, but nothing further up
+// the type chain can express that without fighting RN's own typings.
+function useReturnFocusOnClose(isOpen: boolean, ref: { current: View | null }) {
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (wasOpen.current && !isOpen) {
+      (ref.current as unknown as { focus?: () => void } | null)?.focus?.();
+    }
+    wasOpen.current = isOpen;
+  }, [isOpen, ref]);
+}
+
 function toDisplayGoal(g: ApiGoal): DisplayGoal {
   const contributorIds = Array.from(new Set(g.contributions.map((c) => c.contributorId)));
   const contributors = contributorIds.map((id, idx) => {
@@ -146,6 +176,8 @@ export function GoalsScreen() {
   const [newGoalShared, setNewGoalShared] = useState(false);
   const [addingGoal, setAddingGoal] = useState(false);
   const [addGoalError, setAddGoalError] = useState<string | null>(null);
+  const addGoalToggleRef = useRef<View>(null);
+  useReturnFocusOnClose(showAddGoal, addGoalToggleRef);
 
   const [contributionDrafts, setContributionDrafts] = useState<Record<string, string>>({});
   const [contributingGoalId, setContributingGoalId] = useState<string | null>(null);
@@ -169,6 +201,8 @@ export function GoalsScreen() {
   const [vendorDueDate, setVendorDueDate] = useState("");
   const [addingVendor, setAddingVendor] = useState(false);
   const [addVendorError, setAddVendorError] = useState<string | null>(null);
+  const addVendorToggleRef = useRef<View>(null);
+  useReturnFocusOnClose(showAddVendor, addVendorToggleRef);
 
   const [newChecklistTitle, setNewChecklistTitle] = useState("");
   const [addingChecklistItem, setAddingChecklistItem] = useState(false);
@@ -180,6 +214,8 @@ export function GoalsScreen() {
   const [familyContributionAmount, setFamilyContributionAmount] = useState("");
   const [addingFamilyContribution, setAddingFamilyContribution] = useState(false);
   const [addFamilyContributionError, setAddFamilyContributionError] = useState<string | null>(null);
+  const addFamilyContributionToggleRef = useRef<View>(null);
+  useReturnFocusOnClose(showAddFamilyContribution, addFamilyContributionToggleRef);
 
   useEffect(() => {
     let cancelled = false;
@@ -746,7 +782,7 @@ export function GoalsScreen() {
                   </View>
                 </View>
               ) : (
-                <Pressable onPress={() => setShowAddVendor(true)} role="button" style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs }}>
+                <Pressable ref={addVendorToggleRef} onPress={() => setShowAddVendor(true)} role="button" style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs }}>
                   <Plus size={16} color={palette.sourLime} aria-hidden={true} />
                   <Text variant="bodySmall" style={{ fontWeight: "600" }}>
                     Add a vendor
@@ -876,6 +912,7 @@ export function GoalsScreen() {
                 </View>
               ) : (
                 <Pressable
+                  ref={addFamilyContributionToggleRef}
                   onPress={() => setShowAddFamilyContribution(true)}
                   role="button"
                   style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs }}
@@ -1078,7 +1115,7 @@ export function GoalsScreen() {
                   </View>
                 </View>
               ) : (
-                <Pressable onPress={() => setShowAddGoal(true)} role="button" style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                <Pressable ref={addGoalToggleRef} onPress={() => setShowAddGoal(true)} role="button" style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
                   <Plus size={18} color={palette.sourLime} aria-hidden={true} />
                   <Text variant="body" style={{ fontWeight: "600" }}>
                     Add a goal

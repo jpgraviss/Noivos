@@ -12,6 +12,16 @@ describe("buildInsights", () => {
     expect(result[0].text).toContain("$40");
   });
 
+  it("rounds a sub-$1 overage up, never down to a self-contradicting $0", () => {
+    // Found 2026-08-13: Math.round(0.30) -> 0 used to print "running $0
+    // over plan" for a category that's genuinely, provably over — a real
+    // scenario with cents-precision transactions (e.g. $300.00 planned,
+    // $300.30 spent).
+    const result = buildInsights([{ id: "c1", name: "Dining Out", planned: 300, spent: 300.3 }], []);
+    expect(result[0].text).toContain("$1");
+    expect(result[0].text).not.toContain("$0");
+  });
+
   it("does not flag a category at or under its planned amount", () => {
     const result = buildInsights(
       [
@@ -49,6 +59,20 @@ describe("buildInsights", () => {
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("near-g1");
     expect(result[0].text).toContain("$40");
+  });
+
+  it("rounds a sub-$1 remaining amount up, never down to a self-contradicting $0", () => {
+    // Same fix as the category case above, for the "nearly funded" branch:
+    // this only runs when pct < 1 (the fully-funded branch above already
+    // returns first), so remaining is always strictly > 0 — Math.round
+    // used to print "nearly fully funded — $0 to go" for a goal genuinely
+    // still short by e.g. $0.30.
+    const result = buildInsights(
+      [],
+      [{ id: "g1", name: "Emergency Fund", targetAmount: 1000, totalContributed: 999.7 }]
+    );
+    expect(result[0].text).toContain("$1");
+    expect(result[0].text).not.toContain("$0");
   });
 
   it("does not flag a goal below the 95% threshold", () => {

@@ -40,7 +40,13 @@ export function buildInsights(categories: BudgetCategoryFact[], goals: GoalProgr
 
   for (const c of categories) {
     if (c.spent > c.planned) {
-      const over = Math.round(c.spent - c.planned);
+      // `|| 1`, not a bare Math.round (found 2026-08-13, same fix as
+      // lib/moneyMeeting.ts's identical pattern): the guard above already
+      // proves this is strictly > 0, but a sub-$0.50 overage rounds to $0,
+      // printing the self-contradicting "running $0 over plan." `|| 1`
+      // only intervenes in that specific case — ordinary overages still
+      // round to the nearest dollar as before.
+      const over = Math.round(c.spent - c.planned) || 1;
       items.push({
         id: `over-${c.id}`,
         text: `${c.name} is running $${over.toLocaleString()} over plan this month — worth a look?`,
@@ -54,7 +60,13 @@ export function buildInsights(categories: BudgetCategoryFact[], goals: GoalProgr
     if (pct >= 1) {
       items.push({ id: `funded-${g.id}`, text: `${g.name} is fully funded — nice work!` });
     } else if (pct >= 0.95) {
-      const remaining = Math.round(g.targetAmount - g.totalContributed);
+      // `|| 1`, not a bare Math.round: this branch only runs when pct < 1
+      // (the `>= 1` branch above already claims "fully funded" and returns
+      // first), so remaining is always strictly > 0 — but a sub-$0.50
+      // shortfall rounds to $0, printing "nearly fully funded — $0 to go,"
+      // asserting nothing's left while not saying it's funded. `|| 1` only
+      // intervenes in that specific case.
+      const remaining = Math.round(g.targetAmount - g.totalContributed) || 1;
       items.push({
         id: `near-${g.id}`,
         text: `${g.name} is nearly fully funded — $${remaining.toLocaleString()} to go.`,

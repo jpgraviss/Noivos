@@ -27,7 +27,16 @@ export async function buildAgenda(partnershipId: string, client: PoolClient): Pr
   );
   for (const row of overBudget.rows) {
     if (row.spent > row.planned) {
-      items.push(`${row.name} is $${Math.round(row.spent - row.planned)} over this month — worth a look together?`);
+      // `|| 1`, not a bare Math.round (found 2026-08-13): the guard above
+      // already proves this difference is strictly > 0, but a sub-$0.50
+      // overage (perfectly ordinary with real cents-precision transactions
+      // — e.g. $300.00 planned, $300.30 spent) rounds to $0, printing the
+      // self-contradicting "$0 over this month" — an agenda item asserting
+      // there's an overage while displaying none. `|| 1` only intervenes
+      // in that specific case; ordinary overages still round to the
+      // nearest dollar as before (e.g. $40.40 over still reads "$40 over",
+      // not bumped up to $41).
+      items.push(`${row.name} is $${Math.round(row.spent - row.planned) || 1} over this month — worth a look together?`);
     }
   }
 
