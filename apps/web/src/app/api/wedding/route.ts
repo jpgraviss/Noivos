@@ -166,7 +166,9 @@ export async function POST(request: Request) {
 // real-world event (a venue reschedule, a firmer headcount) has no way to
 // be reflected. wedding_details_write's RLS (0002_rls.sql) already
 // correctly requires both active-partnership and membership on its own
-// USING/WITH CHECK — no gap there, this was purely a missing route.
+// USING/WITH CHECK — no gap there, this was purely a missing route. Wired
+// up to a real "Edit" form in GoalsScreen.tsx's countdown card on
+// 2026-08-13 — this had shipped as backend-only for two days.
 //
 // Deliberately scoped to just these two fields, not `status`/`graduated_at`
 // — that's a real 3-state lifecycle in the schema (active/graduated/

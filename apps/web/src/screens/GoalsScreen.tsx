@@ -195,6 +195,58 @@ export function GoalsScreen() {
   const [startingWedding, setStartingWedding] = useState(false);
   const [startWeddingError, setStartWeddingError] = useState<string | null>(null);
 
+  // Wired 2026-08-13: PATCH /api/wedding has existed since 2026-08-11 but
+  // had no UI calling it — the wedding date/guest count could only ever be
+  // set once, at Start Wedding Mode time. Mirrors the Start Wedding form's
+  // own fields/validation posture exactly (no client-side date-format
+  // check, relies on the server's real isValidDateString/non-negative
+  // checks and surfaces its error message directly).
+  const [showEditWedding, setShowEditWedding] = useState(false);
+  const [editWeddingDate, setEditWeddingDate] = useState("");
+  const [editGuestCount, setEditGuestCount] = useState("");
+  const [savingWeddingEdit, setSavingWeddingEdit] = useState(false);
+  const [editWeddingError, setEditWeddingError] = useState<string | null>(null);
+  const editWeddingToggleRef = useRef<View>(null);
+  useReturnFocusOnClose(showEditWedding, editWeddingToggleRef);
+
+  function openEditWedding() {
+    setEditWeddingDate(apiWedding?.weddingDate ?? "");
+    setEditGuestCount(apiWedding?.guestCountEstimate != null ? String(apiWedding.guestCountEstimate) : "");
+    setEditWeddingError(null);
+    setShowEditWedding(true);
+  }
+
+  async function handleSaveWeddingEdit() {
+    setSavingWeddingEdit(true);
+    setEditWeddingError(null);
+    try {
+      const res = await fetch("/api/wedding", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        // Both fields always included (even when cleared to an empty
+        // string) so PATCH's own *Provided distinction ("weddingDate" in
+        // body) treats this save as touching both — matches this form
+        // always showing both fields together, unlike a route that could
+        // legitimately update just one.
+        body: JSON.stringify({
+          weddingDate: editWeddingDate.trim() || null,
+          guestCountEstimate: editGuestCount.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setEditWeddingError(data.error ?? "Couldn't save your changes.");
+        return;
+      }
+      setApiWedding((prev) => (prev ? { ...prev, weddingDate: data.weddingDate, guestCountEstimate: data.guestCountEstimate } : prev));
+      setShowEditWedding(false);
+    } catch {
+      setEditWeddingError("Couldn't reach the server — try again.");
+    } finally {
+      setSavingWeddingEdit(false);
+    }
+  }
+
   const [showAddVendor, setShowAddVendor] = useState(false);
   const [vendorName, setVendorName] = useState("");
   const [vendorBalance, setVendorBalance] = useState("");
@@ -649,56 +701,113 @@ export function GoalsScreen() {
         ) : (
           <>
             <Card glow={palette.sourPunch}>
-              <Flag size={16} color={palette.sourPunch} style={{ marginBottom: spacing.xs }} aria-hidden={true} />
-              {/* daysUntil() returns a negative number once the date has
-                  passed (correct — it's real date math, not itself a bug),
-                  but nothing here branched on that: a couple whose wedding
-                  date has already come and gone (an ordinary state — this
-                  screen doesn't clear or archive anything once the date
-                  passes) saw a bare negative integer glued to forward-
-                  looking "days until" copy, e.g. "-5 / days until
-                  2026-06-12" (found 2026-08-11). */}
-              {(() => {
-                const days = daysUntil(apiWedding.weddingDate);
-                if (days === null) {
-                  return (
-                    <>
-                      <Text variant="display" color={palette.sourPunch}>
-                        —
-                      </Text>
-                      <Text variant="body" secondary>
-                        Set a wedding date to see your countdown
-                      </Text>
-                    </>
-                  );
-                }
-                if (days <= 0) {
-                  return (
-                    <>
-                      <Text variant="display" color={palette.sourPunch}>
-                        Married!
-                      </Text>
-                      <Text variant="body" secondary>
-                        {days === 0 ? `Today's the day — ${apiWedding.weddingDate}` : `Your wedding was ${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"} ago`}
-                      </Text>
-                    </>
-                  );
-                }
-                return (
-                  <>
-                    <Text variant="display" color={palette.sourPunch}>
-                      {days}
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <Flag size={16} color={palette.sourPunch} style={{ marginBottom: spacing.xs }} aria-hidden={true} />
+                {!showEditWedding && (
+                  <Pressable ref={editWeddingToggleRef} onPress={openEditWedding} role="button">
+                    <Text variant="caption" secondary style={{ fontWeight: "600" }}>
+                      Edit
                     </Text>
-                    <Text variant="body" secondary>
-                      days until {apiWedding.weddingDate}
+                  </Pressable>
+                )}
+              </View>
+              {showEditWedding ? (
+                <View style={{ gap: spacing.sm }}>
+                  <TextInput
+                    value={editWeddingDate}
+                    onChangeText={setEditWeddingDate}
+                    placeholder="Wedding date (YYYY-MM-DD)"
+                    placeholderTextColor={colors.textSecondary}
+                    aria-label="Wedding date"
+                    style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 10, color: colors.textPrimary }}
+                  />
+                  <TextInput
+                    value={editGuestCount}
+                    onChangeText={setEditGuestCount}
+                    placeholder="Estimated guest count"
+                    placeholderTextColor={colors.textSecondary}
+                    keyboardType="numeric"
+                    aria-label="Estimated guest count"
+                    style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.medium, padding: 10, color: colors.textPrimary }}
+                  />
+                  {editWeddingError && (
+                    <Text variant="caption" style={{ color: colors.danger }}>
+                      {editWeddingError}
                     </Text>
-                  </>
-                );
-              })()}
-              {apiWedding.guestCountEstimate != null && (
-                <Text variant="bodySmall" secondary style={{ marginTop: spacing.xs }}>
-                  ~{apiWedding.guestCountEstimate} guests
-                </Text>
+                  )}
+                  <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                    <Pressable
+                      onPress={handleSaveWeddingEdit}
+                      disabled={savingWeddingEdit}
+                      role="button"
+                      style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, backgroundColor: palette.sourLime }}
+                    >
+                      <Text variant="bodySmall" color={palette.licorice} style={{ fontWeight: "600" }}>
+                        {savingWeddingEdit ? "Saving…" : "Save"}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setShowEditWedding(false)}
+                      role="button"
+                      style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border }}
+                    >
+                      <Text variant="bodySmall">Cancel</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <>
+                  {/* daysUntil() returns a negative number once the date has
+                      passed (correct — it's real date math, not itself a bug),
+                      but nothing here branched on that: a couple whose wedding
+                      date has already come and gone (an ordinary state — this
+                      screen doesn't clear or archive anything once the date
+                      passes) saw a bare negative integer glued to forward-
+                      looking "days until" copy, e.g. "-5 / days until
+                      2026-06-12" (found 2026-08-11). */}
+                  {(() => {
+                    const days = daysUntil(apiWedding.weddingDate);
+                    if (days === null) {
+                      return (
+                        <>
+                          <Text variant="display" color={palette.sourPunch}>
+                            —
+                          </Text>
+                          <Text variant="body" secondary>
+                            Set a wedding date to see your countdown
+                          </Text>
+                        </>
+                      );
+                    }
+                    if (days <= 0) {
+                      return (
+                        <>
+                          <Text variant="display" color={palette.sourPunch}>
+                            Married!
+                          </Text>
+                          <Text variant="body" secondary>
+                            {days === 0 ? `Today's the day — ${apiWedding.weddingDate}` : `Your wedding was ${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"} ago`}
+                          </Text>
+                        </>
+                      );
+                    }
+                    return (
+                      <>
+                        <Text variant="display" color={palette.sourPunch}>
+                          {days}
+                        </Text>
+                        <Text variant="body" secondary>
+                          days until {apiWedding.weddingDate}
+                        </Text>
+                      </>
+                    );
+                  })()}
+                  {apiWedding.guestCountEstimate != null && (
+                    <Text variant="bodySmall" secondary style={{ marginTop: spacing.xs }}>
+                      ~{apiWedding.guestCountEstimate} guests
+                    </Text>
+                  )}
+                </>
               )}
             </Card>
 
