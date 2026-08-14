@@ -43,7 +43,6 @@ export interface ColorTokens {
   accent: string;
   highlight: string;
   info: string;
-  success: string;
   warning: string;
   border: string;
   // Added 2026-08-13: every form-error message in the app used to hardcode
@@ -65,6 +64,23 @@ export interface ColorTokens {
   // pink," just deeper in light mode the way most brand palettes need a
   // shifted foreground per theme to stay legible.
   danger: string;
+  // Added 2026-08-14, same defect class as `danger` above: several screens
+  // used `colors.primary`/`palette.sourLime` directly as a foreground text/
+  // icon color (active nav tab, "invite sent" confirmation, an under-budget
+  // stat delta, the AI Coach send button) rather than as a Button/pill
+  // *background* routed through getTextColorFor. sourLime on licorice
+  // (dark background/surface) measures ~13.7:1/~14.3:1 — comfortably
+  // legible — but on light mode's #FAFAF8 background/#FFFFFF surface it's
+  // ~1.30:1/~1.35:1, nowhere near the 4.5:1 minimum. `success` already
+  // existed as a token (dark: sourLime, light: sourLime — unused anywhere
+  // until this fix) but shared the exact same one-value-both-modes defect
+  // as `danger` did before 2026-08-13. Same treatment: dark mode keeps
+  // sourLime itself (already passes), light mode gets a darkened variant
+  // of the same hue (0.52x RGB scale — #5F7C00, the least darkening needed
+  // to clear 4.5:1 against both the light background and light surface:
+  // 4.599:1/4.806:1) so "good/active" still reads as the same lime green,
+  // just deep enough to stay legible in light mode.
+  success: string;
 }
 
 export const colorTokens: Record<'dark' | 'light', ColorTokens> = {
@@ -78,10 +94,10 @@ export const colorTokens: Record<'dark' | 'light', ColorTokens> = {
     accent: palette.electricBlue,
     highlight: palette.citrus,
     info: palette.grape,
-    success: palette.sourLime,
     warning: palette.citrus,
     border: 'rgba(245, 243, 240, 0.12)',
     danger: palette.sourPunch,
+    success: palette.sourLime,
   },
   light: {
     background: '#FAFAF8',
@@ -93,10 +109,10 @@ export const colorTokens: Record<'dark' | 'light', ColorTokens> = {
     accent: palette.electricBlue,
     highlight: palette.citrus,
     info: palette.grape,
-    success: palette.sourLime,
     warning: palette.citrus,
     border: 'rgba(24, 23, 26, 0.10)',
     danger: '#CC2471',
+    success: '#5F7C00',
   },
 } as const;
 

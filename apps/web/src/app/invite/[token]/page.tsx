@@ -182,6 +182,10 @@ function InvitePageInner() {
           ) : null}
 
           {accepted && (
+            // colors.success, not palette.sourLime (found 2026-08-14 — see
+            // tokens.ts's `success` token comment for the full
+            // explanation): raw sourLime text on this Card's colors.surface
+            // background was ~1.35:1 in light mode, far under WCAG AA.
             <Link
               href="/"
               style={{
@@ -190,7 +194,7 @@ function InvitePageInner() {
                 fontFamily: "var(--font-inter)",
                 fontWeight: 600,
                 fontSize: 14,
-                color: palette.sourLime,
+                color: colors.success,
               }}
             >
               Go to Noivos →

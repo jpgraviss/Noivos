@@ -167,7 +167,11 @@ export function AICoachScreen() {
           role="button"
           aria-label="Send message"
         >
-          <Send size={18} color={draft.trim() ? palette.sourLime : colors.textSecondary} aria-hidden={true} />
+          {/* colors.success, not palette.sourLime directly (found
+              2026-08-14 — see tokens.ts's `success` token comment for the
+              full explanation): raw sourLime on this input bar's
+              colors.surface background was ~1.30:1 in light mode. */}
+          <Send size={18} color={draft.trim() ? colors.success : colors.textSecondary} aria-hidden={true} />
         </Pressable>
       </View>
     </ScreenStack>

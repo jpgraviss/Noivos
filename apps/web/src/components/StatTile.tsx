@@ -17,12 +17,21 @@ export interface StatTileProps {
 // than a condensed display face, per that guidance.
 export function StatTile({ label, value, deltaLabel, deltaDirection, deltaIsGood, sparkline }: StatTileProps) {
   const { colors } = useTheme();
+  // colors.success/colors.danger, not palette.sourLime/palette.sourPunch
+  // directly (found 2026-08-14): this is raw foreground text sitting on
+  // Card's own colors.surface background, not a Button background routed
+  // through getTextColorFor. Both palette values pass WCAG AA in dark mode
+  // but fail in light mode — sourLime ~1.30:1, sourPunch ~3.49:1, both
+  // under the 4.5:1 minimum — reachable in practice via HomeScreen's
+  // deltaIsGood={!overBudget}: a real over-budget category rendered its
+  // delta in barely-legible pink. success/danger are the theme-aware
+  // tokens built for exactly this (see tokens.ts's own comments).
   const deltaColor =
     deltaDirection === undefined
       ? colors.textSecondary
       : deltaIsGood
-        ? palette.sourLime
-        : palette.sourPunch;
+        ? colors.success
+        : colors.danger;
 
   return (
     <Card style={{ gap: spacing.xs }}>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, TextInput, Pressable } from 'react-native';
 import { Mic, Camera, Send } from 'lucide-react-native';
 import { Card, ScreenContainer, Text, useTheme, spacing, radius, palette, getTextColorFor } from '@noivos/ui';
-import { aiConversation, currentUser } from '../data/mockData';
+import { aiConversation } from '../data/mockData';
 
 // Brought to real parity with apps/web's AICoachScreen.tsx (2026-08-06,
 // found during an accessibility pass) — this screen previously had no way
@@ -60,7 +60,19 @@ export function AICoachScreen() {
       ))}
 
       <Card>
-        <Text variant="caption" secondary>SHARE WITH {currentUser.partnerName.toUpperCase()}</Text>
+        {/* Was `SHARE WITH {currentUser.partnerName.toUpperCase()}` — that
+            mock name ("MARCUS") was shown unconditionally to every real
+            user regardless of who their actual connected partner is, or
+            whether they have one at all. The web twin of this exact screen
+            (apps/web/src/screens/AICoachScreen.tsx) already got this fix on
+            2026-08-08; found 2026-08-14 that the mobile screen never did.
+            This screen has no real data of any kind yet (canned/keyword-
+            matched replies, no API fetches anywhere in this file), so this
+            uses a neutral, never-wrong "YOUR PARTNER" instead of a specific
+            name, matching OwnershipBadge's own precedent
+            (packages/ui/src/OwnershipBadge.tsx) of omitting a name entirely
+            rather than fabricating one when it isn't actually known. */}
+        <Text variant="caption" secondary>SHARE WITH YOUR PARTNER</Text>
         {/* Not wired — there's no "share an AI conversation to Activity"
             event type yet. Disabled with honest copy rather than a
             silently dead tap target. */}
@@ -117,7 +129,11 @@ export function AICoachScreen() {
           role="button"
           aria-label="Send message"
         >
-          <Send size={18} color={draft.trim() ? palette.sourLime : colors.textSecondary} aria-hidden={true} />
+          {/* colors.success, not palette.sourLime directly (found
+              2026-08-14 — see tokens.ts's `success` token comment for the
+              full explanation): raw sourLime on this input bar's
+              colors.surface background was ~1.30:1 in light mode. */}
+          <Send size={18} color={draft.trim() ? colors.success : colors.textSecondary} aria-hidden={true} />
         </Pressable>
       </View>
     </ScreenContainer>

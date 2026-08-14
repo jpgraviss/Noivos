@@ -187,13 +187,22 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
                     // A soft tint instead of a solid filled pill — Origin's
                     // selected nav state reads as "highlighted," not "badge."
                     background: active ? `${colors.primary}2E` : "transparent",
-                    color: active ? colors.primary : colors.textSecondary,
+                    // colors.success, not colors.primary (found 2026-08-14):
+                    // this is sourLime used as raw foreground text/icon
+                    // color on colors.surface, not as a Button background
+                    // routed through getTextColorFor — passes in dark mode
+                    // (~13.7:1 on licorice) but was ~1.3:1 against light
+                    // mode's white surface. The tinted `background` above
+                    // stays colors.primary — that's a translucent fill, not
+                    // a text-contrast case. See tokens.ts's `success` token
+                    // comment for the full explanation.
+                    color: active ? colors.success : colors.textSecondary,
                     cursor: "pointer",
                     font: "inherit",
                     textAlign: "left",
                   }}
                 >
-                  <IconCmp size={18} color={active ? colors.primary : colors.textSecondary} aria-hidden={true} />
+                  <IconCmp size={18} color={active ? colors.success : colors.textSecondary} aria-hidden={true} />
                   <span style={{ fontFamily: "var(--font-inter)", fontSize: 14, fontWeight: 600 }}>{label}</span>
                 </button>
               );
@@ -359,12 +368,17 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
                 flexDirection: "column",
                 alignItems: "center",
                 gap: 2,
-                color: active ? palette.sourLime : colors.textSecondary,
+                // colors.success, not palette.sourLime directly (found
+                // 2026-08-14 — see the sidebar nav's own comment above and
+                // tokens.ts's `success` token comment for the full
+                // explanation): raw sourLime text/icon on colors.surface
+                // was ~1.3:1 in light mode, far under WCAG AA.
+                color: active ? colors.success : colors.textSecondary,
                 cursor: "pointer",
                 font: "inherit",
               }}
             >
-              <IconCmp size={18} color={active ? palette.sourLime : colors.textSecondary} aria-hidden={true} />
+              <IconCmp size={18} color={active ? colors.success : colors.textSecondary} aria-hidden={true} />
               <span style={{ fontSize: 11 }}>{label}</span>
             </button>
           );

@@ -227,7 +227,11 @@ export function PartnershipSettings() {
           </Text>
           {invited && invitedEmail ? (
             <div style={{ marginBottom: spacing.sm }}>
-              <Text variant="bodySmall" style={{ color: palette.sourLime, marginBottom: spacing.sm }}>
+              {/* colors.success, not palette.sourLime (found 2026-08-14 —
+                  see tokens.ts's `success` token comment for the full
+                  explanation): raw sourLime text on this Card's
+                  colors.surface background was ~1.35:1 in light mode. */}
+              <Text variant="bodySmall" style={{ color: colors.success, marginBottom: spacing.sm }}>
                 {backendAvailable && inviteUrl
                   ? `A Partnership was created and an invite is waiting for ${invitedEmail} to accept. There's no email service wired up yet, so share this link with them yourself:`
                   : backendAvailable
@@ -306,7 +310,19 @@ export function PartnershipSettings() {
             >
               {disconnecting ? "Disconnecting…" : "Disconnect"}
             </button>
-            <button onClick={() => setView("summary")} style={pillButtonStyle(colors.border, colors.textPrimary)}>
+            {/* disabled={disconnecting} (found 2026-08-14 — same bug class
+                as GoalsScreen.tsx/BudgetScreen.tsx's Cancel buttons fixed
+                a day earlier): without it, clicking Cancel while
+                handleDisconnect's POST to /api/partnership/disconnect was
+                still in flight hid this confirm view immediately, but the
+                request wasn't aborted — its .then still fired moments
+                later and silently flipped the summary view to
+                "disconnected" after the user believed they'd backed out. */}
+            <button
+              onClick={() => setView("summary")}
+              disabled={disconnecting}
+              style={pillButtonStyle(colors.border, colors.textPrimary)}
+            >
               Cancel
             </button>
           </div>
@@ -314,9 +330,13 @@ export function PartnershipSettings() {
       )}
 
       {!hasActivePartnership && view === "summary" && (
+        // colors.success, not palette.sourLime directly (found 2026-08-14
+        // — see tokens.ts's `success` token comment for the full
+        // explanation): raw sourLime text/icon here was ~1.30-1.35:1 in
+        // light mode, far under WCAG AA.
         <div style={{ marginTop: spacing.sm, display: "flex", alignItems: "center", gap: spacing.sm }}>
-          <UserPlus size={16} color={palette.sourLime} aria-hidden={true} />
-          <Text variant="bodySmall" style={{ color: palette.sourLime }}>
+          <UserPlus size={16} color={colors.success} aria-hidden={true} />
+          <Text variant="bodySmall" style={{ color: colors.success }}>
             Invite a partner to reconnect
           </Text>
         </div>
