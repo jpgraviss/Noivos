@@ -5,6 +5,7 @@ import { Card, Text, useTheme, spacing, getTextColorFor } from "@noivos/ui";
 import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
 import { IdentitySettings } from "../components/IdentitySettings";
 import { PartnershipSettings } from "../components/PartnershipSettings";
+import { LinkedAccounts } from "../components/LinkedAccounts";
 
 // Honest "not built yet" copy per row, not a silent dead end — same posture
 // as the rest of the app (e.g. Partnership invites plainly stating no
@@ -89,6 +90,8 @@ export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
       <IdentitySettings />
 
       <PartnershipSettings />
+
+      <LinkedAccounts />
 
       <Card>
         <Text variant="h3">Appearance</Text>
