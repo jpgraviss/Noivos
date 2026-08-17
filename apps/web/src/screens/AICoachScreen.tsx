@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View, TextInput, Pressable } from "react-native";
 import { Camera, Mic, Send } from "lucide-react-native";
-import { Card, Text, useTheme, spacing, radius, palette, getTextColorFor } from "@noivos/ui";
-import { aiConversation } from "../data/mockData";
+import { Card, Text, Skeleton, useTheme, spacing, radius, palette, getTextColorFor } from "@noivos/ui";
 import { ScreenStack } from "../components/ScreenLayout";
 
 const SUGGESTIONS = [
@@ -11,34 +10,91 @@ const SUGGESTIONS = [
   "Ask about your spending",
 ];
 
-// No real AI backend yet (no OpenAI wiring, no Neon-backed transaction
-// history) — this is a canned, keyword-matched reply so the screen is
-// genuinely interactive rather than a static transcript, while staying
-// honest that it isn't calling a real model.
-function replyTo(text: string): string {
-  const t = text.toLowerCase();
-  if (t.includes("wedding")) {
-    return "Your Wedding goal is at 63% with $22,000 saved of $35,000. At the current pace you'll hit the full amount about a month before the venue balance is due — no action needed right now.";
-  }
-  if (t.includes("afford") || t.includes("night out") || t.includes("buy")) {
-    return "Based on this month's plan, you have about $190 left in Personal Shopping and Dining Out is already $40 over — a modest night out fits, but pulling from Dining Out would push it further over.";
-  }
-  if (t.includes("spend")) {
-    return "You've spent $2,780 of this month's $4,200 planned budget (66%). Wedding Vendors and Dining Out are your two biggest categories so far.";
-  }
-  return "Happy to help — ask me about a specific purchase, your budget, or a savings goal and I'll walk through it with you, no judgment either way.";
+interface Message {
+  role: "user" | "assistant";
+  text: string;
 }
 
+// Wired to the real AI Financial Coach backend (POST/GET /api/ai/coach) on
+// 2026-08-14 — until now this screen ran a canned, keyword-matched reply
+// with no real model call and no real financial data. See lib/ai.ts's
+// top-of-file comment for why this backend was built now despite PRD
+// §12.10's "legal review required before public launch, not yet
+// scheduled" language: founder directive, building-to-demo-for-legal, not
+// a launch-readiness decision — this screen going live internally is not
+// the same thing as this feature being cleared for real users.
 export function AICoachScreen() {
   const { colors } = useTheme();
-  const [messages, setMessages] = useState(aiConversation);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function send(text: string) {
+  // Fetch-cancellation guard, same pattern as BudgetScreen.tsx's
+  // loadRequestRef (found 2026-08-13) — without it, an unmount mid-fetch
+  // (navigating away from AI Coach before the initial history load
+  // resolves) could still call setMessages/setLoadingHistory on an
+  // unmounted component.
+  const loadRequestRef = useRef(0);
+
+  useEffect(() => {
+    const requestId = ++loadRequestRef.current;
+    fetch("/api/ai/coach")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("history fetch failed");
+        return res.json() as Promise<{ conversationId: string | null; messages: { role: string; content: string }[] }>;
+      })
+      .then((data) => {
+        if (loadRequestRef.current !== requestId) return;
+        setConversationId(data.conversationId);
+        setMessages(data.messages.map((m) => ({ role: m.role as "user" | "assistant", text: m.content })));
+      })
+      .catch(() => {
+        // No database/Clerk/AI backend reachable — start with an empty,
+        // genuinely-fresh conversation rather than fabricating history.
+      })
+      .finally(() => {
+        if (loadRequestRef.current === requestId) setLoadingHistory(false);
+      });
+    return () => {
+      loadRequestRef.current += 1;
+    };
+  }, []);
+
+  async function send(text: string) {
     const trimmed = text.trim();
-    if (!trimmed) return;
-    setMessages((prev) => [...prev, { role: "user" as const, text: trimmed }, { role: "assistant" as const, text: replyTo(trimmed) }]);
+    // sending guard (same bug class as every other missing-double-tap-
+    // guard fix this session): without it, a fast double-tap on Send — or
+    // tapping a suggestion chip while a prior message is still in
+    // flight — could fire two overlapping POSTs against the same
+    // conversation, racing which reply lands first.
+    if (!trimmed || sending) return;
+
+    setSending(true);
+    setError(null);
+    setMessages((prev) => [...prev, { role: "user", text: trimmed }]);
     setDraft("");
+
+    try {
+      const res = await fetch("/api/ai/coach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId, message: trimmed }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(typeof data.error === "string" ? data.error : "Something went wrong reaching the Coach.");
+        return;
+      }
+      setConversationId(data.conversationId);
+      setMessages((prev) => [...prev, { role: "assistant", text: data.reply }]);
+    } catch {
+      setError("Couldn't reach the Coach — try again.");
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -55,6 +111,7 @@ export function AICoachScreen() {
           <Pressable
             key={s}
             onPress={() => send(s)}
+            disabled={sending}
             role="button"
             style={{
               paddingVertical: 8,
@@ -63,6 +120,7 @@ export function AICoachScreen() {
               borderWidth: 1,
               borderColor: colors.border,
               backgroundColor: colors.surface,
+              opacity: sending ? 0.6 : 1,
             }}
           >
             <Text variant="bodySmall">{s}</Text>
@@ -70,36 +128,57 @@ export function AICoachScreen() {
         ))}
       </View>
 
-      {messages.map((m, i) => (
-        <Card
-          key={i}
-          style={{
-            alignSelf: m.role === "user" ? "flex-end" : "flex-start",
-            maxWidth: "90%",
-            backgroundColor: m.role === "user" ? palette.grape : colors.surface,
-            borderColor: m.role === "user" ? palette.grape : colors.border,
-          }}
-        >
-          <Text variant="body" color={m.role === "user" ? getTextColorFor(palette.grape) : colors.textPrimary}>
-            {m.text}
+      {loadingHistory ? (
+        <>
+          <Skeleton width="70%" height={52} radiusSize={radius.large} />
+          <Skeleton width="60%" height={40} radiusSize={radius.large} style={{ alignSelf: "flex-end" }} />
+        </>
+      ) : (
+        messages.map((m, i) => (
+          <Card
+            key={i}
+            style={{
+              alignSelf: m.role === "user" ? "flex-end" : "flex-start",
+              maxWidth: "90%",
+              backgroundColor: m.role === "user" ? palette.grape : colors.surface,
+              borderColor: m.role === "user" ? palette.grape : colors.border,
+            }}
+          >
+            <Text variant="body" color={m.role === "user" ? getTextColorFor(palette.grape) : colors.textPrimary}>
+              {m.text}
+            </Text>
+          </Card>
+        ))
+      )}
+
+      {sending && (
+        <Card style={{ alignSelf: "flex-start", maxWidth: "90%" }}>
+          <Text variant="body" secondary>
+            The Coach is thinking…
           </Text>
         </Card>
-      ))}
+      )}
+
+      {error && (
+        <Text variant="bodySmall" style={{ color: colors.danger }}>
+          {error}
+        </Text>
+      )}
 
       <Card>
         {/* Was `SHARE WITH {currentUser.partnerName.toUpperCase()}` — that
             mock name ("MARCUS") was shown unconditionally to every real
             user regardless of who their actual connected partner is, or
             whether they have one at all (found 2026-08-08, same bug class
-            as BudgetScreen's earlier partnerName fix). This screen has no
-            real data of any kind yet (canned/keyword-matched replies, no
-            /api/* fetches anywhere in this file) — adding a whole new
-            fetch just to personalize one caption would be disproportionate
-            to what's actually broken here, so this uses a neutral,
-            never-wrong "YOUR PARTNER" instead of a specific name, matching
-            OwnershipBadge's own precedent (packages/ui/src/OwnershipBadge.tsx)
-            of omitting a name entirely rather than fabricating one when it
-            isn't actually known. */}
+            as BudgetScreen's earlier partnerName fix). This screen now has
+            real data (a real backend as of 2026-08-14), but the "share to
+            Activity" action itself still doesn't exist as a real feature —
+            ai_conversations is deliberately kept personal, not partnership-
+            shared, until that's built (see api/ai/coach/route.ts's own
+            comment) — so this keeps using a neutral, never-wrong "YOUR
+            PARTNER" instead of a specific name, matching OwnershipBadge's
+            own precedent (packages/ui/src/OwnershipBadge.tsx) of omitting a
+            name entirely rather than fabricating one when it isn't known. */}
         <Text variant="caption" secondary>
           SHARE WITH YOUR PARTNER
         </Text>
@@ -146,6 +225,7 @@ export function AICoachScreen() {
           value={draft}
           onChangeText={setDraft}
           onSubmitEditing={() => send(draft)}
+          editable={!sending}
           placeholder="Can we afford..."
           placeholderTextColor={colors.textSecondary}
           aria-label="Ask the Money Coach a question"
@@ -163,7 +243,7 @@ export function AICoachScreen() {
         <Pressable
           onPress={() => send(draft)}
           hitSlop={8}
-          disabled={!draft.trim()}
+          disabled={!draft.trim() || sending}
           role="button"
           aria-label="Send message"
         >
@@ -171,7 +251,7 @@ export function AICoachScreen() {
               2026-08-14 — see tokens.ts's `success` token comment for the
               full explanation): raw sourLime on this input bar's
               colors.surface background was ~1.30:1 in light mode. */}
-          <Send size={18} color={draft.trim() ? colors.success : colors.textSecondary} aria-hidden={true} />
+          <Send size={18} color={draft.trim() && !sending ? colors.success : colors.textSecondary} aria-hidden={true} />
         </Pressable>
       </View>
     </ScreenStack>

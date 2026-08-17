@@ -23,6 +23,10 @@ export const MAX_EMAIL_LENGTH = 254;
 // wedding-finance amount — deliberately generous, same posture as the
 // length limits above, this rules out abuse/overflow, not realistic use.
 export const MAX_AMOUNT = 100_000_000;
+// A single AI Coach chat message (api/ai/coach/route.ts) — generous enough
+// for a real question with context, tight enough that nobody accidentally
+// (or deliberately) sends a whole document into a per-message LLM call.
+export const MAX_MESSAGE_LENGTH = 4000;
 
 export function tooLong(value: string, max: number): boolean {
   return value.length > max;
