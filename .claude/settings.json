@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc --noEmit *)",
+      "Bash(npx vitest run *)",
+      "Bash(npx eslint *)",
+      "Bash(git fetch origin *)",
+      "Bash(npm view *)",
+      "mcp__Linear__list_issue_labels"
+    ]
+  }
+}
