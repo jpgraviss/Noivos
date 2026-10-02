@@ -16,6 +16,16 @@ export function apiConfigured(): boolean {
   return Boolean(API_BASE_URL);
 }
 
+// Exposed for the rare case a screen needs to build an absolute URL into
+// the web app itself rather than call its API — e.g. PartnershipSettings.tsx
+// (mobile) building a shareable `/invite/[token]` link: that page is a
+// real Next.js route on apps/web, not something apps/mobile can render
+// itself, and this app's API base URL *is* that web app's origin. Null
+// under the same condition apiConfigured() is false.
+export function getApiBaseUrl(): string | null {
+  return API_BASE_URL ?? null;
+}
+
 export interface ApiFetchInit extends Omit<RequestInit, 'body'> {
   // Plain object, JSON-serialized here — every call site would otherwise
   // repeat `JSON.stringify(...)` + the Content-Type header itself, the

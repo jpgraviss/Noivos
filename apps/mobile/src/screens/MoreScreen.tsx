@@ -1,26 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Pressable } from 'react-native';
-import { ChevronDown, ChevronRight, LogOut, Settings, Sparkles, Users } from 'lucide-react-native';
-import { Card, Skeleton, ScreenContainer, Text, useTheme, spacing, getTextColorFor } from '@noivos/ui';
-import { currentUser } from '../data/mockData';
-import { useApiFetch, apiConfigured } from '../lib/api';
+import { ChevronDown, ChevronRight, LogOut, Settings, Sparkles } from 'lucide-react-native';
+import { Card, ScreenContainer, Text, useTheme, spacing, getTextColorFor } from '@noivos/ui';
+import { PartnershipSettings } from '../components/PartnershipSettings';
 
 // Honest "not built yet" copy per row, not a silent dead end — mirrors
 // apps/web's MoreScreen.tsx pattern (added there 2026-08-05), ported here
 // 2026-08-06 after an audit found this screen never got the same fix: these
-// were plain <Text> rows with no Pressable/onPress at all. "Appearance" is
-// deliberately not repeated here — it's already its own real, working card
-// above, so listing it again as an inert placeholder would be actively
-// wrong, not just incomplete.
+// were plain <Text> rows with no Pressable/onPress at all. "Appearance" and
+// "Partnership" are deliberately not repeated here — Appearance is already
+// its own real, working card above, and Partnership's invite/disconnect
+// actions became real on 2026-10-04 (see PartnershipSettings.tsx) — listing
+// either again as an inert placeholder would be actively wrong, not just
+// incomplete.
 const sections: { title: string; icon: typeof Settings; items: { label: string; note: string }[] }[] = [
-  {
-    title: 'Partnership',
-    icon: Users,
-    items: [
-      { label: 'Invite settings', note: 'Not built on mobile yet — available on the web app for now.' },
-      { label: 'Disconnect Partnership', note: 'Not built on mobile yet — available on the web app for now.' },
-    ],
-  },
   {
     title: 'Community',
     icon: Sparkles,
@@ -46,77 +39,13 @@ export interface MoreScreenProps {
 
 export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
   const { colors, mode, setMode } = useTheme();
-  const apiFetch = useApiFetch();
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
-
-  // Wired to the real GET /api/partnership on 2026-10-02 — just the
-  // summary line, not the full invite/disconnect flow apps/web's
-  // PartnershipSettings.tsx has (that one leans on web-only APIs —
-  // navigator.clipboard, raw <input>/<button> DOM — porting it needs its
-  // own pass with a native clipboard dependency, not attempted here).
-  // "Invite settings"/"Disconnect Partnership" below stay the existing
-  // honest "not built on mobile yet" stubs. Falls back to the mock
-  // partnerName if apiConfigured() is false or the backend isn't
-  // reachable, same graceful-degradation posture as every other real-data
-  // screen in this app.
-  const [partnerLoaded, setPartnerLoaded] = useState(!apiConfigured());
-  const [connected, setConnected] = useState(false);
-  const [invited, setInvited] = useState(false);
-  const [partnerName, setPartnerName] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!apiConfigured()) return;
-    let cancelled = false;
-    apiFetch('/api/partnership')
-      .then(async (res) => {
-        if (!res.ok) throw new Error('partnership fetch failed');
-        return res.json() as Promise<{ connected: boolean; invited: boolean; partnerName?: string }>;
-      })
-      .then((data) => {
-        if (cancelled) return;
-        setConnected(data.connected);
-        setInvited(data.invited);
-        setPartnerName(data.partnerName ?? null);
-      })
-      .catch(() => {
-        // No database/Clerk reachable — fall back to the illustrative mock,
-        // same as apps/web's PartnershipSettings.tsx.
-        if (!cancelled) {
-          setConnected(true);
-          setPartnerName(currentUser.partnerName);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setPartnerLoaded(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- apiFetch is stable (useCallback in src/lib/api.ts); only ever needs to run once per mount.
-  }, []);
-
-  const partnerSummary = connected ? `You & ${partnerName}` : invited ? 'Invite pending' : 'Not connected to a partner';
 
   return (
     <ScreenContainer>
       <Text variant="h1">More</Text>
 
-      <Card>
-        {/* "You & {partner}" — a plain status line, not a button, since
-            it's not an action; matches web's PartnershipSettings-adjacent
-            summary posture without needing a full native port of that
-            component. */}
-        <Text variant="h3" style={{ marginBottom: spacing.xs }}>
-          Partnership
-        </Text>
-        {!partnerLoaded ? (
-          <Skeleton width="45%" height={16} style={{ marginBottom: spacing.sm }} />
-        ) : (
-          <Text variant="body" secondary style={{ marginBottom: spacing.sm }}>
-            {partnerSummary}
-          </Text>
-        )}
-      </Card>
+      <PartnershipSettings />
 
       <Card>
         <Text variant="h3">Appearance</Text>
