@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react-native';
 import { Card, OwnershipBadge, StackedProgressBar, Skeleton, ScreenContainer, Text, useTheme, spacing, radius, palette } from '@noivos/ui';
 import { budgetSnapshot } from '../data/mockData';
 import { useApiFetch, apiConfigured } from '../lib/api';
+import { ProgressRing } from '../components/ProgressRing';
 
 // Same dedicated, validated categorical set as apps/web's BudgetScreen.tsx
 // (2026-08-05) — do not swap in packages/ui's UI-accent palette tokens here;
@@ -35,6 +36,11 @@ interface ApiBudget {
 // Falls back to the mock budgetSnapshot if apiConfigured() is false or the
 // backend isn't reachable, same graceful-degradation posture as
 // AICoachScreen.tsx's real wiring.
+//
+// Header upgraded 2026-10-06 to match apps/web's layout exactly — a
+// ProgressRing (src/components/ProgressRing.tsx, a react-native-svg port
+// of the web original, which is raw-DOM and doesn't render on native)
+// beside the title instead of plain text only.
 export function BudgetScreen() {
   const { colors } = useTheme();
   const apiFetch = useApiFetch();
@@ -133,6 +139,9 @@ export function BudgetScreen() {
   // whether it's rendering the mock snapshot or real /api/budget data.
   const totalCategorySpend = categoryBreakdown.reduce((sum, c) => sum + c.amount, 0);
 
+  const overallPercent = budget.planned > 0 ? (budget.spent / budget.planned) * 100 : 0;
+  const overallOver = overallPercent > 100;
+
   if (!resolved) {
     return (
       <ScreenContainer>
@@ -150,10 +159,20 @@ export function BudgetScreen() {
 
   return (
     <ScreenContainer>
-      <Text variant="h1">Budget</Text>
-      <Text variant="body" secondary>
-        {budget.month} · zero-based
-      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing.lg }}>
+        <View>
+          <Text variant="h1">Budget</Text>
+          <Text variant="body" secondary>
+            {budget.month} · zero-based
+          </Text>
+        </View>
+        <ProgressRing
+          percent={overallPercent}
+          color={overallOver ? palette.citrus : palette.sourLime}
+          label="of budget used"
+          sublabel={`$${budget.spent.toLocaleString()} of $${budget.planned.toLocaleString()}`}
+        />
+      </View>
 
       {totalCategorySpend > 0 && (
         <Card>

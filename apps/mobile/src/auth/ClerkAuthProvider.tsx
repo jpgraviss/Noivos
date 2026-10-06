@@ -1,5 +1,5 @@
 import React, { createContext, useContext } from 'react';
-import { ClerkProvider, useAuth } from '@clerk/expo';
+import { ClerkProvider, useAuth, useUser } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -10,32 +10,43 @@ const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 // straight through, so the mock-data demo keeps working exactly as it did
 // before this file existed. Remove this fallback once a real key is wired up.
 
-// getToken bridge, added 2026-09-25 wiring the first real API calls into
-// apps/mobile (src/lib/api.ts) — those calls need a Clerk session token
-// regardless of which screen they're made from, but RootNavigator.tsx
-// mounts every screen (AICoachScreen included) identically whether or not
-// Clerk is configured (see App.tsx: `isClerkConfigured ? <AuthGate>... :
-// <RootNavigator />` — RootNavigator itself, and every tab inside it, is
-// the same component tree either way). Calling @clerk/expo's own useAuth()
-// directly from a screen would crash the moment Clerk isn't configured —
-// AuthGate.tsx/AuthenticatedRoot.tsx's own comments already document that
-// useAuth()/useClerk() are only safe because those two are *exclusively*
-// rendered inside the real <ClerkProvider> branch, unlike every screen.
-// This context is the fix: always provided (both branches below), so
-// reading it is safe from anywhere — its value is the real getToken when
-// Clerk is configured, or null otherwise, and src/lib/api.ts's
-// useApiFetch() already treats a null getToken as "send the request
-// unauthenticated," matching how every apps/web route degrades (a missing/
-// invalid session is a clean 401 from that route's own `auth()` check, not
-// a crash).
+// getToken + display-name bridge, added 2026-09-25 (getToken) and extended
+// 2026-10-06 (display name, SE-184) — apps/mobile's first real API calls
+// (src/lib/api.ts) need a Clerk session token regardless of which screen
+// they're made from, and HomeScreen's greeting needs the real signed-in
+// person's name the same way, but RootNavigator.tsx mounts every screen
+// identically whether or not Clerk is configured (see App.tsx:
+// `isClerkConfigured ? <AuthGate>... : <RootNavigator />` — RootNavigator
+// itself, and every tab inside it, is the same component tree either way).
+// Calling @clerk/expo's own useAuth()/useUser() directly from a screen
+// would crash the moment Clerk isn't configured — AuthGate.tsx/
+// AuthenticatedRoot.tsx's own comments already document that those hooks
+// are only safe because those two components are *exclusively* rendered
+// inside the real <ClerkProvider> branch, unlike every screen. These two
+// contexts are the fix: always provided (both branches below), so reading
+// either is safe from anywhere.
 type GetToken = ReturnType<typeof useAuth>['getToken'];
 const TokenGetterContext = createContext<GetToken | null>(null);
+const DisplayNameContext = createContext<string | null>(null);
 
 // Only ever rendered inside the real <ClerkProvider> below — safe to call
-// useAuth() here, same invariant AuthGate.tsx/AuthenticatedRoot.tsx rely on.
+// useAuth()/useUser() here, same invariant AuthGate.tsx/AuthenticatedRoot.tsx
+// rely on.
 function ClerkTokenBridge({ children }: { children: React.ReactNode }) {
   const { getToken } = useAuth();
-  return <TokenGetterContext.Provider value={getToken}>{children}</TokenGetterContext.Provider>;
+  const { user } = useUser();
+  // Same fallback chain as apps/web's AuthenticatedAppShell.tsx (its own
+  // comment explains why each step exists — Clerk's hosted sign-up doesn't
+  // require a first/full name unless the dashboard is configured to, so a
+  // real user can reach this with neither set): firstName, then fullName,
+  // then the email's local part, then a fully neutral "You" rather than
+  // ever falling through to a fabricated mock name from here.
+  const userName = user?.firstName || user?.fullName || user?.primaryEmailAddress?.emailAddress?.split('@')[0] || 'You';
+  return (
+    <TokenGetterContext.Provider value={getToken}>
+      <DisplayNameContext.Provider value={userName}>{children}</DisplayNameContext.Provider>
+    </TokenGetterContext.Provider>
+  );
 }
 
 export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
@@ -46,7 +57,11 @@ export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
           'See apps/mobile/.env.example.'
       );
     }
-    return <TokenGetterContext.Provider value={null}>{children}</TokenGetterContext.Provider>;
+    return (
+      <TokenGetterContext.Provider value={null}>
+        <DisplayNameContext.Provider value={null}>{children}</DisplayNameContext.Provider>
+      </TokenGetterContext.Provider>
+    );
   }
 
   return (
@@ -61,6 +76,15 @@ export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
 // App.tsx), unlike @clerk/expo's own useAuth()/useUser()/useClerk().
 export function useApiToken(): GetToken | null {
   return useContext(TokenGetterContext);
+}
+
+// Same safety property as useApiToken() above. Returns the real signed-in
+// person's name once Clerk is configured and has resolved a session, or
+// null otherwise (unconfigured, signed out, or still loading) — callers
+// fall back to their own mock name on null, same "real data, mock
+// fallback" posture as every other real-data screen in this app.
+export function useDisplayName(): string | null {
+  return useContext(DisplayNameContext);
 }
 
 export const isClerkConfigured = Boolean(publishableKey);

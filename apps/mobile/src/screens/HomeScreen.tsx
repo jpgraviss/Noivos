@@ -3,8 +3,12 @@ import { View, Pressable } from 'react-native';
 import { Card, Skeleton, ScreenContainer, Text, useTheme, spacing, palette, getTextColorFor } from '@noivos/ui';
 import { budgetSnapshot, goals as mockGoals, activityFeed, upcomingBills, moneyMeeting, currentUser } from '../data/mockData';
 import { useApiFetch, apiConfigured } from '../lib/api';
+import { useDisplayName } from '../auth/ClerkAuthProvider';
 import { formatRelativeTime } from '../lib/formatRelativeTime';
 import { buildInsights, type BudgetCategoryFact, type GoalProgressFact } from '../lib/insights';
+import { AvatarStack } from '../components/AvatarStack';
+import { StatTile } from '../components/StatTile';
+import { TrendChart } from '../components/TrendChart';
 
 interface ApiGoal {
   id: string;
@@ -22,28 +26,52 @@ interface ApiBudget {
   categories: { id: string; name: string; shared: boolean; planned: number; spent: number }[];
 }
 
+// Mock 8-week combined-savings trend, ending at the current total across
+// all goals — same shape as apps/web's HomeScreen.tsx useSavingsTrend():
+// there's no real time-series backend yet (no daily balance snapshots
+// wired), so this is shaped to land on today's real total (mock or live)
+// rather than an arbitrary number.
+function useSavingsTrend(total: number) {
+  const weeks = ['7wk ago', '6wk ago', '5wk ago', '4wk ago', '3wk ago', '2wk ago', 'Last wk', 'This wk'];
+  const shape = [0.78, 0.8, 0.83, 0.85, 0.89, 0.93, 0.97, 1];
+  return weeks.map((label, i) => ({ label, value: Math.round(total * shape[i]) }));
+}
+
+// Placeholder standing in for a <StatTile> before its underlying fetch has
+// resolved — same rough shape (label + hero number), never any actual
+// digits, so nothing here can be mistaken for a real (or fake) number.
+function StatTileSkeleton() {
+  return (
+    <Card style={{ gap: spacing.xs }}>
+      <Skeleton width="50%" height={11} />
+      <Skeleton width="70%" height={26} style={{ marginTop: spacing.xs }} />
+    </Card>
+  );
+}
+
 // Wired to real data on 2026-10-02, brought to parity with apps/web's
-// HomeScreen.tsx (real since 2026-08-03 through 2026-08-08, in several
-// passes — see that file's own top comment for the full per-card history).
-// Deliberately NOT ported: AvatarStack/StatTile/TrendChart — this screen's
-// mock version never had those web-only dashboard components either, so
-// this keeps the same simpler card layout it always had and just wires
-// real data underneath it, rather than introducing new shared dataviz
-// components as part of this pass. The greeting's name stays
-// currentUser.name (mock) for the same reason — threading a real signed-in
-// display name through needs its own Clerk useUser()-safety pass (same
-// shape as src/lib/api.ts's TokenGetterContext bridge), not attempted here.
+// HomeScreen.tsx. Upgraded to full visual parity on 2026-10-06: AvatarStack/
+// StatTile/TrendChart (native ports via react-native-svg — see
+// src/components/{AvatarStack,StatTile,TrendChart}.tsx, since the web
+// originals are raw-DOM/mouse-hover and don't render or work on native at
+// all) and the real signed-in display name (src/auth/ClerkAuthProvider.tsx's
+// useDisplayName(), same TokenGetterContext-style bridge as useApiToken()
+// — SE-184). This screen is now a genuine visual match for the web
+// dashboard, not just a simpler stand-in.
 //
 // Each card below fetches and falls back independently, same posture as
 // the web twin: Budget pulls /api/budget, goals-derived numbers (wedding
 // progress) pull /api/goals, Upcoming Bills pulls /api/bills, the Money
 // Meeting card pulls /api/money-meeting (and "Mark as done" persists via
-// POST .../complete), Activity pulls /api/activity, and AI Insights is
-// plain rule-based (lib/insights.ts) derived from the Budget+Goals facts
-// above, not an AI call.
+// POST .../complete), Activity pulls /api/activity, the avatar chip's
+// partner name pulls /api/partnership, and AI Insights is plain rule-based
+// (lib/insights.ts) derived from the Budget+Goals facts above, not an AI
+// call.
 export function HomeScreen() {
   const { colors } = useTheme();
   const apiFetch = useApiFetch();
+  const realDisplayName = useDisplayName();
+  const displayName = realDisplayName || currentUser.name;
 
   const [backendAvailable, setBackendAvailable] = useState(false);
   const [apiGoals, setApiGoals] = useState<ApiGoal[]>([]);
@@ -53,6 +81,17 @@ export function HomeScreen() {
   const [billsResolved, setBillsResolved] = useState(!apiConfigured());
   const [meetingResolved, setMeetingResolved] = useState(!apiConfigured());
   const [activityResolved, setActivityResolved] = useState(!apiConfigured());
+
+  // Partner-name fetch for the AvatarStack chip, same shape as apps/web's
+  // HomeScreen.tsx (separate from PartnershipSettings.tsx's own fetch —
+  // this one only needs the name, not the full invite/disconnect state).
+  // partnershipChecked only flips true on a real "connected" answer, so a
+  // genuinely solo user (PRD §10.3) never sees a fabricated "& Marcus"
+  // chip; partnershipResolved flips true on failure too, purely to gate
+  // the skeleton vs. real-or-mock render decision below.
+  const [partnerName, setPartnerName] = useState<string | null>(null);
+  const [partnershipChecked, setPartnershipChecked] = useState(false);
+  const [partnershipResolved, setPartnershipResolved] = useState(!apiConfigured());
 
   const [apiBills, setApiBills] = useState<{ id: string; name: string; amount: number; due: string }[] | null>(null);
   const [apiMeeting, setApiMeeting] = useState<{
@@ -110,6 +149,34 @@ export function HomeScreen() {
       })
       .finally(() => {
         if (!cancelled) setBudgetResolved(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- apiFetch is stable (useCallback in src/lib/api.ts); only ever needs to run once per mount.
+  }, []);
+
+  useEffect(() => {
+    if (!apiConfigured()) return;
+    let cancelled = false;
+    apiFetch('/api/partnership')
+      .then(async (res) => {
+        if (!res.ok) throw new Error('partnership fetch failed');
+        return res.json() as Promise<{ connected: boolean; partnerName?: string }>;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setPartnershipChecked(true);
+        if (data.connected && data.partnerName) {
+          setPartnerName(data.partnerName);
+        }
+      })
+      .catch(() => {
+        // No database/Clerk reachable — stays unchecked, falls back to the
+        // mock partner name/avatar chip below.
+      })
+      .finally(() => {
+        if (!cancelled) setPartnershipResolved(true);
       });
     return () => {
       cancelled = true;
@@ -217,6 +284,10 @@ export function HomeScreen() {
     }
   }
 
+  const savingsTotal = backendAvailable
+    ? apiGoals.reduce((sum, g) => sum + g.contributions.reduce((s, c) => s + c.amount, 0), 0)
+    : mockGoals.reduce((sum, g) => sum + g.contributors.reduce((s, c) => s + c.amount, 0), 0);
+
   const weddingGoal = backendAvailable
     ? apiGoals.find((g) => g.goalType === 'wedding')
     : mockGoals.find((g) => g.type === 'wedding');
@@ -233,6 +304,7 @@ export function HomeScreen() {
   // apiActivity below, each degrading to its own mock on its own fetch
   // failure rather than all-or-nothing with the Goals fetch specifically.
   const budget = apiBudget ?? budgetSnapshot;
+  const overBudget = budget.spent > budget.planned * 0.9;
 
   const goalFacts: GoalProgressFact[] = backendAvailable
     ? apiGoals.map((g) => ({
@@ -252,14 +324,60 @@ export function HomeScreen() {
     : budgetSnapshot.categories.map((c) => ({ id: c.name, name: c.name, planned: c.planned, spent: c.spent }));
   const computedInsights = buildInsights(categoryFacts, goalFacts);
 
+  const trend = useSavingsTrend(savingsTotal);
+
   return (
     <ScreenContainer>
-      <View>
-        <Text variant="caption" secondary>
-          Good afternoon
-        </Text>
-        <Text variant="display">Hey, {currentUser.name}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing.md }}>
+        <View>
+          <Text variant="caption" secondary>
+            Good afternoon
+          </Text>
+          <Text variant="display">Hey, {displayName}</Text>
+        </View>
+        {/* Skeleton until the fetch genuinely settles (partnershipResolved),
+            same "no flash of a fabricated couple chip" posture as the web
+            twin — hidden only if we're genuinely certain there's no
+            partner; if the backend turned out to be unreachable, still
+            shows the chip (mock name as a last resort) rather than
+            flicker in and out. */}
+        {!partnershipResolved ? (
+          <Skeleton width={120} height={32} radiusSize={16} />
+        ) : (
+          (!partnershipChecked || partnerName) && <AvatarStack names={[displayName, partnerName || currentUser.partnerName]} />
+        )}
       </View>
+
+      {/* No deltaLabel here (unlike Spent this month) — there's no real
+          historical savings data to compute one from yet (no daily balance
+          snapshots wired). The sparkline rides on useSavingsTrend's
+          synthetic shape (see that function's own comment) — a disclosed,
+          purely decorative fabrication (no axis, no hover claim, no stated
+          numeric fact) rather than a specific false fact. */}
+      {!goalsResolved ? (
+        <StatTileSkeleton />
+      ) : (
+        <StatTile label="Total saved" value={`$${savingsTotal.toLocaleString()}`} sparkline={trend.map((t) => t.value)} />
+      )}
+      {!budgetResolved ? (
+        <StatTileSkeleton />
+      ) : (
+        <StatTile
+          label="Spent this month"
+          value={`$${budget.spent.toLocaleString()}`}
+          deltaLabel={`of $${budget.planned.toLocaleString()} planned`}
+          deltaDirection={overBudget ? 'up' : 'down'}
+          deltaIsGood={!overBudget}
+        />
+      )}
+      {!goalsResolved ? (
+        <StatTileSkeleton />
+      ) : (
+        weddingGoal &&
+        weddingPercent !== null && (
+          <StatTile label="Wedding progress" value={`${weddingPercent}%`} deltaLabel={`$${weddingTotal.toLocaleString()} of $${weddingTarget?.toLocaleString()}`} />
+        )
+      )}
 
       {/* Money Meeting ritual card — a distinct treatment, UX Blueprint §3.3 */}
       {!meetingResolved ? (
@@ -309,6 +427,13 @@ export function HomeScreen() {
           </Card>
         )
       )}
+
+      <Card>
+        <Text variant="h3" style={{ marginBottom: spacing.sm }}>
+          Combined savings
+        </Text>
+        {!goalsResolved ? <Skeleton height={160} radiusSize={8} /> : <TrendChart points={trend} />}
+      </Card>
 
       {!budgetResolved ? (
         <Card>

@@ -4,12 +4,21 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePlaidLink, type PlaidLinkOnSuccessMetadata } from "react-plaid-link";
 import { Card, Text, Skeleton, useTheme, spacing, radius, palette, getTextColorFor } from "@noivos/ui";
 
+interface PlaidAccountSummary {
+  id: string;
+  displayName: string;
+  accountType: string;
+  currentBalance: number;
+  isShared: boolean;
+}
+
 interface PlaidItemSummary {
   id: string;
   institutionName: string;
   status: string;
   lastSyncedAt: string | null;
   accountCount: number;
+  accounts: PlaidAccountSummary[];
 }
 
 function pillButtonStyle(borderColor: string, textColor: string) {
@@ -26,6 +35,20 @@ function pillButtonStyle(borderColor: string, textColor: string) {
   };
 }
 
+function smallPillStyle(active: boolean, borderColor: string, activeBg: string, activeText: string, textColor: string) {
+  return {
+    padding: "4px 10px",
+    borderRadius: radius.pill,
+    border: `1px solid ${active ? activeBg : borderColor}`,
+    backgroundColor: active ? activeBg : "transparent",
+    color: active ? activeText : textColor,
+    fontFamily: "var(--font-inter)",
+    fontSize: 11,
+    fontWeight: 600,
+    cursor: "pointer" as const,
+  };
+}
+
 // Real bank-connection UI (PRD §12.4) — the founder's own explicit
 // instruction was to build this now and personally run the actual
 // connection through Plaid's Sandbox afterward using test credentials,
@@ -37,14 +60,24 @@ function pillButtonStyle(borderColor: string, textColor: string) {
 // any backend isn't reachable (Clerk unconfigured, Plaid unconfigured, no
 // encryption key set), same graceful-passthrough posture as
 // IdentitySettings.tsx/PartnershipSettings.tsx.
+//
+// Per-account Personal/Shared toggle added 2026-10-06 (PRD §12.4 / Linear
+// SE-71) — every synced account started personal with no way to change
+// that (lib/plaid.ts's syncPlaidItem() own documented judgment call). Same
+// segmented-pill pattern as GoalsScreen.tsx's "Add a goal" Personal/Shared
+// choice, and the same gating: only shown once `hasPartnership` is true —
+// a solo user has nothing to share with yet, and PATCH /api/plaid/accounts/
+// [id] rejects `isShared: true` without a real Partnership anyway.
 export function LinkedAccounts() {
   const { colors } = useTheme();
   const [items, setItems] = useState<PlaidItemSummary[]>([]);
   const [loadingItems, setLoadingItems] = useState(true);
+  const [hasPartnership, setHasPartnership] = useState(false);
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [creatingLinkToken, setCreatingLinkToken] = useState(false);
   const [exchanging, setExchanging] = useState(false);
   const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [sharingAccountId, setSharingAccountId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch-cancellation guard, same pattern as BudgetScreen.tsx's
@@ -75,6 +108,22 @@ export function LinkedAccounts() {
 
   useEffect(() => {
     loadItems();
+    // Partnership check for the Personal/Shared toggle's own gating —
+    // same "connected or invited both mean a real Partnership row exists"
+    // definition PartnershipSettings.tsx's own hasActivePartnership uses,
+    // matching what PATCH /api/plaid/accounts/[id] itself requires
+    // (findActiveMembership) to accept isShared: true.
+    fetch("/api/partnership")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("partnership fetch failed");
+        return res.json() as Promise<{ connected: boolean; invited: boolean }>;
+      })
+      .then((data) => setHasPartnership(data.connected || data.invited))
+      .catch(() => {
+        // No database/Clerk reachable — stays false, same posture as every
+        // other real-data fetch on this screen: the toggle just doesn't
+        // show rather than guessing.
+      });
     return () => {
       loadRequestRef.current += 1;
     };
@@ -183,6 +232,34 @@ export function LinkedAccounts() {
     }
   }
 
+  async function handleSetShared(accountId: string, isShared: boolean) {
+    if (sharingAccountId) return; // one share-toggle in flight at a time — same double-tap guard shape
+    setSharingAccountId(accountId);
+    setError(null);
+    try {
+      const res = await fetch(`/api/plaid/accounts/${accountId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isShared }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(typeof data.error === "string" ? data.error : "Couldn't update that account.");
+        return;
+      }
+      setItems((prev) =>
+        prev.map((item) => ({
+          ...item,
+          accounts: item.accounts.map((a) => (a.id === accountId ? { ...a, isShared } : a)),
+        }))
+      );
+    } catch {
+      setError("Couldn't reach the server — try again.");
+    } finally {
+      setSharingAccountId(null);
+    }
+  }
+
   const connectBusy = creatingLinkToken || exchanging;
 
   return (
@@ -201,41 +278,73 @@ export function LinkedAccounts() {
       {loadingItems ? (
         <Skeleton width="60%" height={18} />
       ) : items.length > 0 ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: spacing.sm }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: spacing.md }}>
           {items.map((item) => (
             <div
               key={item.id}
               style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: spacing.sm,
                 paddingTop: spacing.xs,
                 borderTopWidth: 1,
                 borderTopColor: colors.border,
                 borderTopStyle: "solid",
               }}
             >
-              <div>
-                <Text variant="bodySmall" style={{ fontWeight: "600" }}>
-                  {item.institutionName}
-                </Text>
-                <Text variant="caption" secondary>
-                  {item.accountCount} account{item.accountCount === 1 ? "" : "s"} ·{" "}
-                  {item.status === "error"
-                    ? "Needs reconnecting"
-                    : item.lastSyncedAt
-                      ? `Synced ${new Date(item.lastSyncedAt).toLocaleDateString()}`
-                      : "Not synced yet"}
-                </Text>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: spacing.sm }}>
+                <div>
+                  <Text variant="bodySmall" style={{ fontWeight: "600" }}>
+                    {item.institutionName}
+                  </Text>
+                  <Text variant="caption" secondary>
+                    {item.accountCount} account{item.accountCount === 1 ? "" : "s"} ·{" "}
+                    {item.status === "error"
+                      ? "Needs reconnecting"
+                      : item.lastSyncedAt
+                        ? `Synced ${new Date(item.lastSyncedAt).toLocaleDateString()}`
+                        : "Not synced yet"}
+                  </Text>
+                </div>
+                <button
+                  onClick={() => handleSync(item.id)}
+                  disabled={syncingId === item.id}
+                  style={pillButtonStyle(colors.border, colors.textPrimary)}
+                >
+                  {syncingId === item.id ? "Syncing…" : "Sync now"}
+                </button>
               </div>
-              <button
-                onClick={() => handleSync(item.id)}
-                disabled={syncingId === item.id}
-                style={pillButtonStyle(colors.border, colors.textPrimary)}
-              >
-                {syncingId === item.id ? "Syncing…" : "Sync now"}
-              </button>
+
+              {/* Only shown once a real Partnership exists — same gating
+                  GoalsScreen.tsx's own Personal/Shared choice uses. A solo
+                  user still sees their account list, just without a
+                  nothing-to-share-with toggle. */}
+              {hasPartnership && item.accounts.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: spacing.sm }}>
+                  {item.accounts.map((a) => (
+                    <div key={a.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: spacing.sm }}>
+                      <Text variant="caption" secondary>
+                        {a.displayName}
+                      </Text>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        {([false, true] as const).map((opt) => (
+                          <button
+                            key={String(opt)}
+                            onClick={() => handleSetShared(a.id, opt)}
+                            disabled={sharingAccountId === a.id || a.isShared === opt}
+                            style={smallPillStyle(
+                              a.isShared === opt,
+                              colors.border,
+                              palette.sourLime,
+                              getTextColorFor(palette.sourLime),
+                              colors.textPrimary
+                            )}
+                          >
+                            {opt ? "Shared" : "Personal"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
