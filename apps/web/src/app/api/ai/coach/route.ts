@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { clerkConfigured } from "@/lib/clerk";
 import { withUserContext } from "@/lib/db";
-import { aiConfigured, askFinancialCoach, type ChatTurn, type FinancialContext } from "@/lib/ai";
+import { aiConfigured, askFinancialCoach, type ChatTurn } from "@/lib/ai";
+import { loadFinancialContext } from "@/lib/financialContext";
 import { isUuid, tooLong, MAX_MESSAGE_LENGTH } from "@/lib/validate";
 
 // AI Financial Coach backend (PRD §12.10) — real for the first time as of
@@ -52,15 +53,24 @@ export async function GET() {
       );
       const conversationId = conversation.rows[0]?.id as string | undefined;
       if (!conversationId) {
-        return { conversationId: null, messages: [] as { role: string; content: string }[] };
+        return { conversationId: null, messages: [] as { role: string; content: string; createdAt: string }[] };
       }
+      // created_at included (2026-10-08, SE-69) so AICoachScreen.tsx can
+      // merge this thread with the Purchase Advisor one into a single
+      // chronological chat log — the two are separate ai_conversations
+      // rows (distinct conversation_type) but appear as one unified
+      // "chat-first interface" per the UX Blueprint.
       const messages = await client.query(
-        `select role, content from ai_messages where conversation_id = $1 order by created_at asc`,
+        `select role, content, created_at::text as created_at from ai_messages where conversation_id = $1 order by created_at asc`,
         [conversationId]
       );
       return {
         conversationId,
-        messages: messages.rows.map((r) => ({ role: r.role as string, content: r.content as string })),
+        messages: messages.rows.map((r) => ({
+          role: r.role as string,
+          content: r.content as string,
+          createdAt: r.created_at as string,
+        })),
       };
     });
     return NextResponse.json(data);
@@ -149,67 +159,7 @@ export async function POST(request: Request) {
         [resolvedConversationId, message]
       );
 
-      const monthResult = await client.query(
-        `select trim(to_char(current_date, 'Month YYYY')) as label`
-      );
-      const monthLabel = monthResult.rows[0].label as string;
-
-      const categoriesResult = await client.query(
-        `select c.name, bc.planned_amount,
-                coalesce((
-                  select sum(t.amount) from transactions t
-                  where t.category_id = c.id
-                    and t.transaction_date >= date_trunc('month', current_date)
-                    and t.transaction_date < date_trunc('month', current_date) + interval '1 month'
-                ), 0) as spent
-         from budget_categories bc
-         join categories c on c.id = bc.category_id
-         join budgets b on b.id = bc.budget_id
-         where b.month = date_trunc('month', current_date)::date
-         order by c.name asc`
-      );
-      const goalsResult = await client.query(
-        `select g.name, g.target_amount::float8 as target_amount, g.target_date::text as target_date,
-                coalesce((select sum(gc.amount) from goal_contributions gc where gc.goal_id = g.id), 0) as total_contributed
-         from goals g
-         order by g.created_at asc
-         limit 10`
-      );
-      const billsResult = await client.query(
-        `select v.name, v.balance_due::float8 as amount,
-                trim(to_char(v.balance_due_date, 'Mon DD')) as due
-         from wedding_vendors v
-         where v.balance_due is not null and v.balance_due > 0 and v.balance_due_date is not null
-         order by v.balance_due_date asc
-         limit 5`
-      );
-
-      const financialContext: FinancialContext = {
-        monthLabel,
-        hasPartnership: await (async () => {
-          const membership = await client.query(
-            `select 1 from partnership_members where user_id = $1 and left_at is null limit 1`,
-            [userId]
-          );
-          return membership.rows.length > 0;
-        })(),
-        budgetCategories: categoriesResult.rows.map((r) => ({
-          name: r.name as string,
-          planned: Number(r.planned_amount),
-          spent: Number(r.spent),
-        })),
-        goals: goalsResult.rows.map((r) => ({
-          name: r.name as string,
-          targetAmount: Number(r.target_amount),
-          totalContributed: Number(r.total_contributed),
-          targetDate: r.target_date as string | null,
-        })),
-        upcomingBills: billsResult.rows.map((r) => ({
-          name: r.name as string,
-          amount: Number(r.amount),
-          due: r.due as string,
-        })),
-      };
+      const financialContext = await loadFinancialContext(userId, client);
 
       return {
         notFound: false as const,

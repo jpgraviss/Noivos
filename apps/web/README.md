@@ -12,9 +12,9 @@ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
 CLERK_SECRET_KEY=
 ```
 
-## AI Coach
+## AI Coach / Purchase Advisor
 
-`POST`/`GET /api/ai/coach` (`lib/ai.ts`) needs `ANTHROPIC_API_KEY` set (Vercel env vars in production, `.env.local` locally) to call the real Claude API. Without it, `aiConfigured()` makes the route return an honest 503 rather than crash — same graceful-degradation posture as `clerkConfigured()`. See `lib/ai.ts`'s own top-of-file comment for the legal-review distinction this feature carries (built for an internal demo, not cleared for public launch).
+`POST`/`GET /api/ai/coach` and `POST`/`GET /api/ai/purchase-advisor` (both in `lib/ai.ts`) need the same `ANTHROPIC_API_KEY` set (Vercel env vars in production, `.env.local` locally) to call the real Claude API. Without it, `aiConfigured()` makes either route return an honest 503 rather than crash — same graceful-degradation posture as `clerkConfigured()`. See `lib/ai.ts`'s own top-of-file comment for the legal-review distinction this feature carries (built for an internal demo, not cleared for public launch). `AICoachScreen.tsx` is one unified chat UI over both: a plain typed question goes to the Coach, attaching a photo routes to the Purchase Advisor (receipt/price-tag/photo scanning via Claude's vision input — no separate OCR service or env var needed for that part).
 
 ## Plaid (bank connections)
 

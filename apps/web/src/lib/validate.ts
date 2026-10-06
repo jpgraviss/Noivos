@@ -27,6 +27,14 @@ export const MAX_AMOUNT = 100_000_000;
 // for a real question with context, tight enough that nobody accidentally
 // (or deliberately) sends a whole document into a per-message LLM call.
 export const MAX_MESSAGE_LENGTH = 4000;
+// A single Purchase Advisor photo (api/ai/purchase-advisor/route.ts),
+// base64-encoded — Claude's own vision input accepts images up to ~5MB
+// raw; base64 inflates that by ~4/3, so ~8,000,000 characters is a
+// generous ceiling above a real phone photo of a receipt or price tag
+// while still ruling out someone posting an arbitrary multi-megabyte blob
+// through this field, same "rule out abuse, don't second-guess real use"
+// posture as every other limit in this file.
+export const MAX_IMAGE_BASE64_LENGTH = 8_000_000;
 
 export function tooLong(value: string, max: number): boolean {
   return value.length > max;

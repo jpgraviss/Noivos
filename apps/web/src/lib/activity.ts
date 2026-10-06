@@ -20,6 +20,8 @@ export function describeActivityEvent(actorName: string, eventType: string, payl
       return `${actorName} completed "${payload.title}"`;
     case "wedding_family_contribution":
       return `${actorName} logged a $${Number(payload.amount).toLocaleString()} gift from ${payload.contributorName}`;
+    case "purchase_advisor_shared":
+      return `${actorName} shared a Purchase Advisor conversation: "${payload.summary}"`;
     default:
       return `${actorName} made an update`;
   }

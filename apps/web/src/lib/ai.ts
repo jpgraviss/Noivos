@@ -203,3 +203,92 @@ export async function askFinancialCoach(
   const textBlock = response.content.find((block) => block.type === "text");
   return textBlock && textBlock.type === "text" ? textBlock.text : "";
 }
+
+// PRD §12.9 (AI Purchase Advisor) verbatim, turned into a system prompt —
+// added 2026-10-08 (Linear SE-69). Distinct from COACH_SYSTEM_PROMPT above:
+// the Coach is open conversational Q&A, this evaluates one specific
+// purchase and returns PRD's exact five-part output shape every time
+// (financial impact, goal impact, a recommendation framed as informational
+// — never a directive, discussion prompts, alternatives) so a response is
+// always structured enough to drop straight into the shared Activity feed
+// as a conversation-starter (PRD §12.9's own requirement — see the
+// `isShared`/share route this backs). Shares the same non-negotiable
+// guardrails as the Coach prompt (teammate not authority, no naming
+// specific lenders/products, no fiduciary directives) rather than
+// duplicating that language with room to drift — kept here verbatim
+// anyway (not composed from COACH_SYSTEM_PROMPT at runtime) since the two
+// prompts are cached independently per Claude's prompt-caching model, and
+// string-concatenating them at request time would mean neither ever hits
+// a stable, reusable cache prefix.
+const PURCHASE_ADVISOR_SYSTEM_PROMPT = `You are the Noivos Purchase Advisor, helping a couple think through a specific purchase against their real finances.
+
+Non-negotiable rules, from this product's own AI Philosophy:
+- You are a teammate, never an authority. Never say "you shouldn't," "you must," or issue verdicts.
+- Your "recommendation" is informational context, not a directive — frame it as what the numbers show, then hand the decision back to the couple.
+- Never shame. No response should be readable as "you're bad with money."
+- Do not overstep into regulated financial, legal, tax, or lending advice. Do not recommend specific financial products, lenders, banks, credit cards, or investment vehicles by name, and do not issue fiduciary-style directives.
+- Every answer should feel natural to show or read to a partner — write for two people, not one. A purchase scanned or asked about by only one partner is still meant to be shared with the other, not consumed solo and dropped.
+- You only ever see the numbers explicitly given to you below. Never invent a balance, transaction, or account you weren't told about.
+
+Structure every answer under exactly these five headers, in this order, each 1-3 sentences (Discussion prompts may be 2-3 short questions instead):
+**Financial impact** — what this purchase does to their cash flow this month, grounded in the real budget numbers given to you.
+**Goal impact** — what it does to their real goals' timelines, grounded in the real goal numbers given to you.
+**Recommendation** — informational context only, e.g. "this fits within your Discretionary budget with room to spare" or "this would use most of this month's wedding savings contribution" — never "you should/shouldn't buy this."
+**Discussion prompts** — 2-3 short questions the couple can actually talk through together.
+**Alternatives to consider** — one or two concrete alternatives (e.g. waiting a month, a lower-cost option, pulling from a different category) when there's a genuine one; say plainly "no real alternative to flag" if there isn't rather than inventing one.
+
+If a photo of a receipt or price tag is attached and the amount or merchant isn't clearly legible, say so plainly in Financial impact and ask the user to confirm the real amount/merchant — never silently guess a number you're not confident in.`;
+
+export interface PurchaseImage {
+  base64: string;
+  mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+}
+
+// Same model/effort/fallback/max_tokens reasoning as askFinancialCoach
+// above — this is still a single grounded analysis, not multi-step
+// agentic work, and still needs headroom for adaptive thinking +
+// visible response to share max_tokens without truncating. The one real
+// difference: the user turn's content is an array (image block + text
+// block) instead of a plain string whenever a photo was attached — Claude
+// Opus 5's vision input is what makes receipt/price-tag/photo scanning
+// possible directly, no separate OCR service (AI Architecture §/Linear
+// SE-69's own framing).
+export async function askPurchaseAdvisor(
+  ctx: FinancialContext,
+  history: ChatTurn[],
+  message: string,
+  image?: PurchaseImage
+): Promise<string> {
+  const client = getClient();
+  const contextBlock = buildContextBlock(ctx);
+  const textContent = `${contextBlock}\n\nThe purchase to evaluate: ${message || "(see attached photo)"}`;
+
+  const userContent: Array<
+    | { type: "text"; text: string }
+    | { type: "image"; source: { type: "base64"; media_type: PurchaseImage["mediaType"]; data: string } }
+  > = [];
+  if (image) {
+    userContent.push({ type: "image", source: { type: "base64", media_type: image.mediaType, data: image.base64 } });
+  }
+  userContent.push({ type: "text", text: textContent });
+
+  const response = await client.beta.messages.create({
+    model: "claude-opus-5",
+    max_tokens: 4096,
+    system: [{ type: "text", text: PURCHASE_ADVISOR_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+    output_config: { effort: "medium" },
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    messages: [
+      ...history.map((turn) => ({ role: turn.role, content: turn.content })),
+      { role: "user" as const, content: userContent },
+    ],
+  });
+
+  if (response.stop_reason === "refusal") {
+    throw new Error("AI_REFUSAL");
+  }
+
+  const textBlock = response.content.find((block) => block.type === "text");
+  return textBlock && textBlock.type === "text" ? textBlock.text : "";
+}
