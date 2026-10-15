@@ -6,6 +6,8 @@ import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
 import { IdentitySettings } from "../components/IdentitySettings";
 import { PartnershipSettings } from "../components/PartnershipSettings";
 import { LinkedAccounts } from "../components/LinkedAccounts";
+import { DeleteAccountSettings } from "../components/DeleteAccountSettings";
+import { BillingSettings } from "../components/BillingSettings";
 
 // Honest "not built yet" copy per row, not a silent dead end — same posture
 // as the rest of the app (e.g. Partnership invites plainly stating no
@@ -27,7 +29,6 @@ const sections: { title: string; icon: typeof Settings; items: { label: string; 
     icon: Settings,
     items: [
       { label: "Notifications", note: "Not built yet — you'll be able to manage notification preferences here soon." },
-      { label: "Subscription", note: "Not built yet — Noivos is free for now; billing will live here once Premium launches." },
       { label: "Support", note: "Not built yet — for now, reach out to the team directly." },
     ],
   },
@@ -92,6 +93,8 @@ export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
       <PartnershipSettings />
 
       <LinkedAccounts />
+
+      <BillingSettings />
 
       <Card>
         <Text variant="h3">Appearance</Text>
@@ -207,6 +210,8 @@ export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
           </Pressable>
         </Card>
       )}
+
+      <DeleteAccountSettings />
     </ScreenGrid>
   );
 }

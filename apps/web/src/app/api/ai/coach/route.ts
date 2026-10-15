@@ -5,6 +5,7 @@ import { withUserContext } from "@/lib/db";
 import { aiConfigured, askFinancialCoach, type ChatTurn } from "@/lib/ai";
 import { loadFinancialContext } from "@/lib/financialContext";
 import { isUuid, tooLong, MAX_MESSAGE_LENGTH } from "@/lib/validate";
+import { isPremium } from "@/lib/entitlements";
 
 // AI Financial Coach backend (PRD §12.10) — real for the first time as of
 // 2026-08-14. See lib/ai.ts's own top-of-file comment for why this exists
@@ -94,6 +95,13 @@ export async function POST(request: Request) {
   }
   if (!aiConfigured()) {
     return NextResponse.json({ error: "AI Coach isn't configured yet" }, { status: 503 });
+  }
+  // The AI Coach is a Premium feature (PRD §13) — gated only on asking a
+  // new question, not on GET's history load, so a lapsed subscription
+  // never hides a user's own past conversation. Gate only turns on once
+  // Stripe is actually configured, see lib/entitlements.ts's own comment.
+  if (!(await isPremium(userId))) {
+    return NextResponse.json({ error: "The AI Coach is a Noivos Premium feature.", upgradeRequired: true }, { status: 402 });
   }
 
   let body: { conversationId?: unknown; message?: unknown };

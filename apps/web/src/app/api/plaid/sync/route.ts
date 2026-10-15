@@ -4,6 +4,7 @@ import { clerkConfigured } from "@/lib/clerk";
 import { withUserContext } from "@/lib/db";
 import { getPlaidClient, plaidConfigured, tokenEncryptionConfigured, decryptAccessToken, syncPlaidItem } from "@/lib/plaid";
 import { isUuid } from "@/lib/validate";
+import { isPremium } from "@/lib/entitlements";
 
 // "Sync now" — re-pulls whatever changed since each Item's last sync,
 // using its stored sync_cursor (migration 0016) so this only fetches new/
@@ -33,6 +34,11 @@ export async function POST(request: Request) {
   }
   if (!tokenEncryptionConfigured()) {
     return NextResponse.json({ error: "Bank connections aren't configured yet" }, { status: 503 });
+  }
+  // Plaid is a Premium feature (PRD §13) — gate only turns on once Stripe
+  // is actually configured, see lib/entitlements.ts's own comment.
+  if (!(await isPremium(userId))) {
+    return NextResponse.json({ error: "Bank connections are a Noivos Premium feature.", upgradeRequired: true }, { status: 402 });
   }
 
   let body: { plaidItemId?: unknown };

@@ -27,6 +27,26 @@ PLAID_TOKEN_ENCRYPTION_KEY=
 ```
 `PLAID_CLIENT_ID`/`PLAID_SECRET` come from a Plaid Dashboard account (`PLAID_ENV=sandbox` for test institutions/test credentials — the founder's own stated intent, not real bank data). `PLAID_TOKEN_ENCRYPTION_KEY` is this app's own AES-256-GCM key for encrypting Plaid access tokens before they reach `plaid_items.access_token_encrypted` — generate one with `openssl rand -base64 32`, and treat it as seriously as a database credential (losing it makes every already-linked bank connection unreadable; leaking it defeats the point of encrypting the tokens at all). Without either the Plaid credentials or the encryption key, every `/api/plaid/*` route returns an honest 503 — same posture as `ANTHROPIC_API_KEY`/`clerkConfigured()`.
 
+## Billing (Noivos Premium) + account deletion
+
+`/api/billing/*` (`lib/stripe.ts`/`lib/entitlements.ts`) needs:
+```
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PREMIUM_PRICE_ID=
+```
+`STRIPE_PREMIUM_PRICE_ID` is a Stripe Price object created once in the Dashboard for the $100/year Premium plan (PRD §13) — never hardcoded here since test-mode and live-mode each have their own id. Billing is per-Partnership (one payer covers both partners) and includes a 14-day trial gated on both partners actually having joined (`PROJECT_MEMORY.md` §4), enforced in `POST /api/billing/checkout`.
+
+The entitlement gate itself (`isPremium()` in `lib/entitlements.ts`) is wired into the four Premium feature actions — `POST /api/plaid/link-token`, `POST /api/plaid/sync`, `POST /api/ai/coach`, `POST /api/ai/purchase-advisor` — but only actually enforces once `STRIPE_SECRET_KEY` is set. Until then every one of those stays free, same graceful-degradation posture as every other integration in this app; this is deliberate, not a bug, since enforcing before there's a real way to pay would just lock everyone out.
+
+`POST /api/webhooks/stripe` needs `STRIPE_WEBHOOK_SECRET` from the Stripe Dashboard's webhook endpoint config (subscribe it to `checkout.session.completed`/`customer.subscription.updated`/`customer.subscription.deleted`) — this is the only place that writes to the `subscriptions` table.
+
+Account deletion (`lib/accountDeletion.ts`, `POST /api/account/delete`, `POST /api/webhooks/clerk`) needs one more env var:
+```
+CLERK_WEBHOOK_SECRET=
+```
+from Clerk's Dashboard webhook config (subscribe it to `user.deleted`) — covers the case where an account is deleted directly from Clerk rather than through Noivos' own "Delete my account" action. Without it, `/api/webhooks/clerk` returns an honest 503; the app's own delete-my-account flow works regardless, since it doesn't depend on the webhook at all.
+
 ## Known gap
 
 This environment's network egress policy blocks this project's Clerk instance host, so full end-to-end sign-in can't be verified from inside this sandbox — see `PROJECT_MEMORY.md`'s Supabase→Neon pivot section for the exact error and next steps (add the host to egress settings, or test via a real Vercel deployment / locally).

@@ -5,6 +5,7 @@ import { withUserContext } from "@/lib/db";
 import { aiConfigured, askPurchaseAdvisor, type ChatTurn, type PurchaseImage } from "@/lib/ai";
 import { loadFinancialContext } from "@/lib/financialContext";
 import { isUuid, tooLong, MAX_MESSAGE_LENGTH, MAX_IMAGE_BASE64_LENGTH } from "@/lib/validate";
+import { isPremium } from "@/lib/entitlements";
 
 // AI Purchase Advisor backend (PRD §12.9 / Linear SE-69) — added 2026-10-08.
 // Distinct conversation_type from Financial Coach (ai_conversations'
@@ -103,6 +104,13 @@ export async function POST(request: Request) {
   }
   if (!aiConfigured()) {
     return NextResponse.json({ error: "Purchase Advisor isn't configured yet" }, { status: 503 });
+  }
+  // The Purchase Advisor is a Premium feature (PRD §13) — gated only on
+  // asking a new question, same posture as /api/ai/coach. Gate only turns
+  // on once Stripe is actually configured, see lib/entitlements.ts's own
+  // comment.
+  if (!(await isPremium(userId))) {
+    return NextResponse.json({ error: "The Purchase Advisor is a Noivos Premium feature.", upgradeRequired: true }, { status: 402 });
   }
 
   let body: { conversationId?: unknown; message?: unknown; imageBase64?: unknown; imageMediaType?: unknown };

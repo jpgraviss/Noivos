@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { clerkConfigured } from "@/lib/clerk";
 import { getPlaidClient, plaidConfigured, Products, CountryCode } from "@/lib/plaid";
+import { isPremium } from "@/lib/entitlements";
 
 // First step of Plaid Link (PRD §12.4): the client needs a short-lived
 // Link token before it can open Plaid's own connect-a-bank modal
@@ -19,6 +20,11 @@ export async function POST() {
   }
   if (!plaidConfigured()) {
     return NextResponse.json({ error: "Bank connections aren't configured yet" }, { status: 503 });
+  }
+  // Plaid is a Premium feature (PRD §13) — gate only turns on once Stripe
+  // is actually configured, see lib/entitlements.ts's own comment.
+  if (!(await isPremium(userId))) {
+    return NextResponse.json({ error: "Bank connections are a Noivos Premium feature.", upgradeRequired: true }, { status: 402 });
   }
 
   try {
