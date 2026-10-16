@@ -22,6 +22,8 @@ export function describeActivityEvent(actorName: string, eventType: string, payl
       return `${actorName} logged a $${Number(payload.amount).toLocaleString()} gift from ${payload.contributorName}`;
     case "purchase_advisor_shared":
       return `${actorName} shared a Purchase Advisor conversation: "${payload.summary}"`;
+    case "wedding_mode_graduated":
+      return `${actorName} and their partner graduated Wedding Mode 🎉`;
     default:
       return `${actorName} made an update`;
   }

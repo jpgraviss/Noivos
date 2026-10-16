@@ -59,6 +59,7 @@ export async function GET() {
           weddingDate: details.wedding_date,
           guestCountEstimate: details.guest_count_estimate,
           status: details.status,
+          graduatedAt: details.graduated_at,
           vendors: vendorsResult.rows.map((v) => ({
             id: v.id,
             name: v.name,

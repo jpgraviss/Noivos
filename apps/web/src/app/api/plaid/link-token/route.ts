@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { clerkConfigured } from "@/lib/clerk";
 import { getPlaidClient, plaidConfigured, Products, CountryCode } from "@/lib/plaid";
 import { isPremium } from "@/lib/entitlements";
+import { SITE_URL } from "@/lib/site";
 
 // First step of Plaid Link (PRD §12.4): the client needs a short-lived
 // Link token before it can open Plaid's own connect-a-bank modal
@@ -38,6 +39,15 @@ export async function POST() {
       // surfaces here yet (no ACH transfer flow, no identity-verification
       // flow beyond IdentitySettings.tsx's own separate manual entry).
       products: [Products.Transactions],
+      // Registers this Item for real-time background sync (SE-70) —
+      // POST /api/webhooks/plaid. Known limitation: Plaid needs to reach
+      // this URL over the public internet, and this app's own Vercel
+      // deployment protection (PROJECT_MEMORY.md's standing SSO finding)
+      // currently blocks exactly that, same as every other external caller
+      // — the webhook is real and signature-verified, but genuinely can't
+      // be invoked successfully until that's resolved. "Sync now" (POST
+      // /api/plaid/sync) stays the reliable path until then.
+      webhook: `${SITE_URL}/api/webhooks/plaid`,
     });
     return NextResponse.json({ linkToken: response.data.link_token });
   } catch (err) {

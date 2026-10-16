@@ -1,0 +1,13 @@
+-- SE-77 (2026-10-16): recurring_expenses has existed since 0001_init.sql
+-- but nothing has ever read or written it — this is the first real
+-- implementation. Its columns (owner_id/partnership_id/is_shared/
+-- category_id/amount/frequency/next_due_date/last_amount_seen) can
+-- describe a recurring cost, but nothing identifies *which* merchant it
+-- represents — category_id alone can't distinguish "Netflix" from
+-- "Spotify" if both land in a Subscriptions category, and detection
+-- (grouping real transactions by recurring merchant) genuinely needs a
+-- name to group and match on. Purely additive, nullable (existing rows,
+-- if any ever existed, stay valid) — no RLS change needed,
+-- recurring_expenses_write (0002_rls.sql) already covers inserts/updates/
+-- deletes on this column exactly like every other column on this table.
+alter table recurring_expenses add column merchant_name text;

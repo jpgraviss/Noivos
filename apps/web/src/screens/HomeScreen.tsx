@@ -8,7 +8,7 @@ import { StatTile } from "../components/StatTile";
 import { TrendChart } from "../components/TrendChart";
 import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
 import { formatRelativeTime } from "../lib/formatRelativeTime";
-import { buildInsights, type BudgetCategoryFact, type GoalProgressFact } from "../lib/insights";
+import { buildInsights, type BudgetCategoryFact, type GoalProgressFact, type RecurringChangeFact } from "../lib/insights";
 
 interface ApiGoal {
   id: string;
@@ -90,6 +90,7 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
   const [backendAvailable, setBackendAvailable] = useState(false);
   const [apiGoals, setApiGoals] = useState<ApiGoal[]>([]);
   const [apiBudget, setApiBudget] = useState<ApiBudget | null>(null);
+  const [recurringChanges, setRecurringChanges] = useState<RecurringChangeFact[]>([]);
   const [partnerName, setPartnerName] = useState<string | null>(null);
   // Each *Resolved flag below flips true once its own fetch has genuinely
   // settled — succeeded or failed, doesn't matter which — and gates that
@@ -188,6 +189,27 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
       .finally(() => {
         if (!cancelled) setBudgetResolved(true);
       });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // SE-77: GET /api/recurring-expenses reconciles on every load and hands
+  // back any amount changes it just detected — fed into buildInsights()
+  // below the same way budget/goal facts are, no separate UI surface.
+  // Silently stays empty on any failure, same graceful-degradation posture
+  // as every other fetch on this screen.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/recurring-expenses")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("recurring expenses fetch failed");
+        return res.json() as Promise<{ amountChanges: RecurringChangeFact[] }>;
+      })
+      .then((data) => {
+        if (!cancelled) setRecurringChanges(data.amountChanges ?? []);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -370,7 +392,7 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
   const categoryFacts: BudgetCategoryFact[] = apiBudget
     ? apiBudget.categories.map((c) => ({ id: c.id, name: c.name, planned: c.planned, spent: c.spent }))
     : budgetSnapshot.categories.map((c) => ({ id: c.name, name: c.name, planned: c.planned, spent: c.spent }));
-  const computedInsights = buildInsights(categoryFacts, goalFacts);
+  const computedInsights = buildInsights(categoryFacts, goalFacts, recurringChanges);
 
   const trend = useSavingsTrend(savingsTotal);
 

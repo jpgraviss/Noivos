@@ -50,6 +50,12 @@ describe("describeActivityEvent", () => {
     ).toBe("Ava logged a $5,000 gift from Mom & Dad");
   });
 
+  it("describes graduating Wedding Mode", () => {
+    expect(describeActivityEvent("Ava", "wedding_mode_graduated", {})).toBe(
+      "Ava and their partner graduated Wedding Mode 🎉"
+    );
+  });
+
   it("falls back to a generic sentence for an unrecognized event_type", () => {
     // Guards against a future event_type shipping without a matching case
     // here silently rendering "undefined" instead of something readable.

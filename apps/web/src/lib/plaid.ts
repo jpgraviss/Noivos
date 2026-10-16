@@ -1,4 +1,4 @@
-import { Configuration, PlaidApi, PlaidEnvironments, Products, CountryCode, type AccountType, type AccountSubtype } from "plaid";
+import { Configuration, PlaidApi, PlaidEnvironments, Products, CountryCode, type AccountType, type AccountSubtype, type JWKPublicKey } from "plaid";
 import crypto from "node:crypto";
 import { withUserContext } from "./db";
 
@@ -34,6 +34,74 @@ function getPlaidClient(): PlaidApi {
 }
 
 export { getPlaidClient, Products, CountryCode };
+
+// --- Webhook signature verification --------------------------------------
+//
+// Plaid signs every webhook body with a JWT in the Plaid-Verification
+// header (ES256) rather than a plain HMAC secret — this app has no env var
+// to configure for it, the signing key itself is fetched live from Plaid's
+// own /webhook_verification_key/get endpoint, keyed by the `kid` in the
+// JWT header, and cached here for the life of this process (keys rotate
+// rarely; Plaid's own docs recommend caching, not refetching per request).
+// No extra JWT library needed — this is one specific, well-documented
+// verification (ES256, raw IEEE-P1363 signature encoding, a SHA-256 body
+// hash claim), and Node's own `crypto` module already supports importing
+// a JWK directly.
+const webhookKeyCache = new Map<string, { key: JWKPublicKey; expiredAt: number | null }>();
+
+export async function verifyPlaidWebhookSignature(
+  plaidClient: PlaidApi,
+  rawBody: string,
+  jwtHeaderValue: string | null
+): Promise<boolean> {
+  if (!jwtHeaderValue) return false;
+  const parts = jwtHeaderValue.split(".");
+  if (parts.length !== 3) return false;
+  const [headerB64, payloadB64, signatureB64] = parts;
+
+  let header: { alg?: string; kid?: string };
+  let payload: { iat?: number; request_body_sha256?: string };
+  try {
+    header = JSON.parse(Buffer.from(headerB64, "base64url").toString("utf8"));
+    payload = JSON.parse(Buffer.from(payloadB64, "base64url").toString("utf8"));
+  } catch {
+    return false;
+  }
+  // Plaid only ever signs with ES256 today — a different alg here is more
+  // likely a forged header trying to downgrade to something weaker than a
+  // genuinely new Plaid signing scheme this app doesn't know about yet.
+  if (header.alg !== "ES256" || !header.kid) return false;
+
+  let cached = webhookKeyCache.get(header.kid);
+  if (!cached) {
+    const response = await plaidClient.webhookVerificationKeyGet({ key_id: header.kid });
+    cached = { key: response.data.key, expiredAt: response.data.key.expired_at };
+    webhookKeyCache.set(header.kid, cached);
+  }
+  if (cached.expiredAt !== null && Date.now() / 1000 > cached.expiredAt) return false;
+
+  // Plaid's own documented replay-protection window — a valid-looking JWT
+  // older than this is rejected regardless of signature validity.
+  if (!payload.iat || Date.now() / 1000 - payload.iat > 5 * 60) return false;
+
+  let verified: boolean;
+  try {
+    const publicKey = crypto.createPublicKey({ key: cached.key as unknown as crypto.JsonWebKey, format: "jwk" });
+    verified = crypto.verify(
+      "sha256",
+      Buffer.from(`${headerB64}.${payloadB64}`),
+      { key: publicKey, dsaEncoding: "ieee-p1363" },
+      Buffer.from(signatureB64, "base64url")
+    );
+  } catch (err) {
+    console.error("Plaid webhook JWT signature verification threw", err);
+    return false;
+  }
+  if (!verified) return false;
+
+  const bodyHash = crypto.createHash("sha256").update(rawBody).digest("hex");
+  return bodyHash === payload.request_body_sha256;
+}
 
 // --- Access-token encryption -------------------------------------------
 //

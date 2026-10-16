@@ -3,7 +3,7 @@ import type { PoolClient } from "@neondatabase/serverless";
 // Shared by every /api/wedding* route.
 export async function findWeddingDetails(partnershipId: string, client: PoolClient) {
   const result = await client.query(
-    `select id, wedding_date::text as wedding_date, guest_count_estimate, status
+    `select id, wedding_date::text as wedding_date, guest_count_estimate, status, graduated_at::text as graduated_at
      from wedding_details where partnership_id = $1`,
     [partnershipId]
   );

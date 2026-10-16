@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { View, Pressable, TextInput } from "react-native";
 import { Circle, CircleCheck, Flag, Plus } from "lucide-react-native";
-import { Card, OwnershipBadge, StackedProgressBar, Skeleton, Text, useTheme, spacing, radius, palette } from "@noivos/ui";
+import { Card, OwnershipBadge, StackedProgressBar, Skeleton, Text, useTheme, spacing, radius, palette, getTextColorFor } from "@noivos/ui";
 import { goals as mockGoals, weddingDetails } from "../data/mockData";
 import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
 import { daysUntil, daysUntilHumanDate } from "../lib/date";
@@ -73,6 +73,7 @@ interface ApiWeddingDetails {
   weddingDate: string | null;
   guestCountEstimate: number | null;
   status: string;
+  graduatedAt: string | null;
   vendors: ApiVendor[];
   checklist: ApiChecklistItem[];
   familyContributions: ApiFamilyContribution[];
@@ -244,6 +245,54 @@ export function GoalsScreen() {
       setEditWeddingError("Couldn't reach the server — try again.");
     } finally {
       setSavingWeddingEdit(false);
+    }
+  }
+
+  // Wedding Mode lifecycle (PRD §12.8, SE-74) — "Graduate" (explicit,
+  // celebratory, archives as a permanent keepsake) and "Pause" (non-
+  // celebratory postpone/exit path). Both require the same type-to-confirm-
+  // adjacent "are you sure" step as PartnershipSettings' disconnect-confirm,
+  // since both are one-way: wedding_details.status has no "resume back to
+  // active" action built (see api/wedding/pause/route.ts's own comment).
+  const [weddingLifecycleView, setWeddingLifecycleView] = useState<"none" | "graduate-confirm" | "pause-confirm">("none");
+  const [weddingLifecycleWorking, setWeddingLifecycleWorking] = useState(false);
+  const [weddingLifecycleError, setWeddingLifecycleError] = useState<string | null>(null);
+
+  async function handleGraduateWedding() {
+    setWeddingLifecycleWorking(true);
+    setWeddingLifecycleError(null);
+    try {
+      const res = await fetch("/api/wedding/graduate", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setWeddingLifecycleError(data.error ?? "Couldn't graduate Wedding Mode.");
+        return;
+      }
+      setApiWedding((prev) => (prev ? { ...prev, status: data.status, graduatedAt: data.graduatedAt } : prev));
+      setWeddingLifecycleView("none");
+    } catch {
+      setWeddingLifecycleError("Couldn't reach the server — try again.");
+    } finally {
+      setWeddingLifecycleWorking(false);
+    }
+  }
+
+  async function handlePauseWedding() {
+    setWeddingLifecycleWorking(true);
+    setWeddingLifecycleError(null);
+    try {
+      const res = await fetch("/api/wedding/pause", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setWeddingLifecycleError(data.error ?? "Couldn't pause Wedding Mode.");
+        return;
+      }
+      setApiWedding((prev) => (prev ? { ...prev, status: data.status } : prev));
+      setWeddingLifecycleView("none");
+    } catch {
+      setWeddingLifecycleError("Couldn't reach the server — try again.");
+    } finally {
+      setWeddingLifecycleWorking(false);
     }
   }
 
@@ -703,15 +752,112 @@ export function GoalsScreen() {
             <Card glow={palette.sourPunch}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <Flag size={16} color={palette.sourPunch} style={{ marginBottom: spacing.xs }} aria-hidden={true} />
-                {!showEditWedding && (
-                  <Pressable ref={editWeddingToggleRef} onPress={openEditWedding} role="button">
-                    <Text variant="caption" secondary style={{ fontWeight: "600" }}>
-                      Edit
-                    </Text>
-                  </Pressable>
+                {apiWedding.status === "active" && !showEditWedding && weddingLifecycleView === "none" && (
+                  <View style={{ flexDirection: "row", gap: spacing.md }}>
+                    <Pressable onPress={() => setWeddingLifecycleView("pause-confirm")} role="button">
+                      <Text variant="caption" secondary style={{ fontWeight: "600" }}>
+                        Pause
+                      </Text>
+                    </Pressable>
+                    <Pressable onPress={() => setWeddingLifecycleView("graduate-confirm")} role="button">
+                      <Text variant="caption" secondary style={{ fontWeight: "600" }}>
+                        Graduate
+                      </Text>
+                    </Pressable>
+                    <Pressable ref={editWeddingToggleRef} onPress={openEditWedding} role="button">
+                      <Text variant="caption" secondary style={{ fontWeight: "600" }}>
+                        Edit
+                      </Text>
+                    </Pressable>
+                  </View>
                 )}
               </View>
-              {showEditWedding ? (
+              {apiWedding.status === "graduated" ? (
+                <>
+                  <Text variant="display" color={palette.sourPunch}>
+                    🎉 Graduated
+                  </Text>
+                  <Text variant="body" secondary>
+                    {apiWedding.graduatedAt
+                      ? `Wedding Mode wrapped up on ${apiWedding.graduatedAt.slice(0, 10)} — your wedding budget is kept below as a record.`
+                      : "Wedding Mode has wrapped up — your wedding budget is kept below as a record."}
+                  </Text>
+                </>
+              ) : apiWedding.status === "paused_or_cancelled" ? (
+                <>
+                  <Text variant="display" color={palette.sourPunch}>
+                    Paused
+                  </Text>
+                  <Text variant="body" secondary>
+                    Wedding Mode is paused — your details are kept below if you pick this back up.
+                  </Text>
+                </>
+              ) : weddingLifecycleView === "graduate-confirm" ? (
+                <View style={{ gap: spacing.sm }}>
+                  <Text variant="bodySmall" secondary>
+                    This archives Wedding Mode as a permanent keepsake and moves your Partnership into standard shared
+                    financial planning. Your wedding budget, vendors, and checklist stay visible below — this can&apos;t be
+                    undone from here.
+                  </Text>
+                  {weddingLifecycleError && (
+                    <Text variant="caption" style={{ color: colors.danger }}>
+                      {weddingLifecycleError}
+                    </Text>
+                  )}
+                  <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                    <Pressable
+                      onPress={handleGraduateWedding}
+                      disabled={weddingLifecycleWorking}
+                      role="button"
+                      style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, backgroundColor: palette.sourLime }}
+                    >
+                      <Text variant="bodySmall" color={palette.licorice} style={{ fontWeight: "600" }}>
+                        {weddingLifecycleWorking ? "Graduating…" : "Graduate 🎉"}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setWeddingLifecycleView("none")}
+                      disabled={weddingLifecycleWorking}
+                      role="button"
+                      style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border }}
+                    >
+                      <Text variant="bodySmall">Cancel</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : weddingLifecycleView === "pause-confirm" ? (
+                <View style={{ gap: spacing.sm }}>
+                  <Text variant="bodySmall" secondary>
+                    For a postponed or cancelled wedding — this isn&apos;t a celebration step. Your details stay as they
+                    are, just out of the active countdown. There&apos;s no way to resume from here yet.
+                  </Text>
+                  {weddingLifecycleError && (
+                    <Text variant="caption" style={{ color: colors.danger }}>
+                      {weddingLifecycleError}
+                    </Text>
+                  )}
+                  <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                    <Pressable
+                      onPress={handlePauseWedding}
+                      disabled={weddingLifecycleWorking}
+                      role="button"
+                      style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, backgroundColor: palette.sourPunch }}
+                    >
+                      <Text variant="bodySmall" color={getTextColorFor(palette.sourPunch)} style={{ fontWeight: "600" }}>
+                        {weddingLifecycleWorking ? "Pausing…" : "Pause Wedding Mode"}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setWeddingLifecycleView("none")}
+                      disabled={weddingLifecycleWorking}
+                      role="button"
+                      style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border }}
+                    >
+                      <Text variant="bodySmall">Cancel</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : showEditWedding ? (
                 <View style={{ gap: spacing.sm }}>
                   <TextInput
                     value={editWeddingDate}

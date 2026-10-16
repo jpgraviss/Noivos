@@ -5,6 +5,7 @@ import { Card, OwnershipBadge, StackedProgressBar, Skeleton, Text, useTheme, spa
 import { budgetSnapshot } from "../data/mockData";
 import { ProgressRing } from "../components/ProgressRing";
 import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
+import { RecurringExpenses } from "../components/RecurringExpenses";
 
 // A dedicated categorical set for the "Spending by category" chart below —
 // NOT the same as packages/ui's calm UI-accent palette (sourLime/sourPunch/
@@ -30,6 +31,7 @@ interface ApiCategory {
   name: string;
   shared: boolean;
   planned: number;
+  rolloverAmount: number;
   spent: number;
 }
 
@@ -160,7 +162,7 @@ export function BudgetScreen() {
           month: budgetSnapshot.month,
           planned: budgetSnapshot.planned,
           spent: budgetSnapshot.spent,
-          categories: budgetSnapshot.categories.map((c) => ({ id: c.name, ...c })),
+          categories: budgetSnapshot.categories.map((c) => ({ id: c.name, rolloverAmount: 0, ...c })),
         };
 
   const overallPercent = budget.planned > 0 ? (budget.spent / budget.planned) * 100 : 0;
@@ -272,6 +274,18 @@ export function BudgetScreen() {
                 {over ? `$${(c.spent - c.planned).toLocaleString()} over` : `$${(c.planned - c.spent).toLocaleString()} left`}
               </Text>
             </View>
+            {/* rolloverAmount (PRD §12.6, SE-82) — the mock fallback always
+                reports 0 (no concept of a previous month to roll over
+                from), so this only ever shows on real /api/budget data,
+                and only when nonzero so an ordinary category with nothing
+                carried over stays unchanged. */}
+            {c.rolloverAmount !== 0 && (
+              <Text variant="caption" secondary style={{ marginTop: 2 }}>
+                {c.rolloverAmount > 0
+                  ? `Includes $${c.rolloverAmount.toLocaleString()} rolled over from last month`
+                  : `Includes a $${Math.abs(c.rolloverAmount).toLocaleString()} shortfall rolled over from last month`}
+              </Text>
+            )}
             <View style={{ height: 8, borderRadius: 999, backgroundColor: colors.border, marginTop: spacing.sm, overflow: "hidden" }}>
               <View
                 style={{
@@ -375,6 +389,8 @@ export function BudgetScreen() {
           </Card>
         );
       })}
+
+      <RecurringExpenses />
     </ScreenGrid>
   );
 }

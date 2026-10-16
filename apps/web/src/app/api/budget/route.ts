@@ -121,6 +121,65 @@ export async function GET() {
           );
           if (created.rows[0]) {
             budgetId = created.rows[0].id;
+
+            // Budget rollover (PRD §12.6, part of SE-82) — budgets.
+            // rollover_enabled/budget_categories.rollover_amount have
+            // existed since 0001_init.sql, unused until now. Only runs
+            // once, at the exact moment this month's budget is first
+            // created (never re-triggered by a later GET of the same
+            // budget, since budgetId is already set on every subsequent
+            // call) — seeds each category's rollover_amount from last
+            // month's leftover (planned + its own rollover - spent, which
+            // can be negative: overspending carries forward as a deficit,
+            // not just unspent surplus carrying forward as a bonus). The
+            // generic "missing categories" backfill a few lines down still
+            // runs afterward for anything this seeding didn't cover (a
+            // brand-new category with no prior-month row), on conflict
+            // do nothing meaning it never overwrites what's seeded here.
+            {
+              // rollover_enabled always defaults true (no UI/route toggles
+              // it off yet — a real, documented gap, not silently assumed);
+              // the query below still checks it on the *previous* month's
+              // budget row rather than assuming, since the column exists
+              // specifically to allow disabling this per-budget.
+              const prevMonthResult = await client.query(
+                `select to_char(date_trunc('month', current_date) - interval '1 month', 'YYYY-MM-DD') as month`
+              );
+              const prevMonth = prevMonthResult.rows[0].month as string;
+              const prevBudget = await client.query(
+                isShared
+                  ? `select id from budgets where partnership_id = $1 and is_shared = true and month = $2::date and rollover_enabled`
+                  : `select id from budgets where owner_id = $1 and month = $2::date and partnership_id is null and rollover_enabled`,
+                isShared ? [partnershipId, prevMonth] : [userId, prevMonth]
+              );
+              if (prevBudget.rows[0]) {
+                const prevCategories = await client.query(
+                  `select bc.category_id, bc.planned_amount::float8 as planned_amount, bc.rollover_amount::float8 as rollover_amount,
+                          coalesce((
+                            select sum(t.amount) from transactions t
+                            where t.category_id = bc.category_id
+                              and t.transaction_date >= $2::date
+                              and t.transaction_date < $2::date + interval '1 month'
+                          ), 0)::float8 as spent
+                   from budget_categories bc where bc.budget_id = $1`,
+                  [prevBudget.rows[0].id, prevMonth]
+                );
+                if (prevCategories.rows.length > 0) {
+                  const categoryIds = prevCategories.rows.map((r) => r.category_id as string);
+                  const plannedAmounts = prevCategories.rows.map((r) => r.planned_amount as number);
+                  const rolloverAmounts = prevCategories.rows.map(
+                    (r) => (r.planned_amount as number) + (r.rollover_amount as number) - (r.spent as number)
+                  );
+                  await client.query(
+                    `insert into budget_categories (budget_id, category_id, planned_amount, rollover_amount)
+                     select $1, cat_id, planned, roll
+                     from unnest($2::uuid[], $3::numeric[], $4::numeric[]) as t(cat_id, planned, roll)
+                     on conflict (budget_id, category_id) do nothing`,
+                    [budgetId, categoryIds, plannedAmounts, rolloverAmounts]
+                  );
+                }
+              }
+            }
           } else {
             const winner = await client.query(
               isShared
@@ -194,7 +253,7 @@ export async function GET() {
       }
 
       const rows = await client.query(
-        `select c.id, c.name, (c.partnership_id is not null) as shared, bc.planned_amount,
+        `select c.id, c.name, (c.partnership_id is not null) as shared, bc.planned_amount, bc.rollover_amount,
                 coalesce((
                   select sum(t.amount) from transactions t
                   where t.category_id = c.id
@@ -208,11 +267,18 @@ export async function GET() {
         [budgetId]
       );
 
+      // "planned" is the effective budget a category actually has to spend
+      // against this month (its own planned_amount plus whatever carried
+      // over from last month, PRD §12.6) — rolloverAmount is broken out
+      // separately so the UI can show *why* a category's number moved
+      // rather than silently folding a carried-over deficit or surplus
+      // into planned_amount with no attribution.
       const categoriesOut = rows.rows.map((r) => ({
         id: r.id as string,
         name: r.name as string,
         shared: Boolean(r.shared),
-        planned: Number(r.planned_amount),
+        planned: Number(r.planned_amount) + Number(r.rollover_amount),
+        rolloverAmount: Number(r.rollover_amount),
         spent: Number(r.spent),
       }));
       const planned = categoriesOut.reduce((s, c) => s + c.planned, 0);

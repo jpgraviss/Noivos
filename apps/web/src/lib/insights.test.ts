@@ -88,6 +88,11 @@ describe("buildInsights", () => {
     expect(result).toEqual([{ id: "none", text: expect.any(String) }]);
   });
 
+  it("surfaces a recurring expense amount change", () => {
+    const result = buildInsights([], [], [{ merchantName: "Netflix", oldAmount: 15.99, newAmount: 17.99 }]);
+    expect(result).toEqual([{ id: "recurring-Netflix", text: "Netflix changed from $15.99 to $17.99 — worth a look?" }]);
+  });
+
   it("returns a neutral fallback message when there's nothing to flag at all", () => {
     const result = buildInsights([], []);
     expect(result).toHaveLength(1);

@@ -17,6 +17,12 @@ export interface Insight {
   text: string;
 }
 
+export interface RecurringChangeFact {
+  merchantName: string;
+  oldAmount: number;
+  newAmount: number;
+}
+
 // Rule-based "basic insights" — PRD §13's free tier includes "basic
 // insights," distinct from Premium's "advanced AI Insights (predictive,
 // trend-based)," which needs an actual model call and is gated on the AI
@@ -35,8 +41,28 @@ export interface Insight {
 // without inventing unsupported math. Phrased as neutral observations, not
 // alarms, per §12.11's tone requirement — no red/warning language, no
 // verdicts.
-export function buildInsights(categories: BudgetCategoryFact[], goals: GoalProgressFact[]): Insight[] {
+// recurringChanges defaults to [] rather than being required — every
+// existing call site (and every existing test) predates PRD §12.5's
+// recurring-expense amount-change case (SE-77), so this stays additive
+// instead of forcing every caller to pass something.
+export function buildInsights(
+  categories: BudgetCategoryFact[],
+  goals: GoalProgressFact[],
+  recurringChanges: RecurringChangeFact[] = []
+): Insight[] {
   const items: Insight[] = [];
+
+  // PRD §12.5's own edge case: "a recurring expense whose amount
+  // changes... should surface as an AI Insight, not just silently
+  // update." Neutral framing, no up/down judgment language, matching
+  // every other insight's tone requirement (§12.11) — a price change is a
+  // fact worth noticing, not a verdict on whether it's good or bad.
+  for (const change of recurringChanges) {
+    items.push({
+      id: `recurring-${change.merchantName}`,
+      text: `${change.merchantName} changed from $${change.oldAmount.toLocaleString()} to $${change.newAmount.toLocaleString()} — worth a look?`,
+    });
+  }
 
   for (const c of categories) {
     if (c.spent > c.planned) {
