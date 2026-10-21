@@ -17,6 +17,13 @@ interface ActivityEvent {
   time: string; // ISO timestamp for real events; already a display string ("2h ago") for the mock fallback
 }
 
+interface NotificationItem {
+  id: string;
+  description: string;
+  readAt: string | null;
+  createdAt: string;
+}
+
 const TABS = ["Home", "Budget", "Goals", "AI Coach", "More"] as const;
 type Tab = (typeof TABS)[number];
 
@@ -45,17 +52,67 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
   const [tab, setTab] = useState<Tab>("Home");
   const { colors, setMode } = useTheme();
 
-  // Notifications bell: a real recent-activity dropdown (reuses the same
-  // /api/activity endpoint HomeScreen's Activity card already wired
-  // 2026-08-05), not a fake unread-count badge — there's no read/unread
-  // tracking anywhere yet, so this deliberately doesn't claim one.
+  // The bell dropdown has two sections: real, read-tracked Notifications
+  // (PRD §12.14, SE-75 — notifications has existed since 0001_init.sql
+  // with no read/unread tracking surfaced anywhere until now) on top, and
+  // the Recent-activity feed (reuses /api/activity, wired 2026-08-05)
+  // below it, kept exactly as it was — a different feature (a shared
+  // partnership-visible log vs. a personal unread-tracked alert), not
+  // merged into one list.
   const [showActivity, setShowActivity] = useState(false);
   const [activityEvents, setActivityEvents] = useState<ActivityEvent[] | null>(null);
   const [activityIsReal, setActivityIsReal] = useState(false);
   const activityFetched = useRef(false);
 
+  const [notifications, setNotifications] = useState<NotificationItem[] | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Fetched eagerly on mount, not lazily like Activity — the unread badge
+  // on the bell icon itself needs a real count before the dropdown is
+  // ever opened, not just once someone clicks it.
+  function loadNotifications() {
+    fetch("/api/notifications")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("notifications fetch failed");
+        return res.json() as Promise<{ notifications: NotificationItem[]; unreadCount: number }>;
+      })
+      .then((data) => {
+        setNotifications(data.notifications);
+        setUnreadCount(data.unreadCount);
+      })
+      .catch(() => {
+        // No database/Clerk reachable — stays empty rather than showing a
+        // fabricated badge count.
+      });
+  }
+  useEffect(() => {
+    loadNotifications();
+  }, []);
+
+  async function handleMarkRead(id: string) {
+    setNotifications((prev) => (prev ? prev.map((n) => (n.id === id ? { ...n, readAt: n.readAt ?? new Date().toISOString() } : n)) : prev));
+    setUnreadCount((prev) => Math.max(0, prev - 1));
+    try {
+      await fetch(`/api/notifications/${id}/read`, { method: "POST" });
+    } catch {
+      // Soft failure — the row already reads as read locally; next reload
+      // will reconcile with whatever the server actually has.
+    }
+  }
+
+  async function handleMarkAllRead() {
+    setNotifications((prev) => (prev ? prev.map((n) => ({ ...n, readAt: n.readAt ?? new Date().toISOString() })) : prev));
+    setUnreadCount(0);
+    try {
+      await fetch("/api/notifications/read-all", { method: "POST" });
+    } catch {
+      // Same soft-failure posture as handleMarkRead.
+    }
+  }
+
   function toggleActivity() {
     setShowActivity((prev) => !prev);
+    loadNotifications(); // refresh on every open, cheap enough and keeps the badge/list honest
     if (!activityFetched.current) {
       activityFetched.current = true;
       fetch("/api/activity")
@@ -287,12 +344,37 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
             </button>
             <button
               className="noivos-icon-btn"
-              aria-label="Recent activity"
+              aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
               aria-expanded={showActivity}
-              title="Recent activity"
+              title="Notifications"
               onClick={toggleActivity}
+              style={{ position: "relative" }}
             >
               <Bell size={16} color={colors.textSecondary} aria-hidden={true} />
+              {unreadCount > 0 && (
+                <span
+                  aria-hidden={true}
+                  style={{
+                    position: "absolute",
+                    top: 2,
+                    right: 2,
+                    minWidth: 14,
+                    height: 14,
+                    borderRadius: 999,
+                    backgroundColor: palette.sourPunch,
+                    color: getTextColorFor(palette.sourPunch),
+                    fontFamily: "var(--font-inter)",
+                    fontSize: 9,
+                    fontWeight: 700,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "0 3px",
+                  }}
+                >
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
             </button>
             <button className="noivos-icon-btn" aria-label="Settings" title="Settings" onClick={() => setTab("More")}>
               <Settings size={16} color={colors.textSecondary} aria-hidden={true} />
@@ -303,16 +385,78 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
                 <Card style={{ padding: spacing.md }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.sm }}>
                     <span style={{ fontFamily: "var(--font-inter)", fontSize: 13, fontWeight: 600, color: colors.textPrimary }}>
-                      Recent activity
+                      Notifications
                     </span>
-                    <button
-                      onClick={() => setShowActivity(false)}
-                      aria-label="Close"
-                      style={{ background: "none", border: "none", color: colors.textSecondary, cursor: "pointer", fontSize: 16, lineHeight: 1 }}
-                    >
-                      &times;
-                    </button>
+                    <div style={{ display: "flex", gap: spacing.sm, alignItems: "center" }}>
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={handleMarkAllRead}
+                          style={{ background: "none", border: "none", color: colors.textSecondary, cursor: "pointer", fontFamily: "var(--font-inter)", fontSize: 11 }}
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setShowActivity(false)}
+                        aria-label="Close"
+                        style={{ background: "none", border: "none", color: colors.textSecondary, cursor: "pointer", fontSize: 16, lineHeight: 1 }}
+                      >
+                        &times;
+                      </button>
+                    </div>
                   </div>
+                  {notifications === null && (
+                    <span style={{ fontFamily: "var(--font-inter)", fontSize: 13, color: colors.textSecondary }}>Loading…</span>
+                  )}
+                  {notifications?.length === 0 && (
+                    <span style={{ fontFamily: "var(--font-inter)", fontSize: 13, color: colors.textSecondary, marginBottom: spacing.sm }}>
+                      No notifications yet.
+                    </span>
+                  )}
+                  {notifications?.slice(0, 5).map((n) => (
+                    // A Pressable-style <button>, not a plain <div> — this
+                    // row is a real action (mark as read on tap/click), so
+                    // it needs to be reachable by keyboard the same way
+                    // every other real action in this app is.
+                    <button
+                      key={n.id}
+                      onClick={() => handleMarkRead(n.id)}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        textAlign: "left",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: 0,
+                        marginBottom: spacing.sm,
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+                        {!n.readAt && (
+                          <span
+                            aria-hidden={true}
+                            style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: palette.sourLime, marginTop: 5, flexShrink: 0 }}
+                          />
+                        )}
+                        <div>
+                          <div style={{ fontFamily: "var(--font-inter)", fontSize: 13, color: n.readAt ? colors.textSecondary : colors.textPrimary }}>
+                            {n.description}
+                          </div>
+                          <div style={{ fontFamily: "var(--font-inter)", fontSize: 11, color: colors.textSecondary }}>
+                            {formatRelativeTime(n.createdAt)}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+
+                  <div style={{ height: 1, backgroundColor: colors.border, margin: `${spacing.sm}px 0` }} />
+
+                  <span style={{ fontFamily: "var(--font-inter)", fontSize: 13, fontWeight: 600, color: colors.textPrimary }}>
+                    Recent activity
+                  </span>
+                  <div style={{ marginTop: spacing.sm }} />
                   {activityEvents === null && (
                     <span style={{ fontFamily: "var(--font-inter)", fontSize: 13, color: colors.textSecondary }}>Loading…</span>
                   )}

@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { clerkConfigured } from "@/lib/clerk";
 import { withUserContext } from "@/lib/db";
 import { findActiveMembership } from "@/lib/partnership";
+import { createNotification } from "@/lib/notifications";
 
 // The other half of the invite flow apps/web/src/app/api/partnership/invite/
 // route.ts started (2026-08-03) — this is what actually lets a second
@@ -76,7 +77,13 @@ export async function POST(request: Request) {
       ]);
 
       const inviter = await client.query(`select display_name from users where id = $1`, [inv.inviter_id]);
-      return { accepted: true as const, partnerName: (inviter.rows[0]?.display_name as string | undefined) ?? "Your partner" };
+      const joiner = await client.query(`select display_name from users where id = $1`, [userId]);
+      return {
+        accepted: true as const,
+        inviterId: inv.inviter_id as string,
+        partnerName: (inviter.rows[0]?.display_name as string | undefined) ?? "Your partner",
+        joinerName: (joiner.rows[0]?.display_name as string | undefined) ?? "Your partner",
+      };
     });
 
     if (result.invalid) {
@@ -97,6 +104,12 @@ export async function POST(request: Request) {
     if (result.alreadyConnected) {
       return NextResponse.json({ error: "You're already in a Partnership — disconnect first to accept a new invite." }, { status: 409 });
     }
+    // Best-effort, fire-and-forget — same posture as every other
+    // notification/activity-log call in this app (lib/activity.ts's
+    // logActivityEvent), run after the primary transaction already
+    // committed so a notification failure can't roll back a real accept.
+    void createNotification(userId, result.inviterId, "partner_joined", { partnerName: result.joinerName });
+
     return NextResponse.json({ partnerName: result.partnerName });
   } catch (err) {
     // The one_active_partnership_per_user unique index is the real backstop

@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { clerkConfigured } from "@/lib/clerk";
 import { withUserContext } from "@/lib/db";
 import { logActivityEvent } from "@/lib/activity";
+import { createNotification } from "@/lib/notifications";
 import { tooLong, tooLarge, isUuid, MAX_NOTE_LENGTH, MAX_AMOUNT } from "@/lib/validate";
 
 // The goal_contributions_write RLS policy (0004_tighten_goal_contributions_rls.sql)
@@ -52,18 +53,63 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   try {
-    const { contribution, activityInfo } = await withUserContext(userId, async (client) => {
+    const { contribution, activityInfo, justFunded, notifyRecipientIds } = await withUserContext(userId, async (client) => {
+      // Totals before this insert, read first — this is how "just crossed
+      // into fully funded" is detected: not "is it funded now" (true on
+      // every contribution after the first time it's funded, which would
+      // notify on every single top-up to an already-funded goal) but
+      // "was it NOT funded a moment ago and IS now."
+      const goalInfo = await client.query(
+        `select name, is_shared, partnership_id, owner_id, target_amount::float8 as target_amount from goals where id = $1`,
+        [goalId]
+      );
+      const goal = goalInfo.rows[0] ?? null;
+      let totalBefore = 0;
+      if (goal) {
+        const totalResult = await client.query(
+          `select coalesce(sum(amount), 0)::float8 as total from goal_contributions where goal_id = $1`,
+          [goalId]
+        );
+        totalBefore = totalResult.rows[0].total as number;
+      }
+
       const result = await client.query(
         `insert into goal_contributions (goal_id, contributor_id, amount, note)
          values ($1, $2, $3, $4)
          returning id, contributor_id, amount::float8 as amount, contribution_date::text as contribution_date, note`,
         [goalId, userId, amount, note]
       );
-      const goalInfo = await client.query(
-        `select name, is_shared, partnership_id from goals where id = $1`,
-        [goalId]
-      );
-      return { contribution: result.rows[0], activityInfo: goalInfo.rows[0] ?? null };
+
+      let justFunded = false;
+      let notifyRecipientIds: string[] = [];
+      if (goal && goal.target_amount > 0) {
+        const totalAfter = totalBefore + (result.rows[0].amount as number);
+        justFunded = totalBefore < goal.target_amount && totalAfter >= goal.target_amount;
+        if (justFunded) {
+          if (goal.is_shared && goal.partnership_id) {
+            // Notify the *other* partner — the contributor who just
+            // crossed the finish line already knows. Both members query,
+            // not just "whoever isn't userId," since this partnership
+            // could (rarely) have the contributor as its only active
+            // member for a moment around a disconnect.
+            const members = await client.query(
+              `select user_id from partnership_members where partnership_id = $1 and left_at is null and user_id <> $2`,
+              [goal.partnership_id, userId]
+            );
+            notifyRecipientIds = members.rows.map((r) => r.user_id as string);
+          } else {
+            // Personal goal — a self-notification still matches PRD
+            // §12.14's "goal reached" trigger; owner_id is always this
+            // same contributor in practice (personal goals have no other
+            // contributor under goal_contributions_write's RLS), but
+            // reading it from the row rather than assuming userId keeps
+            // this correct if that ever changes.
+            notifyRecipientIds = [goal.owner_id as string];
+          }
+        }
+      }
+
+      return { contribution: result.rows[0], activityInfo: goal, justFunded, notifyRecipientIds };
     });
 
     // Best-effort, fire-and-forget — see lib/activity.ts for why this runs
@@ -75,6 +121,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         goalName: activityInfo.name,
         amount: contribution.amount,
       });
+    }
+    if (justFunded && activityInfo) {
+      for (const recipientId of notifyRecipientIds) {
+        void createNotification(userId, recipientId, "goal_funded", { goalName: activityInfo.name });
+      }
     }
 
     return NextResponse.json({

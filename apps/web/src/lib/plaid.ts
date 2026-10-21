@@ -1,6 +1,7 @@
 import { Configuration, PlaidApi, PlaidEnvironments, Products, CountryCode, type AccountType, type AccountSubtype, type JWKPublicKey } from "plaid";
 import crypto from "node:crypto";
 import { withUserContext } from "./db";
+import { DEFAULT_CATEGORIES } from "./budget";
 
 // Plaid integration (PRD §12.4) — real for the first time as of
 // 2026-08-14. Founder direction (same conversation as the AI Coach
@@ -180,6 +181,34 @@ export function mapPlaidAccountType(type: AccountType, subtype: AccountSubtype |
   return "other";
 }
 
+// --- Plaid category auto-mapping (SE-72) --------------------------------
+//
+// Plaid's own `personal_finance_category` (primary/detailed, e.g.
+// FOOD_AND_DRINK / FOOD_AND_DRINK_GROCERIES) is far more granular than
+// this app's free-form, user-editable categories, and there's no fixed
+// taxonomy on this app's side in general to map *into* — a user can
+// rename or delete any category. This only maps to lib/budget.ts's
+// DEFAULT_CATEGORIES names, the ones every user/Partnership already gets
+// seeded with the moment they first load Budget, rather than guessing at
+// a renamed or custom one. Intentionally narrow: four of Plaid's sixteen
+// primary categories have an obvious match among those five defaults
+// (there's no default for Entertainment/Travel/Medical/etc. to map into);
+// everything else lands with category_id null, same honest "unmapped"
+// default as before this existed — a transaction with no good match is
+// better left unmapped than filed under the wrong category.
+export function defaultCategoryNameForPlaidCategory(
+  primary: string | null | undefined,
+  detailed: string | null | undefined
+): string | null {
+  if (!primary) return null;
+  if (primary === "FOOD_AND_DRINK") {
+    return detailed === "FOOD_AND_DRINK_GROCERIES" ? "Groceries" : "Dining Out";
+  }
+  if (primary === "TRANSPORTATION") return "Transportation";
+  if (primary === "GENERAL_MERCHANDISE") return "Personal Shopping";
+  return null;
+}
+
 // --- Shared account+transaction sync ------------------------------------
 //
 // One real Plaid Item, fully synced: refresh its linked accounts
@@ -232,6 +261,19 @@ export async function syncPlaidItem(
     }
   });
 
+  // Built once per sync call, not per transaction — a name lookup against
+  // this user's/Partnership's own categories for just the five default
+  // names defaultCategoryNameForPlaidCategory() can ever return.
+  const categoryIdByName = new Map<string, string>();
+  await withUserContext(userId, async (dbClient) => {
+    const result = await dbClient.query(`select id, name from categories where name = any($1::text[])`, [
+      DEFAULT_CATEGORIES.map((d) => d.name),
+    ]);
+    for (const row of result.rows) {
+      categoryIdByName.set(row.name as string, row.id as string);
+    }
+  });
+
   let cursor: string | null = startCursor;
   let hasMore = true;
   let transactionsSynced = 0;
@@ -264,15 +306,22 @@ export async function syncPlaidItem(
           transactionsSkipped++;
           continue;
         }
+        const defaultCategoryName = defaultCategoryNameForPlaidCategory(
+          txn.personal_finance_category?.primary,
+          txn.personal_finance_category?.detailed
+        );
+        const categoryId = defaultCategoryName ? categoryIdByName.get(defaultCategoryName) ?? null : null;
+
         await dbClient.query(
-          `insert into transactions (account_id, owner_id, plaid_transaction_id, amount, merchant_name, transaction_date)
-           values ($1, $2, $3, $4, $5, $6::date)
+          `insert into transactions (account_id, owner_id, plaid_transaction_id, amount, merchant_name, category_id, transaction_date)
+           values ($1, $2, $3, $4, $5, $6, $7::date)
            on conflict (plaid_transaction_id) do update
              set amount = excluded.amount,
                  merchant_name = excluded.merchant_name,
+                 category_id = excluded.category_id,
                  transaction_date = excluded.transaction_date,
                  updated_at = now()`,
-          [localAccountId, userId, txn.transaction_id, txn.amount, txn.merchant_name ?? txn.name, txn.date]
+          [localAccountId, userId, txn.transaction_id, txn.amount, txn.merchant_name ?? txn.name, categoryId, txn.date]
         );
         transactionsSynced++;
       }
