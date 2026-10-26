@@ -1,6 +1,7 @@
 "use client";
 
-import { Card, Text, palette, spacing, useTheme } from "@noivos/ui";
+import type { LucideIcon } from "lucide-react-native";
+import { Card, Text, palette, spacing, useTheme, getTextColorFor } from "@noivos/ui";
 
 export interface StatTileProps {
   label: string;
@@ -9,13 +10,15 @@ export interface StatTileProps {
   deltaDirection?: "up" | "down";
   deltaIsGood?: boolean;
   sparkline?: number[];
+  icon?: LucideIcon;
+  iconColor?: string;
 }
 
 // Stat tile contract (label/value/delta/trend) per the dataviz skill's
 // marks-and-anatomy reference. The value is proportional Inter, not the
 // brand's Bebas Neue display face — a hero number reads better in a sans
 // than a condensed display face, per that guidance.
-export function StatTile({ label, value, deltaLabel, deltaDirection, deltaIsGood, sparkline }: StatTileProps) {
+export function StatTile({ label, value, deltaLabel, deltaDirection, deltaIsGood, sparkline, icon: Icon, iconColor }: StatTileProps) {
   const { colors } = useTheme();
   // colors.success/colors.danger, not palette.sourLime/palette.sourPunch
   // directly (found 2026-08-14): this is raw foreground text sitting on
@@ -35,13 +38,31 @@ export function StatTile({ label, value, deltaLabel, deltaDirection, deltaIsGood
 
   return (
     <Card style={{ gap: spacing.xs }}>
-      <Text
-        variant="caption"
-        secondary
-        style={{ letterSpacing: 1, textTransform: "uppercase" }}
-      >
-        {label}
-      </Text>
+      <div style={{ display: "flex", alignItems: "center", gap: spacing.xs }}>
+        {Icon && (
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 14,
+              backgroundColor: iconColor ?? palette.electricBlue,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <Icon size={14} color={getTextColorFor(iconColor ?? palette.electricBlue)} />
+          </div>
+        )}
+        <Text
+          variant="caption"
+          secondary
+          style={{ letterSpacing: 1, textTransform: "uppercase" }}
+        >
+          {label}
+        </Text>
+      </div>
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: spacing.sm }}>
         <span style={{ fontFamily: "var(--font-inter)", fontWeight: 700, fontSize: 28, color: colors.textPrimary }}>
           {value}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Pressable } from 'react-native';
+import { PiggyBank, Receipt, Heart } from 'lucide-react-native';
 import { Card, Skeleton, ScreenContainer, Text, useTheme, spacing, palette, getTextColorFor } from '@noivos/ui';
 import { budgetSnapshot, goals as mockGoals, activityFeed, upcomingBills, moneyMeeting, currentUser } from '../data/mockData';
 import { useApiFetch, apiConfigured } from '../lib/api';
@@ -35,6 +36,17 @@ function useSavingsTrend(total: number) {
   const weeks = ['7wk ago', '6wk ago', '5wk ago', '4wk ago', '3wk ago', '2wk ago', 'Last wk', 'This wk'];
   const shape = [0.78, 0.8, 0.83, 0.85, 0.89, 0.93, 0.97, 1];
   return weeks.map((label, i) => ({ label, value: Math.round(total * shape[i]) }));
+}
+
+// Same wall-clock greeting as apps/web's HomeScreen.tsx — not derived from
+// any wedding-specific or backend data, so no fallback/mock split needed.
+function timeOfDayGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 5) return 'Good night';
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  if (hour < 21) return 'Good evening';
+  return 'Good night';
 }
 
 // Placeholder standing in for a <StatTile> before its underlying fetch has
@@ -331,7 +343,7 @@ export function HomeScreen() {
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing.md }}>
         <View>
           <Text variant="caption" secondary>
-            Good afternoon
+            {timeOfDayGreeting()}
           </Text>
           <Text variant="display">Hey, {displayName}</Text>
         </View>
@@ -348,6 +360,35 @@ export function HomeScreen() {
         )}
       </View>
 
+      {!budgetResolved ? (
+        <Card>
+          <Skeleton width="55%" height={11} />
+          <Skeleton width="45%" height={34} style={{ marginTop: spacing.sm }} />
+          <Skeleton height={10} radiusSize={999} style={{ marginTop: spacing.md }} />
+        </Card>
+      ) : (
+        <Card>
+          <Text variant="caption" secondary style={{ letterSpacing: 1, textTransform: 'uppercase' }}>
+            Left to spend this month
+          </Text>
+          <Text variant="display" style={{ marginTop: spacing.xs }}>
+            ${Math.max(budget.planned - budget.spent, 0).toLocaleString()}
+          </Text>
+          <View style={{ height: 10, borderRadius: 999, backgroundColor: colors.border, marginTop: spacing.md, overflow: 'hidden' }}>
+            <View
+              style={{
+                height: '100%',
+                width: `${budget.planned > 0 ? Math.min((budget.spent / budget.planned) * 100, 100) : 0}%`,
+                backgroundColor: overBudget ? palette.sourPunch : palette.sourLime,
+              }}
+            />
+          </View>
+          <Text variant="bodySmall" secondary style={{ marginTop: spacing.xs }}>
+            ${budget.spent.toLocaleString()} of ${budget.planned.toLocaleString()} spent
+          </Text>
+        </Card>
+      )}
+
       {/* No deltaLabel here (unlike Spent this month) — there's no real
           historical savings data to compute one from yet (no daily balance
           snapshots wired). The sparkline rides on useSavingsTrend's
@@ -357,7 +398,13 @@ export function HomeScreen() {
       {!goalsResolved ? (
         <StatTileSkeleton />
       ) : (
-        <StatTile label="Total saved" value={`$${savingsTotal.toLocaleString()}`} sparkline={trend.map((t) => t.value)} />
+        <StatTile
+          label="Total saved"
+          value={`$${savingsTotal.toLocaleString()}`}
+          sparkline={trend.map((t) => t.value)}
+          icon={PiggyBank}
+          iconColor={palette.electricBlue}
+        />
       )}
       {!budgetResolved ? (
         <StatTileSkeleton />
@@ -368,6 +415,8 @@ export function HomeScreen() {
           deltaLabel={`of $${budget.planned.toLocaleString()} planned`}
           deltaDirection={overBudget ? 'up' : 'down'}
           deltaIsGood={!overBudget}
+          icon={Receipt}
+          iconColor={palette.citrus}
         />
       )}
       {!goalsResolved ? (
@@ -375,7 +424,13 @@ export function HomeScreen() {
       ) : (
         weddingGoal &&
         weddingPercent !== null && (
-          <StatTile label="Wedding progress" value={`${weddingPercent}%`} deltaLabel={`$${weddingTotal.toLocaleString()} of $${weddingTarget?.toLocaleString()}`} />
+          <StatTile
+            label="Wedding progress"
+            value={`${weddingPercent}%`}
+            deltaLabel={`$${weddingTotal.toLocaleString()} of $${weddingTarget?.toLocaleString()}`}
+            icon={Heart}
+            iconColor={palette.sourPunch}
+          />
         )
       )}
 

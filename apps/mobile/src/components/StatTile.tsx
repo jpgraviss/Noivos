@@ -1,6 +1,7 @@
 import { View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { Card, Text, palette, spacing, useTheme } from '@noivos/ui';
+import type { LucideIcon } from 'lucide-react-native';
+import { Card, Text, palette, spacing, useTheme, getTextColorFor } from '@noivos/ui';
 
 export interface StatTileProps {
   label: string;
@@ -9,6 +10,8 @@ export interface StatTileProps {
   deltaDirection?: 'up' | 'down';
   deltaIsGood?: boolean;
   sparkline?: number[];
+  icon?: LucideIcon;
+  iconColor?: string;
 }
 
 // Native port of apps/web's StatTile.tsx (raw <div>/<span>/<svg> — DOM-only,
@@ -20,15 +23,31 @@ export interface StatTileProps {
 // raw foreground text on Card's own surface background fails WCAG AA in
 // light mode at this size, same defect class fixed across this app in
 // August 2026.
-export function StatTile({ label, value, deltaLabel, deltaDirection, deltaIsGood, sparkline }: StatTileProps) {
+export function StatTile({ label, value, deltaLabel, deltaDirection, deltaIsGood, sparkline, icon: Icon, iconColor }: StatTileProps) {
   const { colors } = useTheme();
   const deltaColor = deltaDirection === undefined ? colors.textSecondary : deltaIsGood ? colors.success : colors.danger;
 
   return (
     <Card style={{ gap: spacing.xs }}>
-      <Text variant="caption" secondary style={{ letterSpacing: 1, textTransform: 'uppercase' }}>
-        {label}
-      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+        {Icon && (
+          <View
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 14,
+              backgroundColor: iconColor ?? palette.electricBlue,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon size={14} color={getTextColorFor(iconColor ?? palette.electricBlue)} />
+          </View>
+        )}
+        <Text variant="caption" secondary style={{ letterSpacing: 1, textTransform: 'uppercase' }}>
+          {label}
+        </Text>
+      </View>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: spacing.sm }}>
         <Text style={{ fontWeight: '700', fontSize: 28, color: colors.textPrimary }}>{value}</Text>
         {sparkline && sparkline.length > 1 && <Sparkline points={sparkline} />}
