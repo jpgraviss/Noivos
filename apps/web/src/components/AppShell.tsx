@@ -480,7 +480,11 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
         </header>
 
         <div className="noivos-page-inner">
-          <ActiveScreen userName={displayName} {...(tab === "More" ? { onSignOut } : {})} />
+          <ActiveScreen
+            userName={displayName}
+            {...(tab === "More" ? { onSignOut } : {})}
+            {...(tab === "Home" ? { onNavigate: setTab, goalsLabel } : {})}
+          />
         </div>
       </div>
 

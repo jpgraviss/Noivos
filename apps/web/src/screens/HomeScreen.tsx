@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, Pressable } from "react-native";
-import { Activity as ActivityIcon, BarChart3, CreditCard, PiggyBank, Receipt, Heart } from "lucide-react-native";
+import { Activity as ActivityIcon, BarChart3, CreditCard, PiggyBank, Receipt, Heart, PieChart, Target, Sparkles, Ellipsis } from "lucide-react-native";
+import type { LucideIcon } from "lucide-react-native";
 import { Card, Text, Skeleton, useTheme, spacing, palette, getTextColorFor } from "@noivos/ui";
 import { budgetSnapshot, goals as mockGoals, activityFeed, upcomingBills, moneyMeeting, currentUser } from "../data/mockData";
 import { AvatarStack } from "../components/AvatarStack";
@@ -61,6 +62,20 @@ function StatTileSkeleton() {
 
 export interface HomeScreenProps {
   userName?: string;
+  // Both supplied by AppShell.tsx (the only real caller — same posture as
+  // onSignOut being passed only on the More tab) so the Quick Actions grid
+  // below can jump to another real tab instead of duplicating AppShell's
+  // own tab-switching state. goalsLabel mirrors AppShell's already-fetched
+  // Wedding-Mode-aware label ("Wedding" vs "Goals") rather than
+  // re-deriving it here from scratch.
+  onNavigate?: (tab: "Budget" | "Goals" | "AI Coach" | "More") => void;
+  goalsLabel?: string;
+}
+
+interface QuickAction {
+  label: string;
+  icon: LucideIcon;
+  target: "Budget" | "Goals" | "AI Coach" | "More";
 }
 
 // userName is the real signed-in person's name (see AppShell/
@@ -94,9 +109,20 @@ export interface HomeScreenProps {
 // AI call, so it doesn't need the AI Coach provider decision. Falls back to
 // the mock budget/goals data independently if a given backend isn't
 // reachable, same as every other card on this screen.
-export function HomeScreen({ userName }: HomeScreenProps = {}) {
+export function HomeScreen({ userName, onNavigate, goalsLabel }: HomeScreenProps = {}) {
   const { colors } = useTheme();
   const displayName = userName || currentUser.name;
+
+  // Real tabs only (Budget, Goals/Wedding, AI Coach, More) — no "Scan"/"Net
+  // Worth"/"Pay"-style tiles for features this app doesn't have. Icons match
+  // AppShell.tsx's own bottom-nav icons for the same tab, so this grid reads
+  // as a shortcut to those tabs rather than a separate feature set.
+  const quickActions: QuickAction[] = [
+    { label: "Budget", icon: PieChart, target: "Budget" },
+    { label: goalsLabel ?? "Wedding", icon: Target, target: "Goals" },
+    { label: "AI Coach", icon: Sparkles, target: "AI Coach" },
+    { label: "More", icon: Ellipsis, target: "More" },
+  ];
 
   const [backendAvailable, setBackendAvailable] = useState(false);
   const [apiGoals, setApiGoals] = useState<ApiGoal[]>([]);
@@ -527,6 +553,41 @@ export function HomeScreen({ userName }: HomeScreenProps = {}) {
           />
         )
       )}
+
+      <ScreenGridWide>
+        <Card>
+          <Text variant="h3" style={{ marginBottom: spacing.sm }}>
+            Quick Actions
+          </Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
+            {quickActions.map((action) => (
+              <Pressable
+                key={action.target}
+                role="button"
+                aria-label={action.label}
+                onPress={() => onNavigate?.(action.target)}
+                style={{ flexGrow: 1, flexBasis: 72, alignItems: "center", gap: spacing.xs, paddingVertical: spacing.xs }}
+              >
+                <View
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
+                    backgroundColor: palette.electricBlue,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <action.icon size={20} color={getTextColorFor(palette.electricBlue)} />
+                </View>
+                <Text variant="bodySmall" style={{ textAlign: "center" }}>
+                  {action.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </Card>
+      </ScreenGridWide>
 
       {/* Money Meeting ritual card — a distinct treatment, UX Blueprint §3.3.
           Real as of 2026-08-05 once a Partnership exists: the agenda is

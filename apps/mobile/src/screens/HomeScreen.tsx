@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { View, Pressable } from 'react-native';
-import { PiggyBank, Receipt, Heart } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
+import { PiggyBank, Receipt, Heart, PieChart, Target, Sparkles, Ellipsis } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 import { Card, Skeleton, ScreenContainer, Text, useTheme, spacing, palette, getTextColorFor } from '@noivos/ui';
-import { budgetSnapshot, goals as mockGoals, activityFeed, upcomingBills, moneyMeeting, currentUser } from '../data/mockData';
+import { budgetSnapshot, goals as mockGoals, activityFeed, upcomingBills, moneyMeeting, currentUser, weddingDetails } from '../data/mockData';
 import { useApiFetch, apiConfigured } from '../lib/api';
 import { useDisplayName } from '../auth/ClerkAuthProvider';
 import { formatRelativeTime } from '../lib/formatRelativeTime';
@@ -61,6 +63,12 @@ function StatTileSkeleton() {
   );
 }
 
+interface QuickAction {
+  label: string;
+  icon: LucideIcon;
+  screen: string;
+}
+
 // Wired to real data on 2026-10-02, brought to parity with apps/web's
 // HomeScreen.tsx. Upgraded to full visual parity on 2026-10-06: AvatarStack/
 // StatTile/TrendChart (native ports via react-native-svg — see
@@ -84,6 +92,23 @@ export function HomeScreen() {
   const apiFetch = useApiFetch();
   const realDisplayName = useDisplayName();
   const displayName = realDisplayName || currentUser.name;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- same untyped-navigation posture as AppShell.tsx's own SCREENS map; this is the first screen in apps/mobile to navigate between tabs.
+  const navigation = useNavigation<any>();
+
+  // Real tabs only (Budget, Goals/Wedding, AI Coach, More) — no "Scan"/"Net
+  // Worth"/"Pay"-style tiles for features this app doesn't have. Icons match
+  // RootNavigator.tsx's own tab-bar icons for the same tab. The Goals/Wedding
+  // screen name has to match whatever RootNavigator.tsx actually registered
+  // it as (weddingDetails.active ? 'Wedding' : 'Goals') or navigate() silently
+  // no-ops — same (pre-existing, mock-only) flag RootNavigator itself uses,
+  // not a new one invented here.
+  const goalsScreenName = weddingDetails.active ? 'Wedding' : 'Goals';
+  const quickActions: QuickAction[] = [
+    { label: 'Budget', icon: PieChart, screen: 'Budget' },
+    { label: goalsScreenName, icon: Target, screen: goalsScreenName },
+    { label: 'AI Coach', icon: Sparkles, screen: 'AI Coach' },
+    { label: 'More', icon: Ellipsis, screen: 'More' },
+  ];
 
   const [backendAvailable, setBackendAvailable] = useState(false);
   const [apiGoals, setApiGoals] = useState<ApiGoal[]>([]);
@@ -433,6 +458,39 @@ export function HomeScreen() {
           />
         )
       )}
+
+      <Card>
+        <Text variant="h3" style={{ marginBottom: spacing.sm }}>
+          Quick Actions
+        </Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+          {quickActions.map((action) => (
+            <Pressable
+              key={action.screen}
+              role="button"
+              accessibilityLabel={action.label}
+              onPress={() => navigation.navigate(action.screen)}
+              style={{ flexGrow: 1, flexBasis: 72, alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.xs }}
+            >
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: palette.electricBlue,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <action.icon size={20} color={getTextColorFor(palette.electricBlue)} />
+              </View>
+              <Text variant="bodySmall" style={{ textAlign: 'center' }}>
+                {action.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </Card>
 
       {/* Money Meeting ritual card — a distinct treatment, UX Blueprint §3.3 */}
       {!meetingResolved ? (
