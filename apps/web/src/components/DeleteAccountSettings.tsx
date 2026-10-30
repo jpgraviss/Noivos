@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useClerk } from "@clerk/nextjs";
 import { Card, Text, useTheme, spacing, radius, palette, getTextColorFor } from "@noivos/ui";
 
 type View = "summary" | "confirm";
@@ -33,15 +32,27 @@ function pillButtonStyle(borderColor: string, textColor: string) {
   };
 }
 
+export interface DeleteAccountSettingsProps {
+  // Injected by the caller (ultimately AuthenticatedAppShell's useClerk())
+  // rather than read via useClerk() here, same reasoning as AppShell.tsx's
+  // own onSignOut: this component is always mounted inside MoreScreen, even
+  // when Clerk isn't configured (see app/page.tsx), and calling useClerk()
+  // directly in that case throws ("useClerk can only be used within a
+  // <ClerkProvider />") and crashes the entire More tab — found 2026-10-30.
+  // Undefined in that no-Clerk case; handleDelete() below just skips the
+  // sign-out step then, same as MoreScreen's own "Sign Out" button hiding
+  // itself entirely when onSignOut is undefined.
+  onSignOut?: (options?: { redirectUrl?: string }) => void;
+}
+
 // The UI half of SE-81 — POST /api/account/delete does the real work (see
 // that route + lib/accountDeletion.ts for exactly what's deleted vs. kept
 // as a Partnership keepsake). Typing "DELETE" to confirm, not just a second
 // button tap, matches how destructive this specific action is relative to
 // everything else in Settings (disconnecting a Partnership is reversible
 // by re-inviting; this isn't reversible at all).
-export function DeleteAccountSettings() {
+export function DeleteAccountSettings({ onSignOut }: DeleteAccountSettingsProps = {}) {
   const { colors } = useTheme();
-  const { signOut } = useClerk();
 
   const [view, setView] = useState<View>("summary");
   const [confirmText, setConfirmText] = useState("");
@@ -62,7 +73,7 @@ export function DeleteAccountSettings() {
         setError(data.error ?? "Couldn't delete your account.");
         return;
       }
-      await signOut({ redirectUrl: "/" });
+      onSignOut?.({ redirectUrl: "/" });
     } catch {
       setError("Couldn't reach the server — try again.");
     } finally {

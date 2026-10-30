@@ -48,7 +48,7 @@ const SCREENS: Record<Tab, ComponentType<any>> = {
   More: MoreScreen,
 };
 
-function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: string }) {
+function Shell({ onSignOut, userName }: { onSignOut?: (options?: { redirectUrl?: string }) => void; userName?: string }) {
   const [tab, setTab] = useState<Tab>("Home");
   const { colors, mode, setMode } = useTheme();
 
@@ -326,7 +326,7 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
           </div>
           {onSignOut && (
             <button
-              onClick={onSignOut}
+              onClick={() => onSignOut()}
               className="noivos-icon-btn"
               style={{ width: 30, height: 30, border: "none" }}
               aria-label="Sign out"
@@ -556,7 +556,7 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
 // useClerk()/useUser() here, so this component never assumes a ClerkProvider
 // ancestor exists (it's also rendered directly when Clerk isn't configured
 // — see app/page.tsx).
-export function AppShell({ onSignOut, userName }: { onSignOut?: () => void; userName?: string } = {}) {
+export function AppShell({ onSignOut, userName }: { onSignOut?: (options?: { redirectUrl?: string }) => void; userName?: string } = {}) {
   return (
     <ThemeProvider>
       <Shell onSignOut={onSignOut} userName={userName} />

@@ -32,5 +32,5 @@ export function AuthenticatedAppShell() {
     user?.fullName ||
     user?.primaryEmailAddress?.emailAddress?.split("@")[0] ||
     "You";
-  return <AppShell onSignOut={() => signOut()} userName={userName} />;
+  return <AppShell onSignOut={(options) => signOut(options)} userName={userName} />;
 }

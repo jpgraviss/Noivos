@@ -35,7 +35,13 @@ const sections: { title: string; icon: typeof Settings; items: { label: string; 
 ];
 
 export interface MoreScreenProps {
-  onSignOut?: () => void;
+  // Wider than a plain () => void so DeleteAccountSettings below can pass
+  // { redirectUrl: "/" } through the same callback the "Sign Out" button
+  // uses with no args — one prop, one Clerk call site (AuthenticatedAppShell),
+  // instead of DeleteAccountSettings calling useClerk() itself (that used to
+  // crash this whole screen whenever Clerk isn't configured, since this
+  // component — and therefore DeleteAccountSettings — renders even then).
+  onSignOut?: (options?: { redirectUrl?: string }) => void;
   userName?: string;
 }
 
@@ -202,7 +208,7 @@ export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
 
       {onSignOut && (
         <Card>
-          <Pressable onPress={onSignOut} role="button" style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+          <Pressable onPress={() => onSignOut()} role="button" style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
             <LogOut size={16} color={colors.textPrimary} aria-hidden={true} />
             <Text variant="body" style={{ fontWeight: "600" }}>
               Sign Out
@@ -211,7 +217,7 @@ export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
         </Card>
       )}
 
-      <DeleteAccountSettings />
+      <DeleteAccountSettings onSignOut={onSignOut} />
     </ScreenGrid>
   );
 }
