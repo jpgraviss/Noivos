@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import { Bell, Target, House, LogOut, Search, Settings, Sparkles, PieChart, Ellipsis } from "lucide-react-native";
-import { Card, ThemeProvider, useTheme, palette, getTextColorFor, spacing } from "@noivos/ui";
+import { Card, ThemeProvider, useTheme, palette, getTextColorFor, spacing, darkGradientStops } from "@noivos/ui";
 import { HomeScreen } from "../screens/HomeScreen";
 import { BudgetScreen } from "../screens/BudgetScreen";
 import { GoalsScreen } from "../screens/GoalsScreen";
@@ -50,7 +50,7 @@ const SCREENS: Record<Tab, ComponentType<any>> = {
 
 function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: string }) {
   const [tab, setTab] = useState<Tab>("Home");
-  const { colors, setMode } = useTheme();
+  const { colors, mode, setMode } = useTheme();
 
   // The bell dropdown has two sections: real, read-tracked Notifications
   // (PRD §12.14, SE-75 — notifications has existed since 0001_init.sql
@@ -197,8 +197,23 @@ function Shell({ onSignOut, userName }: { onSignOut?: () => void; userName?: str
   const ActiveScreen = SCREENS[tab];
   const pageTitle = tab === "Goals" ? goalsLabel : tab;
 
+  // Same subtle top-to-bottom vignette as apps/mobile's GradientBackground.tsx,
+  // built from the same darkGradientStops — background-attachment: fixed
+  // pins it to the viewport rather than letting it scroll with .noivos-page-inner's
+  // content, matching mobile's ScreenContainer (the gradient sits behind the
+  // ScrollView, not inside its scrolling content). Dark mode only; light
+  // mode keeps the flat colors.background it always had.
+  const shellBackground =
+    mode === "dark"
+      ? {
+          backgroundColor: colors.background,
+          backgroundImage: `linear-gradient(180deg, ${darkGradientStops.map((s) => `${s.color} ${s.offset * 100}%`).join(", ")})`,
+          backgroundAttachment: "fixed" as const,
+        }
+      : { backgroundColor: colors.background };
+
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: colors.background }}>
+    <div style={{ minHeight: "100vh", ...shellBackground }}>
       <aside
         className="noivos-sidebar"
         style={{

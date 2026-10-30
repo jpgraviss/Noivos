@@ -83,6 +83,20 @@ export interface ColorTokens {
   success: string;
 }
 
+// A subtle top-to-bottom vignette behind the whole app shell in dark mode —
+// not a new background color, just a softer-at-top variant of the same
+// licorice tone, like the app is lit from above. Shared by apps/web's
+// AppShell.tsx (built into a CSS `linear-gradient(...)` string) and
+// apps/mobile's GradientBackground.tsx (an SVG <LinearGradient>, since RN
+// has no CSS background-image equivalent) so both platforms render the
+// same stops from one definition. Dark mode only — light mode keeps its
+// existing flat background; this never applies to colorTokens.light.
+export const darkGradientStops: { offset: number; color: string }[] = [
+  { offset: 0, color: '#2A2835' },
+  { offset: 0.6, color: palette.licorice },
+  { offset: 1, color: palette.licorice },
+];
+
 export const colorTokens: Record<'dark' | 'light', ColorTokens> = {
   dark: {
     background: palette.licorice,

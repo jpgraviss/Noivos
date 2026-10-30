@@ -7,3 +7,4 @@ export * from './Skeleton';
 export * from './OwnershipBadge';
 export * from './StackedProgressBar';
 export * from './ScreenContainer';
+export * from './GradientBackground';
