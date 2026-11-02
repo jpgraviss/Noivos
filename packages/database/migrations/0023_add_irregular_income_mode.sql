@@ -1,0 +1,21 @@
+-- SE-82's third piece: irregular-income budgeting mode. Rollover
+-- (rollover_enabled/rollover_amount) shipped 2026-10-16; this adds the two
+-- columns needed for the "more forgiving mode for freelance/commission
+-- income" piece.
+--
+-- irregular_income_enabled defaults false (unlike rollover_enabled's
+-- default true) and, unlike rollover_enabled, is deliberately inherited
+-- forward from the previous month's budget row when a new month is
+-- created (see GET /api/budget) — rollover_enabled never needed that
+-- because it's already on for everyone by default; this one is off by
+-- default and would be pointless if turning it on didn't stick past the
+-- one month a user flips it.
+--
+-- actual_income is nullable and stays null until the user manually enters
+-- it for that month — same "honest absence over a fabricated default"
+-- posture as every other optional figure in this app (e.g. a synced
+-- Plaid transaction's category_id). No bank-verified income detection
+-- exists or is planned here; this is a plain manual entry, like every
+-- expense in this app already is.
+alter table budgets add column irregular_income_enabled boolean not null default false;
+alter table budgets add column actual_income numeric(14, 2);

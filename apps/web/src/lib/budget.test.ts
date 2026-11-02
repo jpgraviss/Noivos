@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import type { PoolClient } from "@neondatabase/serverless";
-import { findOrCreateManualAccount, DEFAULT_CATEGORIES } from "./budget";
+import { findOrCreateManualAccount, findOrCreateIncomeBufferCategory, computeIncomeBufferDelta, DEFAULT_CATEGORIES } from "./budget";
 
 // findOrCreateManualAccount's whole job is deduplication: every logged
 // expense should land on the same one "Manual Entries" account per user,
@@ -50,6 +50,50 @@ describe("findOrCreateManualAccount", () => {
     const id = await findOrCreateManualAccount("user-1", client);
     expect(id).toBe("acct-winner");
     expect(query).toHaveBeenCalledTimes(3);
+  });
+});
+
+// Same race-safe shape as findOrCreateManualAccount above, parameterized by
+// isShared instead — one quick check per branch that it queries/inserts
+// against the right columns rather than re-testing the whole race-loss path
+// a second time (already covered above).
+describe("findOrCreateIncomeBufferCategory", () => {
+  it("returns an existing shared buffer category without inserting", async () => {
+    const { client, query } = fakeClient([{ id: "cat-existing" }], null);
+    const id = await findOrCreateIncomeBufferCategory("user-1", "partnership-1", true, client);
+    expect(id).toBe("cat-existing");
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates a new personal buffer category scoped to the user when none exists", async () => {
+    const { client, query } = fakeClient([], { id: "cat-new" });
+    const id = await findOrCreateIncomeBufferCategory("user-1", null, false, client);
+    expect(id).toBe("cat-new");
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls[1][1]).toEqual(["user-1", "Income Buffer"]);
+  });
+});
+
+describe("computeIncomeBufferDelta", () => {
+  it("returns 0 with no prior-month history", () => {
+    expect(computeIncomeBufferDelta([])).toBe(0);
+  });
+
+  it("returns 0 when the most recent month exactly matches the average", () => {
+    expect(computeIncomeBufferDelta([5000, 3000, 7000])).toBe(0);
+  });
+
+  it("returns a negative delta (draw from the buffer) when the most recent month ran behind the average", () => {
+    // order is most-recent-first: 2000 is the latest month, average of all three is 4000.
+    expect(computeIncomeBufferDelta([2000, 4000, 6000])).toBe(-2000);
+  });
+
+  it("returns a positive delta (bank the surplus) when the most recent month ran ahead of the average", () => {
+    expect(computeIncomeBufferDelta([6000, 4000, 2000])).toBe(2000);
+  });
+
+  it("returns 0 for a single month of history (it is its own average)", () => {
+    expect(computeIncomeBufferDelta([4500])).toBe(0);
   });
 });
 

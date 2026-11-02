@@ -3,7 +3,13 @@ import { auth } from "@clerk/nextjs/server";
 import { clerkConfigured } from "@/lib/clerk";
 import { withUserContext } from "@/lib/db";
 import { findActiveMembership } from "@/lib/partnership";
-import { DEFAULT_CATEGORIES } from "@/lib/budget";
+import {
+  DEFAULT_CATEGORIES,
+  INCOME_BUFFER_CATEGORY_NAME,
+  IRREGULAR_INCOME_WINDOW_MONTHS,
+  computeIncomeBufferDelta,
+  findOrCreateIncomeBufferCategory,
+} from "@/lib/budget";
 
 // Design note (fast-tracked judgment call, same posture as the Partnership
 // status='active' fix — flagged here and in PROJECT_MEMORY.md rather than
@@ -180,6 +186,73 @@ export async function GET() {
                 }
               }
             }
+
+            // Irregular-income mode (SE-82's third piece) — inherits
+            // forward from the previous month's budget row, unlike
+            // rollover_enabled above: rollover defaults to on for everyone
+            // (no UI to turn it off yet, a documented gap), so it never
+            // needed remembering a toggle; this one defaults off and would
+            // be pointless if turning it on didn't stick past the one
+            // month a user actually flips it.
+            {
+              const prevMonthResult = await client.query(
+                `select to_char(date_trunc('month', current_date) - interval '1 month', 'YYYY-MM-DD') as month`
+              );
+              const prevMonth = prevMonthResult.rows[0].month as string;
+              const prevIrregular = await client.query(
+                isShared
+                  ? `select irregular_income_enabled from budgets where partnership_id = $1 and is_shared = true and month = $2::date`
+                  : `select irregular_income_enabled from budgets where owner_id = $1 and month = $2::date and partnership_id is null`,
+                isShared ? [partnershipId, prevMonth] : [userId, prevMonth]
+              );
+              if (prevIrregular.rows[0]?.irregular_income_enabled === true) {
+                await client.query(`update budgets set irregular_income_enabled = true where id = $1`, [budgetId]);
+
+                // Income-smoothing buffer: averages up to the last
+                // IRREGULAR_INCOME_WINDOW_MONTHS prior months' actual_income
+                // (manually entered, like every other figure in this app —
+                // no bank-verified income detection exists), then banks or
+                // draws the difference between the single most recent of
+                // those months and that average into a dedicated "Income
+                // Buffer" category's rollover_amount — reusing the exact
+                // carry-forward mechanic rollover already has above, rather
+                // than inventing a second one. Skipped entirely when no
+                // prior month has actual_income recorded yet (nothing to
+                // average — same "can't compute what isn't there" posture
+                // as rollover's own prevBudget-not-found fallback).
+                const history = await client.query(
+                  isShared
+                    ? `select actual_income::float8 as actual_income from budgets
+                       where partnership_id = $1 and is_shared = true and actual_income is not null and month < $2::date
+                       order by month desc limit $3`
+                    : `select actual_income::float8 as actual_income from budgets
+                       where owner_id = $1 and partnership_id is null and actual_income is not null and month < $2::date
+                       order by month desc limit $3`,
+                  isShared
+                    ? [partnershipId, month, IRREGULAR_INCOME_WINDOW_MONTHS]
+                    : [userId, month, IRREGULAR_INCOME_WINDOW_MONTHS]
+                );
+                if (history.rows.length > 0) {
+                  const incomes = history.rows.map((r) => r.actual_income as number);
+                  const bufferDelta = computeIncomeBufferDelta(incomes);
+                  const bufferCategoryId = await findOrCreateIncomeBufferCategory(userId, partnershipId, isShared, client);
+                  const prevBufferRow = await client.query(
+                    `select bc.rollover_amount::float8 as rollover_amount
+                     from budget_categories bc
+                     join budgets b on b.id = bc.budget_id
+                     where bc.category_id = $1 and b.month = $2::date`,
+                    [bufferCategoryId, prevMonth]
+                  );
+                  const prevBufferBalance = Number(prevBufferRow.rows[0]?.rollover_amount ?? 0);
+                  await client.query(
+                    `insert into budget_categories (budget_id, category_id, planned_amount, rollover_amount)
+                     values ($1, $2, 0, $3)
+                     on conflict (budget_id, category_id) do nothing`,
+                    [budgetId, bufferCategoryId, prevBufferBalance + bufferDelta]
+                  );
+                }
+              }
+            }
           } else {
             const winner = await client.query(
               isShared
@@ -280,16 +353,113 @@ export async function GET() {
         planned: Number(r.planned_amount) + Number(r.rollover_amount),
         rolloverAmount: Number(r.rollover_amount),
         spent: Number(r.spent),
+        // The Income Buffer category (irregular-income mode, SE-82) isn't a
+        // real spending category — it only ever carries a banked/drawn
+        // smoothing balance in rolloverAmount, never an actual expense — so
+        // it's excluded from the planned/spent totals below (folding it in
+        // would skew "% of budget used" by a number that was never meant to
+        // be spent against) and flagged here so the UI can render it with
+        // its own "income smoothing" framing instead of a normal category
+        // card.
+        isIncomeBuffer: r.name === INCOME_BUFFER_CATEGORY_NAME,
       }));
-      const planned = categoriesOut.reduce((s, c) => s + c.planned, 0);
-      const spent = categoriesOut.reduce((s, c) => s + c.spent, 0);
+      const spendingCategories = categoriesOut.filter((c) => !c.isIncomeBuffer);
+      const planned = spendingCategories.reduce((s, c) => s + c.planned, 0);
+      const spent = spendingCategories.reduce((s, c) => s + c.spent, 0);
 
-      return { month: monthLabel, planned, spent, categories: categoriesOut };
+      const budgetSettings = await client.query(
+        `select irregular_income_enabled, actual_income::float8 as actual_income from budgets where id = $1`,
+        [budgetId]
+      );
+      const irregularIncomeEnabled = Boolean(budgetSettings.rows[0]?.irregular_income_enabled);
+      const actualIncome = (budgetSettings.rows[0]?.actual_income as number | null) ?? null;
+
+      return { month: monthLabel, planned, spent, categories: categoriesOut, irregularIncomeEnabled, actualIncome };
     });
 
     return NextResponse.json(data);
   } catch (err) {
     console.error("GET /api/budget failed", err);
     return NextResponse.json({ error: "Couldn't load your Budget." }, { status: 500 });
+  }
+}
+
+// Updates the current month's budget row with irregular-income settings —
+// GET above never writes irregular_income_enabled except to inherit it
+// forward from a prior month, this is the only place a user actually turns
+// the mode on/off or records a month's actual_income. Both fields are
+// optional and independent (the UI has two separate controls — a toggle and
+// an income field — that can each be used without the other), so undefined
+// means "leave this field alone," not "clear it." Owner-scoped (`where
+// owner_id = $4`), same documented constraint GET's own design note already
+// states for budget_categories: on a shared budget, only the partner who
+// created this month's row can edit it — a non-owning partner's PATCH here
+// correctly matches zero rows rather than silently writing nothing useful,
+// returned as 404 below rather than a raw 500.
+export async function PATCH(request: Request) {
+  if (!clerkConfigured()) {
+    return NextResponse.json({ error: "Clerk isn't configured" }, { status: 503 });
+  }
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  }
+
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+  const { irregularIncomeEnabled, actualIncome } = body as { irregularIncomeEnabled?: unknown; actualIncome?: unknown };
+  if (irregularIncomeEnabled !== undefined && typeof irregularIncomeEnabled !== "boolean") {
+    return NextResponse.json({ error: "irregularIncomeEnabled must be a boolean" }, { status: 400 });
+  }
+  if (
+    actualIncome !== undefined &&
+    actualIncome !== null &&
+    (typeof actualIncome !== "number" || !Number.isFinite(actualIncome) || actualIncome < 0)
+  ) {
+    return NextResponse.json({ error: "actualIncome must be a non-negative number or null" }, { status: 400 });
+  }
+
+  try {
+    const updated = await withUserContext(userId, async (client) => {
+      const membership = await findActiveMembership(userId, client);
+      const partnershipId = membership?.partnership_id ?? null;
+      const monthResult = await client.query(
+        `select to_char(date_trunc('month', current_date), 'YYYY-MM-DD') as month`
+      );
+      const month = monthResult.rows[0].month as string;
+
+      const result = await client.query(
+        `update budgets set
+           irregular_income_enabled = coalesce($1, irregular_income_enabled),
+           actual_income = case when $2 then $3 else actual_income end
+         where owner_id = $4 and month = $5::date and partnership_id is not distinct from $6::uuid
+         returning irregular_income_enabled, actual_income::float8 as actual_income`,
+        [
+          irregularIncomeEnabled ?? null,
+          actualIncome !== undefined,
+          actualIncome ?? null,
+          userId,
+          month,
+          partnershipId,
+        ]
+      );
+      return result.rows[0] ?? null;
+    });
+
+    if (!updated) {
+      return NextResponse.json(
+        { error: "No Budget found for this month yet — load Budget first." },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json({
+      irregularIncomeEnabled: Boolean(updated.irregular_income_enabled),
+      actualIncome: (updated.actual_income as number | null) ?? null,
+    });
+  } catch (err) {
+    console.error("PATCH /api/budget failed", err);
+    return NextResponse.json({ error: "Couldn't update your Budget settings." }, { status: 500 });
   }
 }

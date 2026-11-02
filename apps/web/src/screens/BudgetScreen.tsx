@@ -33,6 +33,7 @@ interface ApiCategory {
   planned: number;
   rolloverAmount: number;
   spent: number;
+  isIncomeBuffer: boolean;
 }
 
 interface ApiBudget {
@@ -40,6 +41,8 @@ interface ApiBudget {
   planned: number;
   spent: number;
   categories: ApiCategory[];
+  irregularIncomeEnabled: boolean;
+  actualIncome: number | null;
 }
 
 // Real data as of 2026-08-05, same fetch-then-fallback posture as every
@@ -75,6 +78,14 @@ export function BudgetScreen() {
   const [merchantDrafts, setMerchantDrafts] = useState<Record<string, string>>({});
   const [submittingFor, setSubmittingFor] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Irregular-income mode (SE-82) — two independent controls (a toggle, an
+  // income field), so their save/error state stays separate from the
+  // per-category expense-logging state above.
+  const [togglingIrregular, setTogglingIrregular] = useState(false);
+  const [incomeDraft, setIncomeDraft] = useState("");
+  const [savingIncome, setSavingIncome] = useState(false);
+  const [incomeError, setIncomeError] = useState<string | null>(null);
 
   // Guards two distinct races (found 2026-08-13, same audit pass that
   // built the Skeleton-gating above but missed hardening this specific
@@ -155,24 +166,79 @@ export function BudgetScreen() {
     }
   }
 
-  const budget: { month: string; planned: number; spent: number; categories: ApiCategory[] } =
+  async function handleToggleIrregularIncome(nextEnabled: boolean) {
+    setTogglingIrregular(true);
+    try {
+      const res = await fetch("/api/budget", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ irregularIncomeEnabled: nextEnabled }),
+      });
+      if (res.ok) loadBudget(); // Refetch so the buffer category/settings reflect the new mode.
+    } catch {
+      // Best-effort — the toggle just won't visually flip; the user can retry.
+    } finally {
+      setTogglingIrregular(false);
+    }
+  }
+
+  async function handleSaveIncome() {
+    const amount = Number(incomeDraft);
+    if (!Number.isFinite(amount) || amount < 0) {
+      setIncomeError("Enter an amount of $0 or more.");
+      return;
+    }
+    setSavingIncome(true);
+    setIncomeError(null);
+    try {
+      const res = await fetch("/api/budget", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actualIncome: amount }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setIncomeError(data.error ?? "Couldn't save that.");
+        return;
+      }
+      setIncomeDraft("");
+      loadBudget(); // Refetch — next month's smoothing average depends on this.
+    } catch {
+      setIncomeError("Couldn't reach the server — try again.");
+    } finally {
+      setSavingIncome(false);
+    }
+  }
+
+  const budget: ApiBudget =
     backendAvailable && apiBudget
       ? apiBudget
       : {
           month: budgetSnapshot.month,
           planned: budgetSnapshot.planned,
           spent: budgetSnapshot.spent,
-          categories: budgetSnapshot.categories.map((c) => ({ id: c.name, rolloverAmount: 0, ...c })),
+          categories: budgetSnapshot.categories.map((c) => ({ id: c.name, rolloverAmount: 0, isIncomeBuffer: false, ...c })),
+          // Irregular-income mode needs a real /api/budget connection (the
+          // smoothing math lives server-side) — the mock fallback has no
+          // concept of it, same as rolloverAmount always reporting 0 above.
+          irregularIncomeEnabled: false,
+          actualIncome: null,
         };
 
   const overallPercent = budget.planned > 0 ? (budget.spent / budget.planned) * 100 : 0;
   const overallOver = overallPercent > 100;
 
-  const categoryBreakdown = budget.categories.map((c, i) => ({
-    name: c.name,
-    amount: c.spent,
-    color: BUDGET_CATEGORY_COLORS[i % BUDGET_CATEGORY_COLORS.length],
-  }));
+  // Excludes the Income Buffer category (irregular-income mode) — it never
+  // has real spending against it (see the GET /api/budget comment this
+  // mirrors), so including it here would just add a permanent $0 legend
+  // entry to the spending-by-category chart.
+  const categoryBreakdown = budget.categories
+    .filter((c) => !c.isIncomeBuffer)
+    .map((c, i) => ({
+      name: c.name,
+      amount: c.spent,
+      color: BUDGET_CATEGORY_COLORS[i % BUDGET_CATEGORY_COLORS.length],
+    }));
   // Denominator is the sum of category spends, not budget.spent — the mock
   // snapshot's top-level "spent" doesn't exactly equal the sum of its
   // category spends (a pre-existing inconsistency in the mock data), which
@@ -213,7 +279,7 @@ export function BudgetScreen() {
           <View>
             <Text variant="h1">Budget</Text>
             <Text variant="body" secondary>
-              {budget.month} · zero-based
+              {budget.month} · {budget.irregularIncomeEnabled ? "smoothed over a 3-month average" : "zero-based"}
             </Text>
           </View>
           <ProgressRing
@@ -224,6 +290,91 @@ export function BudgetScreen() {
           />
         </View>
       </ScreenGridWide>
+
+      {backendAvailable && (
+        <ScreenGridWide>
+          <Card>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: spacing.md }}>
+              <View style={{ flex: 1 }}>
+                <Text variant="h3">Irregular income mode</Text>
+                <Text variant="bodySmall" secondary style={{ marginTop: 2 }}>
+                  For freelance/commission income — smooths your budget against a trailing 3-month average instead of
+                  this month&apos;s actual, and banks or draws the difference in a dedicated Income Buffer category
+                  rather than forcing your categories to balance exactly every month.
+                </Text>
+              </View>
+              {/* Same role="button"/aria-pressed pill-toggle pattern as MoreScreen.tsx's
+                  Appearance toggle, for the same keyboard/screen-reader reasons documented
+                  there. */}
+              <Pressable
+                onPress={() => handleToggleIrregularIncome(!budget.irregularIncomeEnabled)}
+                disabled={togglingIrregular}
+                role="button"
+                aria-pressed={budget.irregularIncomeEnabled}
+                style={{
+                  paddingVertical: 8,
+                  paddingHorizontal: 16,
+                  borderRadius: radius.pill,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: budget.irregularIncomeEnabled ? palette.electricBlue : "transparent",
+                }}
+              >
+                <Text
+                  variant="bodySmall"
+                  style={{ fontWeight: "600", color: budget.irregularIncomeEnabled ? palette.licorice : colors.textPrimary }}
+                >
+                  {budget.irregularIncomeEnabled ? "On" : "Off"}
+                </Text>
+              </Pressable>
+            </View>
+
+            {budget.irregularIncomeEnabled && (
+              <View style={{ marginTop: spacing.md, gap: spacing.xs }}>
+                <Text variant="bodySmall" secondary>
+                  {budget.actualIncome !== null
+                    ? `$${budget.actualIncome.toLocaleString()} recorded as this month's actual income.`
+                    : "No income recorded for this month yet — add it so next month's average includes it."}
+                </Text>
+                <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                  <TextInput
+                    value={incomeDraft}
+                    onChangeText={setIncomeDraft}
+                    placeholder="This month's actual income"
+                    placeholderTextColor={colors.textSecondary}
+                    aria-label="This month's actual income"
+                    keyboardType="numeric"
+                    style={{
+                      flex: 1,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      borderRadius: radius.medium,
+                      padding: 8,
+                      color: colors.textPrimary,
+                      fontSize: 13,
+                    }}
+                  />
+                  <Pressable
+                    onPress={handleSaveIncome}
+                    disabled={savingIncome}
+                    role="button"
+                    style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: palette.sourLime }}
+                  >
+                    <Text variant="bodySmall" color={palette.licorice} style={{ fontWeight: "600" }}>
+                      {savingIncome ? "Saving…" : "Save"}
+                    </Text>
+                  </Pressable>
+                </View>
+                {incomeError && (
+                  <Text variant="caption" color={palette.citrus}>
+                    {incomeError}
+                  </Text>
+                )}
+              </View>
+            )}
+          </Card>
+        </ScreenGridWide>
+      )}
 
       {totalCategorySpend > 0 && (
         <ScreenGridWide>
@@ -250,6 +401,27 @@ export function BudgetScreen() {
       )}
 
       {budget.categories.map((c) => {
+        // Income Buffer (irregular-income mode) isn't a spending category —
+        // no "spent/left"/progress-bar framing, no "Log an expense" (there's
+        // nothing to log an expense against), just its banked/drawn
+        // smoothing balance. c.planned here is always 0 + rolloverAmount
+        // (see GET /api/budget), so rolloverAmount alone is what to show.
+        if (c.isIncomeBuffer) {
+          const balance = c.rolloverAmount;
+          return (
+            <Card key={c.id} glow={palette.electricBlue}>
+              <Text variant="h3">Income smoothing</Text>
+              <Text variant="bodySmall" secondary style={{ marginTop: 2 }}>
+                {balance === 0
+                  ? "Nothing banked or owed yet — this fills in once a few months of actual income are recorded."
+                  : balance > 0
+                    ? `$${balance.toLocaleString()} banked from months that ran ahead of your average.`
+                    : `$${Math.abs(balance).toLocaleString()} drawn to cover a month that ran behind your average.`}
+              </Text>
+            </Card>
+          );
+        }
+
         const over = c.spent > c.planned;
         const pct = c.planned > 0 ? Math.min((c.spent / c.planned) * 100, 100) : 0;
         const isAdding = addingFor === c.id;
