@@ -133,8 +133,32 @@ html {
   background-color: rgba(245, 243, 240, 0.05);
 }
 
+.noivos-sidebar-item {
+  transition: background-color 130ms ease, color 130ms ease;
+}
+
+.noivos-sidebar-item svg {
+  transition: color 130ms ease, stroke 130ms ease;
+}
+
 .noivos-sidebar-item:hover {
   background-color: rgba(245, 243, 240, 0.05);
+}
+
+/* Tab-switch polish (2026-11-03) — the active tab's background/text color
+   used to snap instantly between tabs (a plain inline-style swap on
+   re-render); these two color properties now ease over the same 130ms
+   `.noivos-hoverable` already uses, so switching reads as a transition
+   rather than a jump-cut. Doesn't touch the icon color (an SVG prop, not
+   CSS, animated separately below) or the page content swap itself — that's
+   a bigger, separate decision (would need something like view-transitions
+   or a animation library) out of scope for this pass. */
+.noivos-bottomnav-item {
+  transition: background-color 130ms ease, color 130ms ease;
+}
+
+.noivos-bottomnav-item svg {
+  transition: color 130ms ease, stroke 130ms ease;
 }
 
 .noivos-icon-btn {

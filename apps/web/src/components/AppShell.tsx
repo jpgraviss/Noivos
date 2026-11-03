@@ -524,6 +524,7 @@ function Shell({ onSignOut, userName }: { onSignOut?: (options?: { redirectUrl?:
             <button
               key={t}
               onClick={() => setTab(t)}
+              className="noivos-bottomnav-item"
               style={{
                 background: "none",
                 border: "none",
