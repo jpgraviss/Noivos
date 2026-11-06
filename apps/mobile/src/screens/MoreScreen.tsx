@@ -3,6 +3,7 @@ import { View, Pressable } from 'react-native';
 import { ChevronDown, ChevronRight, LogOut, Settings, Sparkles } from 'lucide-react-native';
 import { Card, ScreenContainer, Text, useTheme, spacing, getTextColorFor } from '@noivos/ui';
 import { PartnershipSettings } from '../components/PartnershipSettings';
+import { Challenges } from '../components/Challenges';
 
 // Honest "not built yet" copy per row, not a silent dead end — mirrors
 // apps/web's MoreScreen.tsx pattern (added there 2026-08-05), ported here
@@ -17,10 +18,7 @@ const sections: { title: string; icon: typeof Settings; items: { label: string; 
   {
     title: 'Community',
     icon: Sparkles,
-    items: [
-      { label: 'Challenges', note: 'Not built yet — savings challenges with your partner are coming soon.' },
-      { label: 'Milestones shared', note: 'Not built yet — shared celebration moments are coming soon.' },
-    ],
+    items: [{ label: 'Milestones shared', note: 'Not built yet — shared celebration moments are coming soon.' }],
   },
   {
     title: 'Account',
@@ -90,6 +88,8 @@ export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
           ))}
         </View>
       </Card>
+
+      <Challenges />
 
       {sections.map((section) => (
         <Card key={section.title}>

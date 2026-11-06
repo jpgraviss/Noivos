@@ -56,6 +56,18 @@ describe("describeActivityEvent", () => {
     );
   });
 
+  it("describes joining a challenge", () => {
+    expect(describeActivityEvent("Ava", "challenge_joined", { challengeName: "Vacation Savings" })).toBe(
+      "Ava joined the Vacation Savings challenge"
+    );
+  });
+
+  it("describes completing a challenge", () => {
+    expect(describeActivityEvent("Marcus", "challenge_completed", { challengeName: "Debt Free" })).toBe(
+      "Marcus and their partner completed the Debt Free challenge 🎉"
+    );
+  });
+
   it("falls back to a generic sentence for an unrecognized event_type", () => {
     // Guards against a future event_type shipping without a matching case
     // here silently rendering "undefined" instead of something readable.

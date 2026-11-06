@@ -24,6 +24,10 @@ export function describeActivityEvent(actorName: string, eventType: string, payl
       return `${actorName} shared a Purchase Advisor conversation: "${payload.summary}"`;
     case "wedding_mode_graduated":
       return `${actorName} and their partner graduated Wedding Mode 🎉`;
+    case "challenge_joined":
+      return `${actorName} joined the ${payload.challengeName} challenge`;
+    case "challenge_completed":
+      return `${actorName} and their partner completed the ${payload.challengeName} challenge 🎉`;
     default:
       return `${actorName} made an update`;
   }

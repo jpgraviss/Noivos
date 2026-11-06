@@ -8,6 +8,7 @@ import { PartnershipSettings } from "../components/PartnershipSettings";
 import { LinkedAccounts } from "../components/LinkedAccounts";
 import { DeleteAccountSettings } from "../components/DeleteAccountSettings";
 import { BillingSettings } from "../components/BillingSettings";
+import { Challenges } from "../components/Challenges";
 
 // Honest "not built yet" copy per row, not a silent dead end — same posture
 // as the rest of the app (e.g. Partnership invites plainly stating no
@@ -19,10 +20,7 @@ const sections: { title: string; icon: typeof Settings; items: { label: string; 
   {
     title: "Community",
     icon: Sparkles,
-    items: [
-      { label: "Challenges", note: "Not built yet — savings challenges with your partner are coming soon." },
-      { label: "Milestones shared", note: "Not built yet — shared celebration moments are coming soon." },
-    ],
+    items: [{ label: "Milestones shared", note: "Not built yet — shared celebration moments are coming soon." }],
   },
   {
     title: "Account",
@@ -162,6 +160,8 @@ export function MoreScreen({ onSignOut }: MoreScreenProps = {}) {
           ))}
         </View>
       </Card>
+
+      <Challenges />
 
       {sections.map((section) => (
         <Card key={section.title}>
