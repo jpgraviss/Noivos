@@ -8,7 +8,13 @@ import { budgetSnapshot, goals as mockGoals, activityFeed, upcomingBills, moneyM
 import { useApiFetch, apiConfigured } from '../lib/api';
 import { useDisplayName } from '../auth/ClerkAuthProvider';
 import { formatRelativeTime } from '../lib/formatRelativeTime';
-import { buildInsights, type BudgetCategoryFact, type GoalProgressFact } from '../lib/insights';
+import {
+  buildInsights,
+  type BudgetCategoryFact,
+  type GoalProgressFact,
+  type CategorySpendTrendFact,
+  type UnusualPurchaseFact,
+} from '../lib/insights';
 import { AvatarStack } from '../components/AvatarStack';
 import { StatTile } from '../components/StatTile';
 import { TrendChart } from '../components/TrendChart';
@@ -86,7 +92,9 @@ interface QuickAction {
 // POST .../complete), Activity pulls /api/activity, the avatar chip's
 // partner name pulls /api/partnership, and AI Insights is plain rule-based
 // (lib/insights.ts) derived from the Budget+Goals facts above, not an AI
-// call.
+// call. SE-78 (2026-11-06) added 3 trend-based fact types via GET
+// /api/insights/trends (still rule-based, no AI call) — see
+// lib/insights.ts's own comment for why mobile only mirrors 3 of web's 4.
 export function HomeScreen() {
   const { colors } = useTheme();
   const apiFetch = useApiFetch();
@@ -143,6 +151,12 @@ export function HomeScreen() {
   const [meetingHasPartnership, setMeetingHasPartnership] = useState<boolean | null>(null);
   const [completingMeeting, setCompletingMeeting] = useState(false);
   const [apiActivity, setApiActivity] = useState<{ id: string; text: string; time: string }[] | null>(null);
+  // SE-78 — degrades independently, same posture as every other fetch on
+  // this screen: a failed GET /api/insights/trends just leaves these 3
+  // fact types empty, buildInsights() falls back to whatever else it has.
+  const [categoryTrends, setCategoryTrends] = useState<CategorySpendTrendFact[]>([]);
+  const [unusualPurchases, setUnusualPurchases] = useState<UnusualPurchaseFact[]>([]);
+  const [savingsStreakMonthlyTotals, setSavingsStreakMonthlyTotals] = useState<number[]>([]);
 
   useEffect(() => {
     if (!apiConfigured()) return;
@@ -303,6 +317,36 @@ export function HomeScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- apiFetch is stable (useCallback in src/lib/api.ts); only ever needs to run once per mount.
   }, []);
 
+  // SE-78 — see lib/trendInsights.ts (apps/web) for why these 3 didn't
+  // need new daily-snapshot infra; same route the web twin calls.
+  useEffect(() => {
+    if (!apiConfigured()) return;
+    let cancelled = false;
+    apiFetch('/api/insights/trends')
+      .then(async (res) => {
+        if (!res.ok) throw new Error('insight trends fetch failed');
+        return res.json() as Promise<{
+          categoryTrends: CategorySpendTrendFact[];
+          unusualPurchases: UnusualPurchaseFact[];
+          savingsStreakMonthlyTotals: number[];
+        }>;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setCategoryTrends(data.categoryTrends ?? []);
+        setUnusualPurchases(data.unusualPurchases ?? []);
+        setSavingsStreakMonthlyTotals(data.savingsStreakMonthlyTotals ?? []);
+      })
+      .catch(() => {
+        // No database/Clerk reachable — stays empty, same posture as every
+        // other fetch on this screen.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- apiFetch is stable (useCallback in src/lib/api.ts); only ever needs to run once per mount.
+  }, []);
+
   async function handleCompleteMeeting() {
     if (!apiMeeting) return;
     setCompletingMeeting(true);
@@ -359,7 +403,7 @@ export function HomeScreen() {
   const categoryFacts: BudgetCategoryFact[] = apiBudget
     ? apiBudget.categories.map((c) => ({ id: c.id, name: c.name, planned: c.planned, spent: c.spent }))
     : budgetSnapshot.categories.map((c) => ({ id: c.name, name: c.name, planned: c.planned, spent: c.spent }));
-  const computedInsights = buildInsights(categoryFacts, goalFacts);
+  const computedInsights = buildInsights(categoryFacts, goalFacts, categoryTrends, unusualPurchases, savingsStreakMonthlyTotals);
 
   const trend = useSavingsTrend(savingsTotal);
 

@@ -9,7 +9,15 @@ import { StatTile } from "../components/StatTile";
 import { TrendChart } from "../components/TrendChart";
 import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
 import { formatRelativeTime } from "../lib/formatRelativeTime";
-import { buildInsights, type BudgetCategoryFact, type GoalProgressFact, type RecurringChangeFact } from "../lib/insights";
+import {
+  buildInsights,
+  type BudgetCategoryFact,
+  type GoalProgressFact,
+  type RecurringChangeFact,
+  type CategorySpendTrendFact,
+  type UnusualPurchaseFact,
+  type NewRecurringCandidateFact,
+} from "../lib/insights";
 
 interface ApiGoal {
   id: string;
@@ -106,7 +114,11 @@ interface QuickAction {
 // (2026-08-08) is real "basic insights" per PRD §13's free tier — plain
 // rule-based checks derived from that same Budget data plus real goal
 // totals (lib/insights.ts), same posture as Money Meeting's agenda: not an
-// AI call, so it doesn't need the AI Coach provider decision. Falls back to
+// AI call, so it doesn't need the AI Coach provider decision. SE-78
+// (2026-11-06) added the 4 trend-based examples from PRD §12.11's full
+// list, fed by GET /api/insights/trends plus the `candidates` field GET
+// /api/recurring-expenses already returned — still rule-based, still no
+// AI call. Falls back to
 // the mock budget/goals data independently if a given backend isn't
 // reachable, same as every other card on this screen.
 export function HomeScreen({ userName, onNavigate, goalsLabel }: HomeScreenProps = {}) {
@@ -128,6 +140,14 @@ export function HomeScreen({ userName, onNavigate, goalsLabel }: HomeScreenProps
   const [apiGoals, setApiGoals] = useState<ApiGoal[]>([]);
   const [apiBudget, setApiBudget] = useState<ApiBudget | null>(null);
   const [recurringChanges, setRecurringChanges] = useState<RecurringChangeFact[]>([]);
+  const [newRecurringCandidates, setNewRecurringCandidates] = useState<NewRecurringCandidateFact[]>([]);
+  // Each defaults to [] independently — same "degrade quietly, never block
+  // the rest of the screen" posture as every other fetch here: a failed
+  // GET /api/insights/trends just means these 3 SE-78 fact types stay
+  // empty, buildInsights() falls back to whatever else it has.
+  const [categoryTrends, setCategoryTrends] = useState<CategorySpendTrendFact[]>([]);
+  const [unusualPurchases, setUnusualPurchases] = useState<UnusualPurchaseFact[]>([]);
+  const [savingsStreakMonthlyTotals, setSavingsStreakMonthlyTotals] = useState<number[]>([]);
   const [partnerName, setPartnerName] = useState<string | null>(null);
   // Each *Resolved flag below flips true once its own fetch has genuinely
   // settled — succeeded or failed, doesn't matter which — and gates that
@@ -234,17 +254,48 @@ export function HomeScreen({ userName, onNavigate, goalsLabel }: HomeScreenProps
   // SE-77: GET /api/recurring-expenses reconciles on every load and hands
   // back any amount changes it just detected — fed into buildInsights()
   // below the same way budget/goal facts are, no separate UI surface.
-  // Silently stays empty on any failure, same graceful-degradation posture
-  // as every other fetch on this screen.
+  // Also hands back `candidates` (SE-78's "new subscription detected" —
+  // a merchant detectRecurringCandidates() just noticed recurring but
+  // isn't yet a confirmed recurring_expenses row), previously fetched
+  // here and discarded. Silently stays empty on any failure, same
+  // graceful-degradation posture as every other fetch on this screen.
   useEffect(() => {
     let cancelled = false;
     fetch("/api/recurring-expenses")
       .then(async (res) => {
         if (!res.ok) throw new Error("recurring expenses fetch failed");
-        return res.json() as Promise<{ amountChanges: RecurringChangeFact[] }>;
+        return res.json() as Promise<{ amountChanges: RecurringChangeFact[]; candidates: NewRecurringCandidateFact[] }>;
       })
       .then((data) => {
-        if (!cancelled) setRecurringChanges(data.amountChanges ?? []);
+        if (cancelled) return;
+        setRecurringChanges(data.amountChanges ?? []);
+        setNewRecurringCandidates(data.candidates ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // SE-78: the other 3 trend-based fact types (rising category spend,
+  // large/unusual purchase, savings streak) — see lib/trendInsights.ts's
+  // header comment for why these didn't need new daily-snapshot infra.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/insights/trends")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("insight trends fetch failed");
+        return res.json() as Promise<{
+          categoryTrends: CategorySpendTrendFact[];
+          unusualPurchases: UnusualPurchaseFact[];
+          savingsStreakMonthlyTotals: number[];
+        }>;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setCategoryTrends(data.categoryTrends ?? []);
+        setUnusualPurchases(data.unusualPurchases ?? []);
+        setSavingsStreakMonthlyTotals(data.savingsStreakMonthlyTotals ?? []);
       })
       .catch(() => {});
     return () => {
@@ -429,7 +480,15 @@ export function HomeScreen({ userName, onNavigate, goalsLabel }: HomeScreenProps
   const categoryFacts: BudgetCategoryFact[] = apiBudget
     ? apiBudget.categories.map((c) => ({ id: c.id, name: c.name, planned: c.planned, spent: c.spent }))
     : budgetSnapshot.categories.map((c) => ({ id: c.name, name: c.name, planned: c.planned, spent: c.spent }));
-  const computedInsights = buildInsights(categoryFacts, goalFacts, recurringChanges);
+  const computedInsights = buildInsights(
+    categoryFacts,
+    goalFacts,
+    recurringChanges,
+    categoryTrends,
+    unusualPurchases,
+    newRecurringCandidates,
+    savingsStreakMonthlyTotals
+  );
 
   const trend = useSavingsTrend(savingsTotal);
 

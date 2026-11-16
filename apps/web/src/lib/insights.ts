@@ -23,6 +23,44 @@ export interface RecurringChangeFact {
   newAmount: number;
 }
 
+// SE-78's four fact types — see lib/trendInsights.ts's own header comment
+// for why none of these needed the daily-balance-snapshot infra the issue
+// originally assumed.
+export interface CategorySpendTrendFact {
+  categoryId: string;
+  categoryName: string;
+  monthToDateSpent: number;
+  trailingAverageMonthToDate: number;
+  trailingMonthsWithData: number;
+}
+
+export interface UnusualPurchaseFact {
+  merchantName: string | null;
+  categoryName: string;
+  amount: number;
+  typicalAmount: number;
+}
+
+export interface NewRecurringCandidateFact {
+  merchantName: string;
+  avgAmount: number;
+  frequency: string;
+}
+
+// Counts the trailing run of strictly-positive months from the end of a
+// chronologically-ordered (oldest-to-newest) array — e.g. [0, 50, 80, 120]
+// -> 3, [50, 0, 80, 120] -> 2 (the streak only extends back to the most
+// recent zero, not through it). Exported standalone so it's directly
+// unit-testable without needing a full Insight[] round trip.
+export function computeSavingsStreak(monthlyTotals: number[]): number {
+  let streak = 0;
+  for (let i = monthlyTotals.length - 1; i >= 0; i--) {
+    if (monthlyTotals[i] > 0) streak++;
+    else break;
+  }
+  return streak;
+}
+
 // Rule-based "basic insights" — PRD §13's free tier includes "basic
 // insights," distinct from Premium's "advanced AI Insights (predictive,
 // trend-based)," which needs an actual model call and is gated on the AI
@@ -30,16 +68,19 @@ export interface RecurringChangeFact {
 // lib/moneyMeeting.ts's buildAgenda(): plain rule-based checks against real
 // data, not an AI call, so this doesn't need that decision to ship.
 //
-// Deliberately scoped to facts derivable from a single snapshot of this
-// month's budget categories + current goal totals — no historical
-// time-series exists yet (no daily balance snapshots, no recurring_expenses
-// wiring), so anything from PRD §12.11's full example list that needs a
-// trend ("rising dining spend," "savings streak") or a statistical
-// baseline ("large/unusual purchase," "new subscription detected") isn't
-// attempted here; only "budget category drift" (over-planned spending) and
-// "opportunity" (a goal at/near full funding) are safely computable
-// without inventing unsupported math. Phrased as neutral observations, not
-// alarms, per §12.11's tone requirement — no red/warning language, no
+// Originally scoped to a single snapshot of this month's budget categories
+// + current goal totals only — "budget category drift" and "a goal at/near
+// full funding," the two facts safely computable without any historical
+// time-series. SE-78 (2026-11-06) added the four trend-based examples from
+// PRD §12.11's full list (rising category spend, new subscription
+// detected, savings streak, large/unusual purchase): all turned out to be
+// computable from transaction/recurring-expense/goal-contribution history
+// that already accumulates with real usage — see lib/trendInsights.ts's
+// header comment for why none of these needed the daily-balance-snapshot
+// infra PRD §12.11 originally seemed to require, and still no AI Coach
+// provider decision needed, same rule-based posture as everything else
+// here. Every insight stays phrased as a neutral observation, not an
+// alarm, per §12.11's tone requirement — no red/warning language, no
 // verdicts.
 // recurringChanges defaults to [] rather than being required — every
 // existing call site (and every existing test) predates PRD §12.5's
@@ -48,7 +89,11 @@ export interface RecurringChangeFact {
 export function buildInsights(
   categories: BudgetCategoryFact[],
   goals: GoalProgressFact[],
-  recurringChanges: RecurringChangeFact[] = []
+  recurringChanges: RecurringChangeFact[] = [],
+  categoryTrends: CategorySpendTrendFact[] = [],
+  unusualPurchases: UnusualPurchaseFact[] = [],
+  newRecurringCandidates: NewRecurringCandidateFact[] = [],
+  savingsStreakMonthlyTotals: number[] = []
 ): Insight[] {
   const items: Insight[] = [];
 
@@ -98,6 +143,62 @@ export function buildInsights(
         text: `${g.name} is nearly fully funded — $${remaining.toLocaleString()} to go.`,
       });
     }
+  }
+
+  // "Rising category spend" — >= 25% above its own trailing pace AND at
+  // least $20 above it. Both conditions matter: a tiny category (e.g. $8
+  // avg) can clear 25% on a single extra coffee, and a huge category
+  // (e.g. $2,000 avg) can clear $20 while barely moving percentage-wise.
+  // Requires >= 2 trailing months of data in that category — see
+  // trendInsights.ts's own comment on why 1 prior month isn't a trend.
+  for (const trend of categoryTrends) {
+    if (trend.trailingMonthsWithData < 2) continue;
+    if (trend.trailingAverageMonthToDate <= 0) continue;
+    const delta = trend.monthToDateSpent - trend.trailingAverageMonthToDate;
+    if (trend.monthToDateSpent >= trend.trailingAverageMonthToDate * 1.25 && delta >= 20) {
+      const roundedDelta = Math.round(delta) || 1;
+      items.push({
+        id: `trend-${trend.categoryId}`,
+        text: `${trend.categoryName} is running about $${roundedDelta.toLocaleString()} above its usual pace this month — worth a look?`,
+      });
+    }
+  }
+
+  // "Large/unusual purchase" — >= 2x the category's own trailing-average
+  // transaction size AND at least $50 above it (same "ratio alone isn't
+  // enough" reasoning as the trend check above).
+  for (const purchase of unusualPurchases) {
+    if (purchase.typicalAmount <= 0) continue;
+    const delta = purchase.amount - purchase.typicalAmount;
+    if (purchase.amount >= purchase.typicalAmount * 2 && delta >= 50) {
+      const merchant = purchase.merchantName ?? purchase.categoryName;
+      items.push({
+        id: `unusual-${purchase.categoryName}-${merchant}-${purchase.amount}`,
+        text: `A $${Math.round(purchase.amount).toLocaleString()} ${merchant} charge is notably larger than your usual ${purchase.categoryName} spend (~$${Math.round(purchase.typicalAmount).toLocaleString()} typical) — worth a look?`,
+      });
+    }
+  }
+
+  // "New subscription detected" — reuses recurringExpenses.ts's existing
+  // detectRecurringCandidates() (a merchant recurring >= 2 times at a
+  // consistent interval, not yet confirmed as a tracked recurring
+  // expense); every candidate is itself already a meaningful signal, no
+  // further magnitude threshold needed.
+  for (const candidate of newRecurringCandidates) {
+    items.push({
+      id: `new-recurring-${candidate.merchantName}`,
+      text: `Looks like a new recurring charge: ${candidate.merchantName} (~$${Math.round(candidate.avgAmount).toLocaleString()}/${candidate.frequency}) — worth tracking as a recurring expense?`,
+    });
+  }
+
+  // "Savings streak" — >= 3 consecutive completed months with a
+  // goal contribution; 1-2 months reads as routine, not yet a "streak."
+  const streak = computeSavingsStreak(savingsStreakMonthlyTotals);
+  if (streak >= 3) {
+    items.push({
+      id: "savings-streak",
+      text: `You've added to your goals for ${streak} months in a row — keep it going.`,
+    });
   }
 
   if (items.length === 0) {
