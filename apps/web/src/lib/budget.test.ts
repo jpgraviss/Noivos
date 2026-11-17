@@ -1,6 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
 import type { PoolClient } from "@neondatabase/serverless";
-import { findOrCreateManualAccount, findOrCreateIncomeBufferCategory, computeIncomeBufferDelta, DEFAULT_CATEGORIES } from "./budget";
+import {
+  findOrCreateManualAccount,
+  findOrCreateIncomeBufferCategory,
+  computeIncomeBufferDelta,
+  computeCategorySpendHistory,
+  DEFAULT_CATEGORIES,
+} from "./budget";
 
 // findOrCreateManualAccount's whole job is deduplication: every logged
 // expense should land on the same one "Manual Entries" account per user,
@@ -107,5 +113,44 @@ describe("DEFAULT_CATEGORIES", () => {
       expect(c.name.length).toBeGreaterThan(0);
       expect(c.plannedAmount).toBeGreaterThan(0);
     }
+  });
+});
+
+// The SQL itself (trailing-months averaging, the current_planned join)
+// needs a real Neon connection to verify meaningfully — covered by the
+// live-Neon fixture this feature was built against (see
+// packages/database/README.md's dated entry) — this just locks in that
+// the row-mapping from Postgres's snake_case/null shape to the typed
+// fact never silently regresses.
+describe("computeCategorySpendHistory", () => {
+  it("maps a row with real history and an existing planned amount", async () => {
+    const query = vi.fn().mockResolvedValueOnce({
+      rows: [
+        {
+          category_id: "c1",
+          category_name: "Dining Out",
+          avg_monthly_spend: 312.4,
+          months_with_data: 3,
+          current_planned_amount: 300,
+        },
+      ],
+    });
+    const client = { query } as unknown as PoolClient;
+    const result = await computeCategorySpendHistory(client);
+    expect(result).toEqual([
+      { categoryId: "c1", categoryName: "Dining Out", avgMonthlySpend: 312.4, monthsWithData: 3, currentPlannedAmount: 300 },
+    ]);
+  });
+
+  it("maps a category with no history and no current budget row to null/zero, not a crash", () => {
+    const query = vi.fn().mockResolvedValueOnce({
+      rows: [{ category_id: "c2", category_name: "Travel", avg_monthly_spend: 0, months_with_data: 0, current_planned_amount: null }],
+    });
+    const client = { query } as unknown as PoolClient;
+    return computeCategorySpendHistory(client).then((result) => {
+      expect(result).toEqual([
+        { categoryId: "c2", categoryName: "Travel", avgMonthlySpend: 0, monthsWithData: 0, currentPlannedAmount: null },
+      ]);
+    });
   });
 });

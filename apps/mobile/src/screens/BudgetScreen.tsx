@@ -5,6 +5,7 @@ import { Card, OwnershipBadge, StackedProgressBar, Skeleton, ScreenContainer, Te
 import { budgetSnapshot } from '../data/mockData';
 import { useApiFetch, apiConfigured } from '../lib/api';
 import { ProgressRing } from '../components/ProgressRing';
+import { BudgetSuggestions } from '../components/BudgetSuggestions';
 
 // Same dedicated, validated categorical set as apps/web's BudgetScreen.tsx
 // (2026-08-05) — do not swap in packages/ui's UI-accent palette tokens here;
@@ -327,6 +328,8 @@ export function BudgetScreen() {
           </View>
         </Card>
       )}
+
+      {backendAvailable && <BudgetSuggestions onApplied={loadBudget} />}
 
       {budget.categories.map((c) => {
         // Income Buffer (irregular-income mode) isn't a spending category —

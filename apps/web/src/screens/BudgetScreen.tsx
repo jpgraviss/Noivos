@@ -6,6 +6,7 @@ import { budgetSnapshot } from "../data/mockData";
 import { ProgressRing } from "../components/ProgressRing";
 import { ScreenGrid, ScreenGridWide } from "../components/ScreenLayout";
 import { RecurringExpenses } from "../components/RecurringExpenses";
+import { BudgetSuggestions } from "../components/BudgetSuggestions";
 
 // A dedicated categorical set for the "Spending by category" chart below —
 // NOT the same as packages/ui's calm UI-accent palette (sourLime/sourPunch/
@@ -397,6 +398,12 @@ export function BudgetScreen() {
               ))}
             </View>
           </Card>
+        </ScreenGridWide>
+      )}
+
+      {backendAvailable && (
+        <ScreenGridWide>
+          <BudgetSuggestions onApplied={loadBudget} />
         </ScreenGridWide>
       )}
 

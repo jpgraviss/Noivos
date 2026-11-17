@@ -132,3 +132,65 @@ export async function findOrCreateManualAccount(userId: string, client: PoolClie
   );
   return winner.rows[0].id as string;
 }
+
+export interface CategorySpendHistoryFact {
+  categoryId: string;
+  categoryName: string;
+  avgMonthlySpend: number;
+  monthsWithData: number;
+  currentPlannedAmount: number | null;
+}
+
+// AI-suggested budget amounts (SE-82, PRD §12.6) — the raw facts
+// lib/ai.ts's suggestBudgetAmounts() reasons over: each of this user's
+// visible categories (RLS-scoped, same "no extra owner/partnership
+// filtering to hand-roll" posture as every other query in this file),
+// paired with its trailing-3-*completed*-months average spend and this
+// month's current planned amount (null if no budget_categories row exists
+// for it yet — a category can exist with transaction history before ever
+// being added to a month's budget).
+//
+// CTE named `trailing_months`, not `trailing` — a mistake already made
+// once in lib/trendInsights.ts (TRAILING is a reserved PostgreSQL keyword,
+// from TRIM(... TRAILING ...), invalid as a bare identifier) and caught
+// there by live-Neon verification; avoided here from the start instead of
+// repeating it.
+export async function computeCategorySpendHistory(client: PoolClient): Promise<CategorySpendHistoryFact[]> {
+  const result = await client.query(`
+    with trailing_months as (
+      select t.category_id, date_trunc('month', t.transaction_date) as month, sum(t.amount)::float8 as total
+      from transactions t
+      where t.deleted_at is null
+        and t.transaction_date < date_trunc('month', current_date)
+        and t.transaction_date >= date_trunc('month', current_date) - interval '3 months'
+      group by t.category_id, date_trunc('month', t.transaction_date)
+    ),
+    trailing_agg as (
+      select category_id, avg(total)::float8 as avg_monthly_spend, count(*)::int as months_with_data
+      from trailing_months
+      group by category_id
+    ),
+    current_planned as (
+      select bc.category_id, bc.planned_amount::float8 as planned_amount
+      from budget_categories bc
+      join budgets b on b.id = bc.budget_id
+      where b.month = date_trunc('month', current_date)::date
+    )
+    select c.id as category_id, c.name as category_name,
+           coalesce(trailing_agg.avg_monthly_spend, 0) as avg_monthly_spend,
+           coalesce(trailing_agg.months_with_data, 0) as months_with_data,
+           current_planned.planned_amount as current_planned_amount
+    from categories c
+    left join trailing_agg on trailing_agg.category_id = c.id
+    left join current_planned on current_planned.category_id = c.id
+    order by c.name asc
+  `);
+
+  return result.rows.map((r) => ({
+    categoryId: r.category_id as string,
+    categoryName: r.category_name as string,
+    avgMonthlySpend: r.avg_monthly_spend as number,
+    monthsWithData: r.months_with_data as number,
+    currentPlannedAmount: r.current_planned_amount === null ? null : (r.current_planned_amount as number),
+  }));
+}

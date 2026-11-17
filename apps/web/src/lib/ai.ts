@@ -1,4 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { z } from "zod/v4";
+import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import type { CategorySpendHistoryFact } from "./budget";
 
 // Added 2026-08-14 — the AI Financial Coach backend PRD §12.10 always
 // described but this project deliberately left unbuilt, gated on legal
@@ -202,6 +205,93 @@ export async function askFinancialCoach(
 
   const textBlock = response.content.find((block) => block.type === "text");
   return textBlock && textBlock.type === "text" ? textBlock.text : "";
+}
+
+// AI-suggested budget amounts (PRD §12.6, SE-82's last open piece) —
+// added 2026-11, same "build it now so there's something real the moment
+// ANTHROPIC_API_KEY is set" posture the founder already authorized for
+// AI Coach above, applied to a new feature rather than re-litigated.
+// Gated behind isPremium() at the route, not here — this file has no
+// entitlements concept of its own (see api/ai/budget-suggestions/route.ts).
+// A judgment call worth flagging: PRD §13's Free/Premium matrix doesn't
+// name this feature by row, but its own rationale sentence is unambiguous
+// ("every cost-bearing feature... LLM inference... sits behind the
+// paywall") — the matrix's omission reads as the table only having rows
+// for the three AI features named elsewhere in the PRD, not a deliberate
+// free-tier carve-out for this one.
+const BUDGET_SUGGESTION_SYSTEM_PROMPT = `You are the Noivos Budget Assistant, helping a couple set realistic planned amounts for their budget categories.
+
+Non-negotiable rules, from this product's own AI Philosophy:
+- You are a teammate, never an authority. A suggested amount is a starting point for a conversation between the two partners, never a mandate — never say "you must plan $X," only describe what the real numbers show.
+- Never shame. No rationale should be readable as "you're overspending" or "you're bad with money" — describe the pattern neutrally (e.g. "this matches your recent average" or "this runs a bit above your last few months" are fine; "you're spending too much here" is not).
+- You only ever see the numbers explicitly given to you below. Never invent a spending history, category, or dollar figure you weren't told about.
+- Every suggested amount must be a round, sensible whole-dollar figure (e.g. $150, not $148.73) — real people plan budgets in round numbers, not cents-precision averages.
+
+For each category given below, suggest a planned amount for next month based on its trailing spending history, with a one-sentence, neutral rationale. If a category's current planned amount already closely matches its own history, it's fine to suggest keeping it the same — don't invent a change just to have one.`;
+
+// Deliberately placed in the user turn, not the system prompt — same
+// "volatile per-request numbers never sit in the cached prefix" reasoning
+// as buildContextBlock above.
+export function buildBudgetSuggestionContextBlock(categories: CategorySpendHistoryFact[]): string {
+  const lines: string[] = ["Here are this user's budget categories with enough spending history to suggest from:"];
+  for (const c of categories) {
+    const plannedStr = c.currentPlannedAmount !== null ? `$${c.currentPlannedAmount.toLocaleString()}` : "not set yet";
+    const monthsLabel = c.monthsWithData === 1 ? "1 month" : `${c.monthsWithData} months`;
+    lines.push(
+      `- ${c.categoryName} (id: ${c.categoryId}): averaged $${Math.round(c.avgMonthlySpend).toLocaleString()}/month over the last ${monthsLabel} of real spending; current planned amount is ${plannedStr}.`
+    );
+  }
+  return lines.join("\n");
+}
+
+const BudgetSuggestionOutputSchema = z.object({
+  suggestions: z.array(
+    z.object({
+      categoryId: z.string(),
+      suggestedAmount: z.number(),
+      rationale: z.string(),
+    })
+  ),
+});
+
+export type BudgetSuggestion = z.infer<typeof BudgetSuggestionOutputSchema>["suggestions"][number];
+
+// model: claude-opus-5-5, not claude-opus-5 like askFinancialCoach/
+// askPurchaseAdvisor above — this is the current default Opus-tier model
+// as of this feature's build, not a deliberate choice to diverge from the
+// other two; migrating them to match is a separate, not-yet-requested
+// task. effort "low" (vs. those two's "medium"): this is a single bounded
+// extraction over a small, already-summarized data table with one fixed
+// output shape, not open conversational reasoning — closer to
+// classification/extraction than chat, where lower effort holds quality
+// at meaningfully less cost. Uses client.beta.messages.parse() + a Zod
+// output schema (output_config.format) instead of a forced tool_choice —
+// forced tool_choice {type: "tool"/"any"} returns a 400 on this model, and
+// structured outputs is the current, recommended replacement for exactly
+// this "I need guaranteed-parseable JSON back" case.
+export async function suggestBudgetAmounts(categories: CategorySpendHistoryFact[]): Promise<BudgetSuggestion[]> {
+  const client = getClient();
+  const contextBlock = buildBudgetSuggestionContextBlock(categories);
+
+  const response = await client.beta.messages.parse({
+    model: "claude-opus-5-5",
+    max_tokens: 4096,
+    system: [{ type: "text", text: BUDGET_SUGGESTION_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+    output_config: { effort: "low", format: betaZodOutputFormat(BudgetSuggestionOutputSchema) },
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    messages: [{ role: "user", content: contextBlock }],
+  });
+
+  if (response.stop_reason === "refusal") {
+    throw new Error("AI_REFUSAL");
+  }
+
+  // parsed_output is null if parsing genuinely failed — same "honest
+  // absence over a fabricated result" posture as every other no-data case
+  // in this app, rather than throwing and surfacing a raw 500 for what's
+  // ultimately an optional, non-critical suggestion feature.
+  return response.parsed_output?.suggestions ?? [];
 }
 
 // PRD §12.9 (AI Purchase Advisor) verbatim, turned into a system prompt —

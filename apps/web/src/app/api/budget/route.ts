@@ -10,6 +10,7 @@ import {
   computeIncomeBufferDelta,
   findOrCreateIncomeBufferCategory,
 } from "@/lib/budget";
+import { isUuid } from "@/lib/validate";
 
 // Design note (fast-tracked judgment call, same posture as the Partnership
 // status='active' fix — flagged here and in PROJECT_MEMORY.md rather than
@@ -409,7 +410,11 @@ export async function PATCH(request: Request) {
   if (!body || typeof body !== "object") {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
-  const { irregularIncomeEnabled, actualIncome } = body as { irregularIncomeEnabled?: unknown; actualIncome?: unknown };
+  const { irregularIncomeEnabled, actualIncome, categoryAmounts } = body as {
+    irregularIncomeEnabled?: unknown;
+    actualIncome?: unknown;
+    categoryAmounts?: unknown;
+  };
   if (irregularIncomeEnabled !== undefined && typeof irregularIncomeEnabled !== "boolean") {
     return NextResponse.json({ error: "irregularIncomeEnabled must be a boolean" }, { status: 400 });
   }
@@ -419,6 +424,36 @@ export async function PATCH(request: Request) {
     (typeof actualIncome !== "number" || !Number.isFinite(actualIncome) || actualIncome < 0)
   ) {
     return NextResponse.json({ error: "actualIncome must be a non-negative number or null" }, { status: 400 });
+  }
+  // AI-suggested budget amounts' "Apply" action (PRD §12.6, SE-82) — an
+  // ordinary planned_amount write, same owner-scoped budget_categories_write
+  // RLS as every other write to this table, piggybacked onto this existing
+  // PATCH rather than a new route for one more field. A manual per-category
+  // edit UI doesn't exist yet either (budget_categories has never been
+  // directly editable before this), so this is also the first real write
+  // path for it — not just an AI-suggestion applier.
+  let validatedCategoryAmounts: { categoryId: string; plannedAmount: number }[] = [];
+  if (categoryAmounts !== undefined) {
+    if (!Array.isArray(categoryAmounts)) {
+      return NextResponse.json({ error: "categoryAmounts must be an array" }, { status: 400 });
+    }
+    for (const entry of categoryAmounts) {
+      if (
+        !entry ||
+        typeof entry !== "object" ||
+        typeof (entry as { categoryId?: unknown }).categoryId !== "string" ||
+        !isUuid((entry as { categoryId: string }).categoryId) ||
+        typeof (entry as { plannedAmount?: unknown }).plannedAmount !== "number" ||
+        !Number.isFinite((entry as { plannedAmount: number }).plannedAmount) ||
+        (entry as { plannedAmount: number }).plannedAmount < 0
+      ) {
+        return NextResponse.json(
+          { error: "Each categoryAmounts entry needs a valid categoryId and a non-negative plannedAmount" },
+          { status: 400 }
+        );
+      }
+    }
+    validatedCategoryAmounts = categoryAmounts as { categoryId: string; plannedAmount: number }[];
   }
 
   try {
@@ -435,7 +470,7 @@ export async function PATCH(request: Request) {
            irregular_income_enabled = coalesce($1, irregular_income_enabled),
            actual_income = case when $2 then $3 else actual_income end
          where owner_id = $4 and month = $5::date and partnership_id is not distinct from $6::uuid
-         returning irregular_income_enabled, actual_income::float8 as actual_income`,
+         returning id, irregular_income_enabled, actual_income::float8 as actual_income`,
         [
           irregularIncomeEnabled ?? null,
           actualIncome !== undefined,
@@ -445,7 +480,26 @@ export async function PATCH(request: Request) {
           partnershipId,
         ]
       );
-      return result.rows[0] ?? null;
+      const budgetRow = result.rows[0] as { id: string; irregular_income_enabled: boolean; actual_income: number | null } | undefined;
+      if (!budgetRow) return null;
+
+      let appliedCategoryIds: string[] = [];
+      if (validatedCategoryAmounts.length > 0) {
+        const applied = await client.query(
+          `update budget_categories bc set planned_amount = updates.amount
+           from unnest($1::uuid[], $2::numeric[]) as updates(cat_id, amount)
+           where bc.category_id = updates.cat_id and bc.budget_id = $3
+           returning bc.category_id`,
+          [
+            validatedCategoryAmounts.map((c) => c.categoryId),
+            validatedCategoryAmounts.map((c) => c.plannedAmount),
+            budgetRow.id,
+          ]
+        );
+        appliedCategoryIds = applied.rows.map((r) => r.category_id as string);
+      }
+
+      return { budgetRow, appliedCategoryIds };
     });
 
     if (!updated) {
@@ -455,8 +509,9 @@ export async function PATCH(request: Request) {
       );
     }
     return NextResponse.json({
-      irregularIncomeEnabled: Boolean(updated.irregular_income_enabled),
-      actualIncome: (updated.actual_income as number | null) ?? null,
+      irregularIncomeEnabled: Boolean(updated.budgetRow.irregular_income_enabled),
+      actualIncome: (updated.budgetRow.actual_income as number | null) ?? null,
+      appliedCategoryIds: updated.appliedCategoryIds,
     });
   } catch (err) {
     console.error("PATCH /api/budget failed", err);
