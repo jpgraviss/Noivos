@@ -27,7 +27,7 @@ import { isPremium } from "@/lib/entitlements";
 // until that explicit action.
 //
 // Image attachments (photo/receipt/price-tag scan) are analyzed via
-// Claude's vision input but deliberately NOT persisted anywhere —
+// Gemini's vision input but deliberately NOT persisted anywhere —
 // ai_messages.attachment_id exists in the schema, but attachments.
 // attachment_type's own check constraint only covers
 // 'receipt'/'avatar'/'vendor_contract' (transaction receipts, profile

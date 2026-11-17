@@ -36,7 +36,7 @@ export interface BudgetSuggestionsProps {
 // AI-suggested budget amounts (PRD §12.6, SE-82's last open piece) — a
 // manual entry point (the UX blueprint's own phrasing), never fetched
 // automatically on mount like every other real-data card in this app:
-// unlike those, a request here calls the real Claude API and costs real
+// unlike those, a request here calls the real Gemini API and costs real
 // money, so it only ever fires on an explicit tap. Mirrors
 // RecurringExpenses.tsx's "detected, not yet confirmed" card shape, but
 // "confirming" here means writing straight to budget_categories.planned_amount

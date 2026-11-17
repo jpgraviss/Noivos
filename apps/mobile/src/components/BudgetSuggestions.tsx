@@ -30,7 +30,7 @@ export interface BudgetSuggestionsProps {
 
 // Mirrors apps/web's BudgetSuggestions.tsx (PRD §12.6, SE-82's last open
 // piece) — a manual entry point, never fetched on mount: unlike every
-// other real-data card in this app, a request here calls the real Claude
+// other real-data card in this app, a request here calls the real Gemini
 // API and costs real money, so it only ever fires on an explicit tap.
 export function BudgetSuggestions({ onApplied }: BudgetSuggestionsProps) {
   const { colors } = useTheme();

@@ -28,12 +28,16 @@ export const MAX_AMOUNT = 100_000_000;
 // (or deliberately) sends a whole document into a per-message LLM call.
 export const MAX_MESSAGE_LENGTH = 4000;
 // A single Purchase Advisor photo (api/ai/purchase-advisor/route.ts),
-// base64-encoded — Claude's own vision input accepts images up to ~5MB
-// raw; base64 inflates that by ~4/3, so ~8,000,000 characters is a
-// generous ceiling above a real phone photo of a receipt or price tag
-// while still ruling out someone posting an arbitrary multi-megabyte blob
-// through this field, same "rule out abuse, don't second-guess real use"
-// posture as every other limit in this file.
+// base64-encoded — a real phone photo of a receipt or price tag is
+// nowhere near this; ~8,000,000 characters (~6MB raw once base64's ~4/3
+// inflation is backed out) is a generous ceiling above that while still
+// ruling out someone posting an arbitrary multi-megabyte blob through
+// this field, same "rule out abuse, don't second-guess real use" posture
+// as every other limit in this file. (Originally sized against Claude's
+// vision input limit before the 2026-11 Gemini provider pivot — not
+// re-verified against Gemini's own inline-image limit, since
+// ai.google.dev is unreachable from this sandbox; flagged for the founder
+// to double-check once that's confirmable.)
 export const MAX_IMAGE_BASE64_LENGTH = 8_000_000;
 
 export function tooLong(value: string, max: number): boolean {
