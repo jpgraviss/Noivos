@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { buildBudgetSuggestionContextBlock } from "./ai";
 
 // Only the pure formatting helper is tested here — askFinancialCoach/
-// askPurchaseAdvisor/suggestBudgetAmounts all need a real Anthropic client
+// askPurchaseAdvisor/suggestBudgetAmounts all need a real Gemini client
 // to exercise meaningfully, same untested-by-design posture this file's
 // other two AI calls already have.
 describe("buildBudgetSuggestionContextBlock", () => {

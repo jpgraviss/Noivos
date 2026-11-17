@@ -1,43 +1,69 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI, FinishReason } from "@google/genai";
 import { z } from "zod/v4";
-import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { CategorySpendHistoryFact } from "./budget";
 
-// Added 2026-08-14 — the AI Financial Coach backend PRD §12.10 always
-// described but this project deliberately left unbuilt, gated on legal
-// review ("Legal review is still required before public launch of this
-// feature specifically — not yet scheduled," PRD §12.10 / AI Philosophy
-// §14). The founder gave explicit, direct, in-chat instruction to build it
-// now regardless: "I now need for you to do all of the work so we can
-// later get legal approval once we actually have something to show them."
-// That authorizes building and internally testing a real backend — it does
-// NOT clear this feature for public launch. The legal-review requirement
-// itself is untouched; this comment (and the PROJECT_MEMORY.md entry for
-// this date) exists so that distinction survives past this session. Do not
-// read "AI Coach has a real backend now" as "AI Coach is legally cleared."
+// Provider pivot (2026-11) — the founder's own instruction: "Not using
+// claude for AI, using free AI tools for now." Every AI feature in this
+// file (Financial Coach, Purchase Advisor, AI-suggested budget amounts)
+// now calls Google's Gemini API (free tier via an AI Studio API key)
+// instead of Anthropic's Claude API. This is a cost decision, not a
+// retraction of the founder's own earlier "build it now regardless"
+// authorization for AI Coach (still true, still documented below) or of
+// PRD §12.10/§14's legal-review requirement (still untouched, still not
+// cleared for public launch) — only which model answers the call changed.
+// Every exported function here keeps its exact same name/signature, so
+// none of the three routes that call into this file (api/ai/coach,
+// api/ai/purchase-advisor, api/ai/budget-suggestions) needed to change at
+// all; the provider swap is fully contained to this one file.
 //
-// Same graceful-degradation posture as clerkConfigured() (lib/clerk.ts):
-// no ANTHROPIC_API_KEY in the environment isn't a crash, it's an honest
-// 503 from the route that calls this — same shape as every other
-// "this backend isn't configured yet" path already in this app (Clerk
-// unconfigured, no invite-email service wired up, etc.).
+// Model: "gemini-3.8-flash" for all three — the current flash-tier model
+// name as of this build (confirmed directly from the installed
+// @google/genai SDK's own canonical usage examples, not from memory —
+// ai.google.dev itself was unreachable from this sandbox's network
+// policy). Flash-tier has always been Google AI Studio's free-tier-
+// eligible line; worth the founder double-checking gemini-3.8-flash's
+// current quota on ai.google.dev/pricing once a real GEMINI_API_KEY is in
+// hand, flagged here rather than silently assumed.
+const GEMINI_MODEL = "gemini-3.8-flash";
+
+// Same graceful-degradation posture as clerkConfigured() (lib/clerk.ts)
+// and every other "this backend isn't configured yet" check in this app:
+// no GEMINI_API_KEY in the environment isn't a crash, it's an honest 503
+// from the route that calls this.
 export function aiConfigured(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
+  return Boolean(process.env.GEMINI_API_KEY);
 }
 
-let cachedClient: Anthropic | null = null;
+let cachedClient: GoogleGenAI | null = null;
 
-// Lazily constructed, not module-top-level — instantiating Anthropic()
-// with no ANTHROPIC_API_KEY set doesn't itself throw (the SDK just has
-// nothing to authenticate with until a request is actually made), but
-// building it eagerly at import time would run in every route that
-// imports this file, including ones that never call the API. Callers
-// must check aiConfigured() before calling this — see askFinancialCoach.
-function getClient(): Anthropic {
+// Lazily constructed, not module-top-level — same reasoning as the old
+// Anthropic client this replaced: building it eagerly at import time
+// would run in every route that imports this file, including ones that
+// never call the API. Callers must check aiConfigured() before calling
+// this — see askFinancialCoach.
+function getClient(): GoogleGenAI {
   if (!cachedClient) {
-    cachedClient = new Anthropic();
+    cachedClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   }
   return cachedClient;
+}
+
+// Gemini reports a blocked/declined generation via candidates[0].finishReason
+// rather than Anthropic's stop_reason: "refusal" — this is the equivalent
+// check, thrown as the same "AI_REFUSAL" error every route's catch block
+// already knows how to turn into an honest, non-alarming message. STOP
+// (a normal completion) and MAX_TOKENS (ran out of room, not a decline)
+// both fall through and return whatever text came back, same as the old
+// code never specifically branched on Anthropic's "max_tokens" either.
+function throwIfBlocked(finishReason: FinishReason | undefined): void {
+  if (
+    finishReason !== undefined &&
+    finishReason !== FinishReason.STOP &&
+    finishReason !== FinishReason.MAX_TOKENS &&
+    finishReason !== FinishReason.FINISH_REASON_UNSPECIFIED
+  ) {
+    throw new Error("AI_REFUSAL");
+  }
 }
 
 export interface BudgetCategorySummary {
@@ -76,13 +102,21 @@ export interface ChatTurn {
   content: string;
 }
 
+// Gemini's Content.role is 'user' | 'model' (never 'assistant') — this is
+// the one shape difference multi-turn history needs when crossing from
+// the old Anthropic ChatTurn type (kept as-is so the two routes building
+// ChatTurn[] from ai_messages rows needed no changes) to Gemini's Content[].
+function toGeminiHistory(history: ChatTurn[]) {
+  return history.map((turn) => ({
+    role: turn.role === "assistant" ? ("model" as const) : ("user" as const),
+    parts: [{ text: turn.content }],
+  }));
+}
+
 // PRD §12.10 (AI Financial Coach) + §14 (AI Philosophy) + §12.9 (Purchase
 // Advisor) verbatim, turned into a system prompt. Kept as the STABLE,
 // request-independent half of the prompt — the per-request financial
-// numbers go in the user turn instead (see buildContextBlock below) so
-// this block stays byte-identical across requests and is eligible for
-// prompt caching (shared/prompt-caching.md: stable content first, volatile
-// content after the last cache_control breakpoint).
+// numbers go in the user turn instead (see buildContextBlock below).
 const COACH_SYSTEM_PROMPT = `You are the Noivos Money Coach, a financial teammate for a couple planning a wedding and building shared financial habits together.
 
 Non-negotiable rules, from this product's own AI Philosophy:
@@ -100,14 +134,8 @@ You can help with two kinds of questions:
 Keep answers concise and concrete — reference actual category names, dollar amounts, and goal names from the data given to you rather than speaking abstractly.`;
 
 // Turns the real month-of-data pulled from Neon into plain text the model
-// can reason over. Deliberately placed in the user turn, not the system
-// prompt (see COACH_SYSTEM_PROMPT's own comment) — this changes every
-// request as real numbers change, so keeping it out of the cached prefix
-// means a stale cache is never a risk, at the cost of this piece never
-// being cached itself. That's the right tradeoff here: a chat coach's
-// system prompt is reused far more often than any one month's numbers
-// are, and correctness (never reasoning over stale figures) matters more
-// than the caching win.
+// can reason over. Placed in the user turn, not the system prompt, so it's
+// never at risk of going stale across a conversation's turns.
 export function buildContextBlock(ctx: FinancialContext): string {
   const lines: string[] = [`Here's this couple's real financial picture for ${ctx.monthLabel}:`];
 
@@ -148,32 +176,7 @@ export function buildContextBlock(ctx: FinancialContext): string {
 }
 
 // Real backend call — replaces AICoachScreen.tsx's old canned/keyword-
-// matched replyTo() function. Model choice: claude-opus-5 per this
-// project's own house default (no reason to reach for a cheaper tier —
-// this is a low-volume, per-user-initiated chat, not a batch job).
-// output_config.effort "medium": this is conversational Q&A grounded in a
-// small, already-summarized data block, not multi-step agentic work — the
-// hardest-tier "xhigh" effort this model supports is built for coding/
-// agentic tasks, not a good fit here. Adaptive thinking stays on (the
-// default) but display is left "omitted" (also the default) rather than
-// "summarized" — the raw reasoning is never shown to the user either way,
-// and PRD §12.10's regulatory guardrail is about the model's *answer*, not
-// its scratch reasoning, so there's nothing to gain from surfacing it.
-// fallbacks: "default" per this project's own house default for
-// claude-opus-5 — if Claude's safety classifiers decline a request for any
-// reason, the API retries server-side on a fallback model rather than
-// this route surfacing a hard failure to two people mid-conversation
-// about their own wedding budget.
-//
-// max_tokens 4096, not something tight around "a chat reply should be
-// short": Claude Opus 5 runs adaptive thinking ON by default, and
-// max_tokens caps thinking + visible response *combined* — a budget sized
-// only for the visible answer risks the model spending most of it on
-// reasoning about the guardrails above and getting cut off mid-response
-// (a real, documented failure mode on this model, not a hypothetical).
-// 4096 leaves real headroom for both while staying well under the ~16K
-// threshold where the SDK requires streaming to avoid HTTP timeouts, so
-// this can stay a plain non-streaming call.
+// matched replyTo() function.
 export async function askFinancialCoach(
   ctx: FinancialContext,
   history: ChatTurn[],
@@ -182,43 +185,30 @@ export async function askFinancialCoach(
   const client = getClient();
   const contextBlock = buildContextBlock(ctx);
 
-  const response = await client.beta.messages.create({
-    model: "claude-opus-5",
-    max_tokens: 4096,
-    system: [{ type: "text", text: COACH_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-    output_config: { effort: "medium" },
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    messages: [
-      ...history.map((turn) => ({ role: turn.role, content: turn.content })),
-      { role: "user" as const, content: `${contextBlock}\n\nTheir question: ${question}` },
+  const response = await client.models.generateContent({
+    model: GEMINI_MODEL,
+    config: { systemInstruction: COACH_SYSTEM_PROMPT },
+    contents: [
+      ...toGeminiHistory(history),
+      { role: "user", parts: [{ text: `${contextBlock}\n\nTheir question: ${question}` }] },
     ],
   });
 
-  if (response.stop_reason === "refusal") {
-    // Both the requested model and its fallback declined — see
-    // shared/model-migration.md's refusal semantics. Surfaced to the
-    // route as a thrown error so it can return an honest, non-alarming
-    // message rather than silently returning an empty reply.
-    throw new Error("AI_REFUSAL");
-  }
-
-  const textBlock = response.content.find((block) => block.type === "text");
-  return textBlock && textBlock.type === "text" ? textBlock.text : "";
+  throwIfBlocked(response.candidates?.[0]?.finishReason);
+  return response.text ?? "";
 }
 
-// AI-suggested budget amounts (PRD §12.6, SE-82's last open piece) —
-// added 2026-11, same "build it now so there's something real the moment
-// ANTHROPIC_API_KEY is set" posture the founder already authorized for
-// AI Coach above, applied to a new feature rather than re-litigated.
-// Gated behind isPremium() at the route, not here — this file has no
-// entitlements concept of its own (see api/ai/budget-suggestions/route.ts).
-// A judgment call worth flagging: PRD §13's Free/Premium matrix doesn't
-// name this feature by row, but its own rationale sentence is unambiguous
-// ("every cost-bearing feature... LLM inference... sits behind the
-// paywall") — the matrix's omission reads as the table only having rows
-// for the three AI features named elsewhere in the PRD, not a deliberate
-// free-tier carve-out for this one.
+// AI-suggested budget amounts (PRD §12.6, SE-82's last open piece) — same
+// "build it now so there's something real the moment the API key is set"
+// posture the founder already authorized for AI Coach above. Gated behind
+// isPremium() at the route, not here — this file has no entitlements
+// concept of its own (see api/ai/budget-suggestions/route.ts). A judgment
+// call worth flagging: PRD §13's Free/Premium matrix doesn't name this
+// feature by row, but its own rationale sentence is unambiguous ("every
+// cost-bearing feature... LLM inference... sits behind the paywall") —
+// the matrix's omission reads as the table only having rows for the three
+// AI features named elsewhere in the PRD, not a deliberate free-tier
+// carve-out for this one.
 const BUDGET_SUGGESTION_SYSTEM_PROMPT = `You are the Noivos Budget Assistant, helping a couple set realistic planned amounts for their budget categories.
 
 Non-negotiable rules, from this product's own AI Philosophy:
@@ -230,8 +220,7 @@ Non-negotiable rules, from this product's own AI Philosophy:
 For each category given below, suggest a planned amount for next month based on its trailing spending history, with a one-sentence, neutral rationale. If a category's current planned amount already closely matches its own history, it's fine to suggest keeping it the same — don't invent a change just to have one.`;
 
 // Deliberately placed in the user turn, not the system prompt — same
-// "volatile per-request numbers never sit in the cached prefix" reasoning
-// as buildContextBlock above.
+// "volatile per-request numbers" reasoning as buildContextBlock above.
 export function buildBudgetSuggestionContextBlock(categories: CategorySpendHistoryFact[]): string {
   const lines: string[] = ["Here are this user's budget categories with enough spending history to suggest from:"];
   for (const c of categories) {
@@ -256,42 +245,48 @@ const BudgetSuggestionOutputSchema = z.object({
 
 export type BudgetSuggestion = z.infer<typeof BudgetSuggestionOutputSchema>["suggestions"][number];
 
-// model: claude-opus-5-5, not claude-opus-5 like askFinancialCoach/
-// askPurchaseAdvisor above — this is the current default Opus-tier model
-// as of this feature's build, not a deliberate choice to diverge from the
-// other two; migrating them to match is a separate, not-yet-requested
-// task. effort "low" (vs. those two's "medium"): this is a single bounded
-// extraction over a small, already-summarized data table with one fixed
-// output shape, not open conversational reasoning — closer to
-// classification/extraction than chat, where lower effort holds quality
-// at meaningfully less cost. Uses client.beta.messages.parse() + a Zod
-// output schema (output_config.format) instead of a forced tool_choice —
-// forced tool_choice {type: "tool"/"any"} returns a 400 on this model, and
-// structured outputs is the current, recommended replacement for exactly
-// this "I need guaranteed-parseable JSON back" case.
+// Structured JSON output via responseMimeType + responseJsonSchema — the
+// Gemini equivalent of "I need guaranteed-parseable JSON back," generated
+// from the same Zod schema via zod/v4's built-in toJSONSchema() rather
+// than hand-duplicating the shape. `$schema` is stripped before sending:
+// it isn't in the documented list of JSON Schema keywords this field
+// supports ($id/$defs/$ref/type/format/title/description/enum/items/
+// prefixItems/minItems/maxItems/minimum/maximum/anyOf/oneOf/properties/
+// additionalProperties/required), and everything this particular schema
+// actually needs (type/properties/items/required/additionalProperties)
+// is on that list.
 export async function suggestBudgetAmounts(categories: CategorySpendHistoryFact[]): Promise<BudgetSuggestion[]> {
   const client = getClient();
   const contextBlock = buildBudgetSuggestionContextBlock(categories);
+  const jsonSchema: Record<string, unknown> = z.toJSONSchema(BudgetSuggestionOutputSchema);
+  delete jsonSchema.$schema;
 
-  const response = await client.beta.messages.parse({
-    model: "claude-opus-5-5",
-    max_tokens: 4096,
-    system: [{ type: "text", text: BUDGET_SUGGESTION_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-    output_config: { effort: "low", format: betaZodOutputFormat(BudgetSuggestionOutputSchema) },
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    messages: [{ role: "user", content: contextBlock }],
+  const response = await client.models.generateContent({
+    model: GEMINI_MODEL,
+    config: {
+      systemInstruction: BUDGET_SUGGESTION_SYSTEM_PROMPT,
+      responseMimeType: "application/json",
+      responseJsonSchema: jsonSchema,
+    },
+    contents: contextBlock,
   });
 
-  if (response.stop_reason === "refusal") {
-    throw new Error("AI_REFUSAL");
-  }
+  throwIfBlocked(response.candidates?.[0]?.finishReason);
 
-  // parsed_output is null if parsing genuinely failed — same "honest
-  // absence over a fabricated result" posture as every other no-data case
-  // in this app, rather than throwing and surfacing a raw 500 for what's
+  // Same "honest absence over a fabricated result" posture as every other
+  // no-data case in this app, for both a genuinely empty response and a
+  // response that technically parses as JSON but doesn't match the schema
+  // we asked for — rather than throwing and surfacing a raw 500 for what's
   // ultimately an optional, non-critical suggestion feature.
-  return response.parsed_output?.suggestions ?? [];
+  if (!response.text) return [];
+  let parsedJson: unknown;
+  try {
+    parsedJson = JSON.parse(response.text);
+  } catch {
+    return [];
+  }
+  const parsed = BudgetSuggestionOutputSchema.safeParse(parsedJson);
+  return parsed.success ? parsed.data.suggestions : [];
 }
 
 // PRD §12.9 (AI Purchase Advisor) verbatim, turned into a system prompt —
@@ -305,11 +300,7 @@ export async function suggestBudgetAmounts(categories: CategorySpendHistoryFact[
 // `isShared`/share route this backs). Shares the same non-negotiable
 // guardrails as the Coach prompt (teammate not authority, no naming
 // specific lenders/products, no fiduciary directives) rather than
-// duplicating that language with room to drift — kept here verbatim
-// anyway (not composed from COACH_SYSTEM_PROMPT at runtime) since the two
-// prompts are cached independently per Claude's prompt-caching model, and
-// string-concatenating them at request time would mean neither ever hits
-// a stable, reusable cache prefix.
+// duplicating that language with room to drift.
 const PURCHASE_ADVISOR_SYSTEM_PROMPT = `You are the Noivos Purchase Advisor, helping a couple think through a specific purchase against their real finances.
 
 Non-negotiable rules, from this product's own AI Philosophy:
@@ -334,15 +325,13 @@ export interface PurchaseImage {
   mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 }
 
-// Same model/effort/fallback/max_tokens reasoning as askFinancialCoach
-// above — this is still a single grounded analysis, not multi-step
-// agentic work, and still needs headroom for adaptive thinking +
-// visible response to share max_tokens without truncating. The one real
-// difference: the user turn's content is an array (image block + text
-// block) instead of a plain string whenever a photo was attached — Claude
-// Opus 5's vision input is what makes receipt/price-tag/photo scanning
-// possible directly, no separate OCR service (AI Architecture §/Linear
-// SE-69's own framing).
+// Same reasoning as askFinancialCoach above — the one real difference:
+// the final user turn's parts array includes an inlineData part ahead of
+// the text part whenever a photo was attached. Gemini's vision input is
+// what makes receipt/price-tag/photo scanning possible directly, no
+// separate OCR service (AI Architecture §/Linear SE-69's own framing) —
+// unchanged by the provider pivot, Gemini's flash-tier models support
+// image input the same way Claude's did.
 export async function askPurchaseAdvisor(
   ctx: FinancialContext,
   history: ChatTurn[],
@@ -353,32 +342,18 @@ export async function askPurchaseAdvisor(
   const contextBlock = buildContextBlock(ctx);
   const textContent = `${contextBlock}\n\nThe purchase to evaluate: ${message || "(see attached photo)"}`;
 
-  const userContent: Array<
-    | { type: "text"; text: string }
-    | { type: "image"; source: { type: "base64"; media_type: PurchaseImage["mediaType"]; data: string } }
-  > = [];
+  const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
   if (image) {
-    userContent.push({ type: "image", source: { type: "base64", media_type: image.mediaType, data: image.base64 } });
+    parts.push({ inlineData: { mimeType: image.mediaType, data: image.base64 } });
   }
-  userContent.push({ type: "text", text: textContent });
+  parts.push({ text: textContent });
 
-  const response = await client.beta.messages.create({
-    model: "claude-opus-5",
-    max_tokens: 4096,
-    system: [{ type: "text", text: PURCHASE_ADVISOR_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-    output_config: { effort: "medium" },
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    messages: [
-      ...history.map((turn) => ({ role: turn.role, content: turn.content })),
-      { role: "user" as const, content: userContent },
-    ],
+  const response = await client.models.generateContent({
+    model: GEMINI_MODEL,
+    config: { systemInstruction: PURCHASE_ADVISOR_SYSTEM_PROMPT },
+    contents: [...toGeminiHistory(history), { role: "user", parts }],
   });
 
-  if (response.stop_reason === "refusal") {
-    throw new Error("AI_REFUSAL");
-  }
-
-  const textBlock = response.content.find((block) => block.type === "text");
-  return textBlock && textBlock.type === "text" ? textBlock.text : "";
+  throwIfBlocked(response.candidates?.[0]?.finishReason);
+  return response.text ?? "";
 }

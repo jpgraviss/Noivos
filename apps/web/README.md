@@ -12,9 +12,9 @@ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
 CLERK_SECRET_KEY=
 ```
 
-## AI Coach / Purchase Advisor
+## AI Coach / Purchase Advisor / Budget Suggestions
 
-`POST`/`GET /api/ai/coach` and `POST`/`GET /api/ai/purchase-advisor` (both in `lib/ai.ts`) need the same `ANTHROPIC_API_KEY` set (Vercel env vars in production, `.env.local` locally) to call the real Claude API. Without it, `aiConfigured()` makes either route return an honest 503 rather than crash — same graceful-degradation posture as `clerkConfigured()`. See `lib/ai.ts`'s own top-of-file comment for the legal-review distinction this feature carries (built for an internal demo, not cleared for public launch). `AICoachScreen.tsx` is one unified chat UI over both: a plain typed question goes to the Coach, attaching a photo routes to the Purchase Advisor (receipt/price-tag/photo scanning via Claude's vision input — no separate OCR service or env var needed for that part).
+`POST`/`GET /api/ai/coach`, `POST`/`GET /api/ai/purchase-advisor`, and `POST /api/ai/budget-suggestions` (all in `lib/ai.ts`) need `GEMINI_API_KEY` set (Vercel env vars in production, `.env.local` locally) to call the real Gemini API — a free-tier Google AI Studio key, per the founder's 2026-11 provider pivot away from Anthropic/Claude (purely a cost decision; see `lib/ai.ts`'s own top-of-file comment). Without it, `aiConfigured()` makes every one of these routes return an honest 503 rather than crash — same graceful-degradation posture as `clerkConfigured()`. See `lib/ai.ts`'s own comment for the legal-review distinction AI Coach still carries (built for an internal demo, not cleared for public launch — unaffected by which model answers the call). `AICoachScreen.tsx` is one unified chat UI over Coach/Purchase Advisor: a plain typed question goes to the Coach, attaching a photo routes to the Purchase Advisor (receipt/price-tag/photo scanning via Gemini's vision input — no separate OCR service or env var needed for that part).
 
 ## Plaid (bank connections)
 
@@ -25,7 +25,7 @@ PLAID_SECRET=
 PLAID_ENV=sandbox
 PLAID_TOKEN_ENCRYPTION_KEY=
 ```
-`PLAID_CLIENT_ID`/`PLAID_SECRET` come from a Plaid Dashboard account (`PLAID_ENV=sandbox` for test institutions/test credentials — the founder's own stated intent, not real bank data). `PLAID_TOKEN_ENCRYPTION_KEY` is this app's own AES-256-GCM key for encrypting Plaid access tokens before they reach `plaid_items.access_token_encrypted` — generate one with `openssl rand -base64 32`, and treat it as seriously as a database credential (losing it makes every already-linked bank connection unreadable; leaking it defeats the point of encrypting the tokens at all). Without either the Plaid credentials or the encryption key, every `/api/plaid/*` route returns an honest 503 — same posture as `ANTHROPIC_API_KEY`/`clerkConfigured()`.
+`PLAID_CLIENT_ID`/`PLAID_SECRET` come from a Plaid Dashboard account (`PLAID_ENV=sandbox` for test institutions/test credentials — the founder's own stated intent, not real bank data). `PLAID_TOKEN_ENCRYPTION_KEY` is this app's own AES-256-GCM key for encrypting Plaid access tokens before they reach `plaid_items.access_token_encrypted` — generate one with `openssl rand -base64 32`, and treat it as seriously as a database credential (losing it makes every already-linked bank connection unreadable; leaking it defeats the point of encrypting the tokens at all). Without either the Plaid credentials or the encryption key, every `/api/plaid/*` route returns an honest 503 — same posture as `GEMINI_API_KEY`/`clerkConfigured()`.
 
 ## Billing (Noivos Premium) + account deletion
 
