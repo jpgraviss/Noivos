@@ -50,10 +50,17 @@ export async function POST(request: Request) {
         const stripe = getStripeClient();
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
         const currentPeriodEnd = subscription.items.data[0]?.current_period_end;
+        // ON CONFLICT DO NOTHING against migration 0025's unique index —
+        // Stripe's own docs describe webhook delivery as at-least-once, so
+        // a redelivered checkout.session.completed must not create a
+        // second, fully duplicate subscription row for the same real
+        // Stripe subscription.
         await withUserContext(payerUserId, async (client) => {
           await client.query(
             `insert into subscriptions (partnership_id, payer_user_id, billing_route, external_subscription_id, status, trial_ends_at, current_period_end, stripe_customer_id)
-             values ($1, $2, 'stripe_web', $3, $4, to_timestamp($5), to_timestamp($6), $7)`,
+             values ($1, $2, 'stripe_web', $3, $4, to_timestamp($5), to_timestamp($6), $7)
+             on conflict (external_subscription_id) where external_subscription_id is not null
+             do nothing`,
             [
               partnershipId,
               payerUserId,
