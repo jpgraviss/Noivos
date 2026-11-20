@@ -10,7 +10,7 @@ import {
   computeIncomeBufferDelta,
   findOrCreateIncomeBufferCategory,
 } from "@/lib/budget";
-import { isUuid } from "@/lib/validate";
+import { isUuid, tooLarge, MAX_AMOUNT } from "@/lib/validate";
 
 // Design note (fast-tracked judgment call, same posture as the Partnership
 // status='active' fix — flagged here and in PROJECT_MEMORY.md rather than
@@ -445,7 +445,8 @@ export async function PATCH(request: Request) {
         !isUuid((entry as { categoryId: string }).categoryId) ||
         typeof (entry as { plannedAmount?: unknown }).plannedAmount !== "number" ||
         !Number.isFinite((entry as { plannedAmount: number }).plannedAmount) ||
-        (entry as { plannedAmount: number }).plannedAmount < 0
+        (entry as { plannedAmount: number }).plannedAmount < 0 ||
+        tooLarge((entry as { plannedAmount: number }).plannedAmount, MAX_AMOUNT)
       ) {
         return NextResponse.json(
           { error: "Each categoryAmounts entry needs a valid categoryId and a non-negative plannedAmount" },

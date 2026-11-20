@@ -1,4 +1,4 @@
-import { GoogleGenAI, FinishReason } from "@google/genai";
+import { GoogleGenAI, FinishReason, BlockedReason, type GenerateContentResponse } from "@google/genai";
 import { z } from "zod/v4";
 import type { CategorySpendHistoryFact } from "./budget";
 
@@ -48,20 +48,35 @@ function getClient(): GoogleGenAI {
   return cachedClient;
 }
 
-// Gemini reports a blocked/declined generation via candidates[0].finishReason
-// rather than Anthropic's stop_reason: "refusal" — this is the equivalent
-// check, thrown as the same "AI_REFUSAL" error every route's catch block
-// already knows how to turn into an honest, non-alarming message. STOP
-// (a normal completion) and MAX_TOKENS (ran out of room, not a decline)
-// both fall through and return whatever text came back, same as the old
-// code never specifically branched on Anthropic's "max_tokens" either.
-function throwIfBlocked(finishReason: FinishReason | undefined): void {
-  if (
+// Gemini reports a blocked/declined generation via two distinct, independent
+// signals — this is the equivalent of Anthropic's stop_reason: "refusal",
+// thrown as the same "AI_REFUSAL" error every route's catch block already
+// knows how to turn into an honest, non-alarming message:
+// - candidates[0].finishReason — a candidate was generated, then the
+//   output itself was blocked (SAFETY, PROHIBITED_CONTENT, etc).
+// - promptFeedback.blockReason — the *input* tripped a safety classifier
+//   before any candidate was ever generated, so `candidates` is empty and
+//   `response.text` is undefined. Checking only finishReason (as an
+//   earlier version of this function did) missed this case entirely:
+//   candidates?.[0]?.finishReason resolves to undefined for an
+//   empty-candidates response, which this function correctly treats as "no
+//   block" by design (an ordinary empty response) — so a prompt-level
+//   block silently fell through as a blank reply instead of AI_REFUSAL.
+// STOP (a normal completion) and MAX_TOKENS (ran out of room, not a
+// decline) both fall through and return whatever text came back, same as
+// the old Anthropic code never specifically branched on "max_tokens" either.
+function throwIfBlocked(response: GenerateContentResponse): void {
+  const finishReason = response.candidates?.[0]?.finishReason;
+  const blockedForSafety =
     finishReason !== undefined &&
     finishReason !== FinishReason.STOP &&
     finishReason !== FinishReason.MAX_TOKENS &&
-    finishReason !== FinishReason.FINISH_REASON_UNSPECIFIED
-  ) {
+    finishReason !== FinishReason.FINISH_REASON_UNSPECIFIED;
+
+  const blockReason = response.promptFeedback?.blockReason;
+  const blockedAtPrompt = blockReason !== undefined && blockReason !== BlockedReason.BLOCKED_REASON_UNSPECIFIED;
+
+  if (blockedForSafety || blockedAtPrompt) {
     throw new Error("AI_REFUSAL");
   }
 }
@@ -194,7 +209,7 @@ export async function askFinancialCoach(
     ],
   });
 
-  throwIfBlocked(response.candidates?.[0]?.finishReason);
+  throwIfBlocked(response);
   return response.text ?? "";
 }
 
@@ -271,7 +286,7 @@ export async function suggestBudgetAmounts(categories: CategorySpendHistoryFact[
     contents: contextBlock,
   });
 
-  throwIfBlocked(response.candidates?.[0]?.finishReason);
+  throwIfBlocked(response);
 
   // Same "honest absence over a fabricated result" posture as every other
   // no-data case in this app, for both a genuinely empty response and a
@@ -354,6 +369,6 @@ export async function askPurchaseAdvisor(
     contents: [...toGeminiHistory(history), { role: "user", parts }],
   });
 
-  throwIfBlocked(response.candidates?.[0]?.finishReason);
+  throwIfBlocked(response);
   return response.text ?? "";
 }

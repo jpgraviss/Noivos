@@ -32,6 +32,12 @@ vi.mock("@google/genai", () => ({
     PROHIBITED_CONTENT: "PROHIBITED_CONTENT",
     SPII: "SPII",
   },
+  BlockedReason: {
+    BLOCKED_REASON_UNSPECIFIED: "BLOCKED_REASON_UNSPECIFIED",
+    SAFETY: "SAFETY",
+    OTHER: "OTHER",
+    BLOCKLIST: "BLOCKLIST",
+  },
 }));
 
 const { askFinancialCoach, askPurchaseAdvisor, suggestBudgetAmounts, buildBudgetSuggestionContextBlock } = await import("./ai");
@@ -125,6 +131,16 @@ describe("askFinancialCoach", () => {
 
   it("throws AI_REFUSAL when the model declines for a safety reason", async () => {
     mockGenerateContent.mockResolvedValue({ text: undefined, candidates: [{ finishReason: "SAFETY" }] });
+    await expect(askFinancialCoach(BASE_CTX, [], "anything")).rejects.toThrow("AI_REFUSAL");
+  });
+
+  it("throws AI_REFUSAL when the *prompt* is blocked before any candidate is generated (no finishReason to check)", async () => {
+    // A real Gemini response for a prompt-level block has no candidates at
+    // all — candidates?.[0]?.finishReason resolves to undefined here,
+    // which throwIfBlocked must NOT treat as "no block" the way it
+    // correctly does for an ordinary empty response. promptFeedback.blockReason
+    // is the only signal present in this case.
+    mockGenerateContent.mockResolvedValue({ text: undefined, candidates: undefined, promptFeedback: { blockReason: "SAFETY" } });
     await expect(askFinancialCoach(BASE_CTX, [], "anything")).rejects.toThrow("AI_REFUSAL");
   });
 
